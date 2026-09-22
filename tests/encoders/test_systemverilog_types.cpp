@@ -263,7 +263,7 @@ TEST_P(SVUnitTests, Unsupported_UnpackedTaggedUnion)
 }
 
 // enforcing the fixture's own reset-value invariant.
-TEST_P(SVUnitTests, Gap_UnionAssignmentPatternLiteral)
+TEST_P(SVUnitTests, UnionAssignmentPatternLiteral)
 {
   check_bmc("union_literal.sv", 4, ProverResult::UNKNOWN);
 }
@@ -325,14 +325,14 @@ TEST_P(SVUnitTests, SignedContextWidth)
 // LRM 10.9.2 gives four structure assignment pattern forms; only the
 // by-name one is built. The default setter is ignored, so a pattern
 // that supplies one is rejected for the field it covers.
-TEST_P(SVUnitTests, Gap_StructPatternDefault)
+TEST_P(SVUnitTests, StructPatternDefault)
 {
   check_prover<KInduction>("struct_pattern_default.sv", 6, ProverResult::TRUE);
 }
 
 // The by-position form is a different expression class with no case
 // at all, so it surfaces as a bare slang enum index.
-TEST_P(SVUnitTests, Gap_StructPatternPositional)
+TEST_P(SVUnitTests, StructPatternPositional)
 {
   check_prover<KInduction>(
       "struct_pattern_positional.sv", 6, ProverResult::TRUE);

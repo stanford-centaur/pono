@@ -971,7 +971,7 @@ TEST_P(SVUnitTests, Unsupported_TemporalAssumeDisableIff)
 // A cover whose goal is a genuine eventuality has to run through the
 // LTL tableau, where reachability duality needs the verdict reported
 // inverted and Result carries no flag for it.
-TEST_P(SVUnitTests, Gap_CoverTemporalGoal)
+TEST_P(SVUnitTests, CoverTemporalGoal)
 {
   check_liveness_bmc("cover_temporal_goal.sv", 5);
 }
@@ -979,7 +979,7 @@ TEST_P(SVUnitTests, Gap_CoverTemporalGoal)
 // A local variable carries a value along one match attempt, which
 // needs a binding environment per attempt that slang's body
 // expansion does not supply.
-TEST_P(SVUnitTests, Gap_NamedSequenceLocalVar)
+TEST_P(SVUnitTests, NamedSequenceLocalVar)
 {
   check_prover<KInduction>(
       "named_sequence_local_var.sv", 8, ProverResult::TRUE);
@@ -987,7 +987,7 @@ TEST_P(SVUnitTests, Gap_NamedSequenceLocalVar)
 
 // A recursive named property has no point at which expansion stops;
 // it needs a fixpoint in the tableau instead.
-TEST_P(SVUnitTests, Gap_RecursiveNamedProperty)
+TEST_P(SVUnitTests, RecursiveNamedProperty)
 {
   check_prover<KInduction>(
       "recursive_named_property.sv", 20, ProverResult::TRUE);

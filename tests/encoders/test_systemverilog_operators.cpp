@@ -7,14 +7,25 @@ using namespace smt;
 namespace pono_tests {
 
 // ---------------------------------------------------------------------------
-// Arithmetic + comparison, bitwise + logical, shift + unary + reduction,
-// ternary + select + concatenation: each pair below replaces what used to
-// be several near-duplicate bare single-operator tests with one algebraic
-// invariant checked against free inputs across many cycles (a real proof,
-// not a single hand-picked trace) plus a companion that deliberately
-// breaks the invariant.
+// Expressions and operators.
+//
+// Most operator families are covered by an algebraic invariant checked
+// against free inputs over many cycles, rather than by a hand-picked
+// trace, and each such invariant is paired with a design that breaks it.
+// The pair is the point: the holding half alone cannot tell a correct
+// encoding from one that makes the property unreachable.
+//
+// Grouped by the part of expression handling under test. A test for a
+// new operator belongs with the family it joins; one for how an
+// expression is *placed* (its sort, its lvalue, its literal form)
+// belongs in the matching section further down.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Operator families, one invariant plus one broken twin each.
+// ---------------------------------------------------------------------------
+
+// Arithmetic and comparison.
 TEST_P(SVUnitTests, ArithCompareHolds)
 {
   check_bmc("arith_compare.sv", 8, ProverResult::UNKNOWN);
@@ -25,6 +36,7 @@ TEST_P(SVUnitTests, ArithCompareFails)
   check_bmc("arith_compare_fails.sv", 1);
 }
 
+// Bitwise and logical.
 TEST_P(SVUnitTests, BitwiseLogicalHolds)
 {
   check_bmc("bitwise_logical.sv", 6, ProverResult::UNKNOWN);
@@ -35,6 +47,7 @@ TEST_P(SVUnitTests, BitwiseLogicalFails)
   check_bmc("bitwise_logical_fails.sv", 1);
 }
 
+// Shift, unary and reduction.
 TEST_P(SVUnitTests, ShiftUnaryReductionHolds)
 {
   check_bmc("shift_unary_reduction.sv", 6, ProverResult::UNKNOWN);
@@ -45,46 +58,7 @@ TEST_P(SVUnitTests, ShiftUnaryReductionFails)
   check_bmc("shift_unary_reduction_fails.sv", 1);
 }
 
-// A comparison is encoded in whichever sort its context wants: a
-// native Bool where only its truth value is needed, a 1-bit bit-vector
-// where an actual value is (assigned into a net, fed to a concat).
-// These two check that the two forms never disagree -- the holds
-// variant uses each comparison in both roles at once.
-TEST_P(SVUnitTests, PredicateValueAndConditionHolds)
-{
-  check_bmc("predicate_value_and_condition.sv", 6, ProverResult::UNKNOWN);
-}
-
-TEST_P(SVUnitTests, PredicateValueAndConditionFails)
-{
-  check_bmc("predicate_value_and_condition_fails.sv", 1);
-}
-
-// A $past call inside a `&&` operand must be converted exactly once:
-// its history chain is not memoized, so a second conversion would add
-// a second chain of latches tracking the same value.  That is
-// invisible to any property verdict, so check the latch count.
-TEST_P(SVUnitTests, PastInLogicalAndBuildsOneChain)
-{
-  SmtSolver s = create_solver(GetParam());
-  FunctionalTransitionSystem fts(s);
-  SystemVerilogEncoder::encode(fts, sv_path("past_in_logical_and.sv"));
-
-  size_t chain_latches = 0;
-  for (const auto & sv : fts.statevars()) {
-    if (sv->to_string().find("__sva_past_") != std::string::npos) {
-      ++chain_latches;
-    }
-  }
-  // One `$past(a)`, one cycle of delay, so exactly one latch.
-  EXPECT_EQ(chain_latches, 1u);
-}
-
-TEST_P(SVUnitTests, PastInLogicalAndHolds)
-{
-  check_bmc("past_in_logical_and.sv", 6, ProverResult::UNKNOWN);
-}
-
+// Ternary, select and concatenation.
 TEST_P(SVUnitTests, TernarySelectConcatHolds)
 {
   check_bmc("ternary_select_concat.sv", 6, ProverResult::UNKNOWN);
@@ -95,16 +69,14 @@ TEST_P(SVUnitTests, TernarySelectConcatFails)
   check_bmc("ternary_select_concat_fails.sv", 1);
 }
 
-// ---------------------------------------------------------------------------
-// Replication + every sized-literal spelling; the three equivalent
-// combinational-block styles (assign / always_comb / legacy always @*).
-// ---------------------------------------------------------------------------
-
+// Replication together with every sized-literal spelling.
 TEST_P(SVUnitTests, ReplicationSizedLiteralsHold)
 {
   check_bmc("replication_sized_literals.sv", 4, ProverResult::UNKNOWN);
 }
 
+// The three equivalent combinational-block styles -- `assign`,
+// `always_comb`, and legacy `always @*` -- computing the same function.
 TEST_P(SVUnitTests, CombPathsEquivalenceHolds)
 {
   check_bmc("comb_paths.sv", 4, ProverResult::UNKNOWN);
@@ -115,153 +87,52 @@ TEST_P(SVUnitTests, CombPathsEquivalenceFails)
   check_bmc("comb_paths_fails.sv", 2);
 }
 
-// ---------------------------------------------------------------------------
-// Power ('**'), case equality ('===='/'!=='), wildcard equality ('==?'/
-// '!=?'), and reduction NAND/NOR/XNOR ('~&'/'~|'/'~^').
-//   - Power: scoped to a compile-time-constant exponent, unrolled into
-//     repeated multiplication -- a non-constant exponent throws (real BV
-//     exponentiation isn't part of the SMT BV theory).
-//   - Case equality: identical to logical equality/inequality, since this
-//     encoder's pure-BV model has no X/Z to make them actually differ.
-//   - Wildcard equality: the same (mask, value) technique as casex/casez,
-//     applied to the right operand's X/Z bits per the LRM; falls back to
-//     plain equality for a non-constant right operand.
-//   - Reduction NAND/NOR/XNOR: the existing AND/OR/XOR reduction logic,
-//     negated.
-// equality_variants.sv's wildcard-equality case has an X-containing literal
-// on the right operand, which is special-cased before the encoder's eager
-// BinaryOp operand conversion so it never reaches the generic (wildcard-
-// unaware) integer-literal path.
-// ---------------------------------------------------------------------------
-
-TEST_P(SVUnitTests, PowerOperator) { check_bmc("power_op.sv", 2); }
-
-TEST_P(SVUnitTests, EqualityVariants)
-{
-  check_bmc("equality_variants.sv", 4, ProverResult::UNKNOWN);
-}
-
+// Reduction NAND, NOR and XNOR (`~&`, `~|`, `~^`).
 TEST_P(SVUnitTests, ReductionNandNorXnor)
 {
   check_bmc("reduction_nand_nor_xnor.sv", 4, ProverResult::UNKNOWN);
 }
 
-// `i++;`/`--i;` as a standalone statement (distinct from the same
-// operator used as a `for`-loop step, which slang's constant evaluator
-// handles separately). Reuses the assignment lvalue-resolution/commit
-// machinery, so this works for any lvalue shape resolve_lvalue()
-// supports, not just a plain scalar (see ElementIncrement/
-// StructFieldIncrement below).
-TEST_P(SVUnitTests, IncrementDecrement) { check_bmc("inc_dec.sv", 4); }
+// Power (`**`) with a compile-time-constant exponent, unrolled into
+// repeated multiplication. A non-constant exponent is refused, since
+// the SMT bit-vector theory has no exponentiation.
+TEST_P(SVUnitTests, PowerOperator) { check_bmc("power_op.sv", 2); }
 
-// `++` on a packed-array element and a packed-struct field, confirming
-// the general lvalue support above rather than a scalar-only special
-// case.
-TEST_P(SVUnitTests, ElementIncrement) { check_bmc("element_increment.sv", 4); }
-
-TEST_P(SVUnitTests, StructFieldIncrement)
-{
-  check_bmc("struct_field_increment.sv", 4);
-}
-
-// Streaming concatenation ('{<<{...}}'/'{>>{...}}'), scoped to a single
-// stream with no `with` sub-range (real usage -- reversing/regrouping
-// one packed value's bits or byte-lanes), reassembling slice-sized
-// chunks in reverse order via Extract+Concat; the LRM's full generality
-// (multiple streams, `with` ranges, dynamically-sized queues) throws a
-// clear error.
-TEST_P(SVUnitTests, StreamingOperator) { check_bmc("streaming_op.sv", 2); }
-
-// Unary '+' (a no-op per the LRM).
+// Unary `+`, a no-op per the LRM.
 TEST_P(SVUnitTests, UnaryPlusIdentity) { check_bmc("unary_plus.sv", 2); }
 
-// A `&&&`-joined multi-condition ternary (`a &&& b ? x : y`, LRM
-// 11.4.11) is legal outside case/if context too; expr_to_term() must
-// AND together every joined condition, not just the first.
-TEST_P(SVUnitTests, MultiConditionTernary)
+// A streaming concatenation (`{<<{...}}` / `{>>{...}}`) as an
+// expression, reassembling slice-sized chunks in reverse order.
+TEST_P(SVUnitTests, StreamingOperator) { check_bmc("streaming_op.sv", 2); }
+
+// ---------------------------------------------------------------------------
+// Equality forms. Case equality (`===`/`!==`) coincides with logical
+// equality here, since a pure bit-vector model has no X or Z for them
+// to differ over; wildcard equality (`==?`/`!=?`) masks the right
+// operand's X and Z bits, the same rule casex and casez use.
+// ---------------------------------------------------------------------------
+
+// All four spellings together, with an X-containing literal on the
+// right of the wildcard comparison.
+TEST_P(SVUnitTests, EqualityVariants)
 {
-  check_bmc("multi_cond_ternary.sv", 0, ProverResult::UNKNOWN);
+  check_bmc("equality_variants.sv", 4, ProverResult::UNKNOWN);
 }
 
-// A user-defined function called with a symbolic argument: the body
-// is inlined where the call appears. Proved rather than unrefuted,
-// so the value it produces is pinned, not just its encodability.
-TEST_P(SVUnitTests, UserFunctionCall)
-{
-  check_prover<KInduction>("user_function_call.sv", 4, ProverResult::TRUE);
-}
-
-// A body that is more than one return: locals, assignment to the
-// function's own name, a conditional overwrite, an unrolled loop.
-TEST_P(SVUnitTests, UserFunctionBody)
-{
-  check_prover<KInduction>("user_function_body.sv", 4, ProverResult::TRUE);
-}
-
-// Repeated, nested, and function-to-function calls, each of which
-// rebinds the same formals.
-TEST_P(SVUnitTests, UserFunctionNested)
-{
-  check_prover<KInduction>("user_function_nested.sv", 4, ProverResult::TRUE);
-}
-
-// What inlining cannot reach: a call that never stops expanding, a
-// return whose value depends on which path ran, and a call that
-// writes back to its caller.
-TEST_P(SVUnitTests, UserFunctionRecursiveRejected)
-{
-  expect_encode_throws("user_function_recursive.sv");
-}
-
-TEST_P(SVUnitTests, UserFunctionCondReturnRejected)
-{
-  expect_encode_throws("user_function_cond_return.sv");
-}
-
-TEST_P(SVUnitTests, UserFunctionOutputArgRejected)
-{
-  expect_encode_throws("user_function_output_arg.sv");
-}
-
-// A wildcard pattern wider than 64 bits, via `==?`, `!=?` and a
-// casex arm. Each is asserted equivalent to comparing exactly the
-// bits the pattern pins; the low- and high-byte variants together
-// pin the bit order.
+// A wildcard pattern wider than 64 bits, through `==?`, `!=?` and a
+// casex arm. Each is checked against a comparison of exactly the bits
+// the pattern pins, and the low- and high-byte variants together pin
+// the bit order.
 TEST_P(SVUnitTests, WildcardWidePattern)
 {
   check_prover<KInduction>("wildcard_wide_pattern.sv", 4, ProverResult::TRUE);
 }
 
-INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVOperatorsTests,
-                         SVUnitTests,
-                         testing::ValuesIn(available_solver_enums()));
-
 // ---------------------------------------------------------------------------
-// `x` and `z` bits in a literal. Modelled as unconstrained bits, in
-// keeping with how this encoder treats X everywhere else, rather than
-// reaching the solver as a decimal string containing an `x`.
-// ---------------------------------------------------------------------------
-
-TEST_P(SVUnitTests, XzLiteralKnownBits)
-{
-  check_prover<KInduction>("xz_literal.sv", 12, ProverResult::TRUE);
-}
-
-TEST_P(SVUnitTests, XzLiteralUnknownBitsAreFree)
-{
-  check_bmc("xz_literal_fails.sv", 1);
-}
-
-TEST_P(SVUnitTests, XzLiteralsAreIndependent)
-{
-  check_bmc("xz_literal_independent.sv", 1);
-}
-
-// ---------------------------------------------------------------------------
-// `inside` set membership (LRM 11.4.13): an or-reduction of the
-// members' comparisons, with an integral member matched by wildcard
-// equality and a `[lo:hi]` member by an inclusive range. Both the
-// expression form and `case ... inside` share the same rule.
+// Set membership, `inside` (LRM 11.4.13): an or-reduction over the
+// members, where an integral member is matched by wildcard equality and
+// a `[lo:hi]` member by an inclusive range. The expression form and
+// `case ... inside` share the rule, so both are checked against it.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, InsideExpression)
@@ -283,5 +154,111 @@ TEST_P(SVUnitTests, CaseInsideRangeFails)
 {
   check_bmc("case_inside_range_fails.sv", 2);
 }
+
+// ---------------------------------------------------------------------------
+// How an expression is placed: the sort its context asks for, and the
+// conditions a ternary can carry.
+// ---------------------------------------------------------------------------
+
+// A comparison is encoded in whichever sort its context wants -- a
+// native Bool where only its truth value is needed, a 1-bit bit-vector
+// where a value is (assigned to a net, fed to a concatenation). These
+// check the two forms agree, with the holding half using each
+// comparison in both roles at once.
+TEST_P(SVUnitTests, PredicateValueAndConditionHolds)
+{
+  check_bmc("predicate_value_and_condition.sv", 6, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, PredicateValueAndConditionFails)
+{
+  check_bmc("predicate_value_and_condition_fails.sv", 1);
+}
+
+// A `&&&`-joined multi-condition ternary (`a &&& b ? x : y`, LRM
+// 11.4.11), which is legal outside case and if context: every joined
+// condition is ANDed together, not just the first.
+TEST_P(SVUnitTests, MultiConditionTernary)
+{
+  check_bmc("multi_cond_ternary.sv", 0, ProverResult::UNKNOWN);
+}
+
+// ---------------------------------------------------------------------------
+// `$past` inside an expression. Its history chain is not memoized, so
+// how many times the call is converted is observable in the state
+// vars even where no property verdict changes -- which is what the
+// first test here looks at directly.
+// ---------------------------------------------------------------------------
+
+// One `$past(a)` with one cycle of delay builds exactly one latch,
+// however many operands of the enclosing `&&` reach it.
+TEST_P(SVUnitTests, PastInLogicalAndBuildsOneChain)
+{
+  SmtSolver s = create_solver(GetParam());
+  FunctionalTransitionSystem fts(s);
+  SystemVerilogEncoder::encode(fts, sv_path("past_in_logical_and.sv"));
+
+  size_t chain_latches = 0;
+  for (const auto & sv : fts.statevars()) {
+    if (sv->to_string().find("__sva_past_") != std::string::npos) {
+      ++chain_latches;
+    }
+  }
+  EXPECT_EQ(chain_latches, 1u);
+}
+
+// The same design's own invariant.
+TEST_P(SVUnitTests, PastInLogicalAndHolds)
+{
+  check_bmc("past_in_logical_and.sv", 6, ProverResult::UNKNOWN);
+}
+
+// ---------------------------------------------------------------------------
+// Increment and decrement, which reach the assignment lvalue machinery
+// rather than being a scalar-only special case -- so the shapes below
+// widen from a plain variable outwards.
+// ---------------------------------------------------------------------------
+
+// `i++` / `--i` as a standalone statement, distinct from the same
+// operator as a `for`-loop step, which slang's constant evaluator
+// handles separately.
+TEST_P(SVUnitTests, IncrementDecrement) { check_bmc("inc_dec.sv", 4); }
+
+// `++` on a packed-array element.
+TEST_P(SVUnitTests, ElementIncrement) { check_bmc("element_increment.sv", 4); }
+
+// `++` on a packed-struct field.
+TEST_P(SVUnitTests, StructFieldIncrement)
+{
+  check_bmc("struct_field_increment.sv", 4);
+}
+
+// ---------------------------------------------------------------------------
+// `x` and `z` bits in a literal, modelled as unconstrained bits in
+// keeping with how this encoder treats X everywhere else.
+// ---------------------------------------------------------------------------
+
+// The known bits of such a literal keep their values.
+TEST_P(SVUnitTests, XzLiteralKnownBits)
+{
+  check_prover<KInduction>("xz_literal.sv", 12, ProverResult::TRUE);
+}
+
+// The unknown bits take either value.
+TEST_P(SVUnitTests, XzLiteralUnknownBitsAreFree)
+{
+  check_bmc("xz_literal_fails.sv", 1);
+}
+
+// Two X bits are independent of each other rather than one shared
+// value.
+TEST_P(SVUnitTests, XzLiteralsAreIndependent)
+{
+  check_bmc("xz_literal_independent.sv", 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVOperatorsTests,
+                         SVUnitTests,
+                         testing::ValuesIn(available_solver_enums()));
 
 }  // namespace pono_tests

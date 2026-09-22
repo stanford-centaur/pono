@@ -442,7 +442,7 @@ TEST_P(SVUnitTests, ForeachLoop) { check_bmc("foreach_loop.sv", 2); }
 // const-evaluable (each fixture below compares against an
 // already-unrolled `for`-loop counter), so only the branch actually
 // taken in C++ runs and the signal propagates correctly. See
-// Gap_BreakRuntimeDependent below for the runtime-dependent case.
+// BreakRuntimeDependent below for the runtime-dependent case.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, BreakInForLoop)
@@ -470,7 +470,7 @@ TEST_P(SVUnitTests, DisableNamedBlock)
 // assertion demonstrates the correctly-encoded reachable behavior
 // (`cond` staying low lets the loop run to completion and set
 // `reg_any_set`); today this just throws instead.
-TEST_P(SVUnitTests, Gap_BreakRuntimeDependent)
+TEST_P(SVUnitTests, BreakRuntimeDependent)
 {
   check_bmc("break_runtime_dependent.sv", 2);
 }
@@ -495,61 +495,79 @@ TEST_P(SVUnitTests, ImmediateAssume)
   check_bmc("immediate_assume.sv", 4, ProverResult::UNKNOWN);
 }
 
-// A void task call used as a bare statement (`bump(a, b);`): the
-// body is inlined and its output argument written back to the
-// caller's variable.
+// ---------------------------------------------------------------------------
+// Subroutines. A call is inlined where it appears, so the body's
+// statements land in the caller's context and its arguments are copied
+// in and back out. Function calls come first, then task calls, which
+// differ in having a statement of their own to deliver a write-back
+// through; the argument and control-flow shapes that inlining has to
+// account for follow.
+// ---------------------------------------------------------------------------
+
+// A function called with a symbolic argument. Proved rather than left
+// unrefuted, so the value it produces is pinned and not just its
+// encodability.
+TEST_P(SVUnitTests, UserFunctionCall)
+{
+  check_prover<KInduction>("user_function_call.sv", 4, ProverResult::TRUE);
+}
+
+// A body that is more than a single return: locals, assignment to the
+// function's own name, a conditional overwrite, and an unrolled loop.
+TEST_P(SVUnitTests, UserFunctionBody)
+{
+  check_prover<KInduction>("user_function_body.sv", 4, ProverResult::TRUE);
+}
+
+// Repeated, nested, and function-to-function calls, each rebinding the
+// same formals.
+TEST_P(SVUnitTests, UserFunctionNested)
+{
+  check_prover<KInduction>("user_function_nested.sv", 4, ProverResult::TRUE);
+}
+
+// A void task call as a bare statement (`bump(a, b);`), whose output
+// argument is written back to the caller's variable. A task call is a
+// statement, so there is somewhere for that write to go.
 TEST_P(SVUnitTests, VoidTaskCall)
 {
   check_prover<KInduction>("void_task_call.sv", 8, ProverResult::TRUE);
 }
 
-// The argument directions the write-back has to distinguish, and a
-// call on only one path, whose write-back must be guarded by that
-// condition rather than applied unconditionally.
+// The argument directions a write-back has to tell apart, and a call on
+// only one path, whose write-back is guarded by that path's condition
+// rather than applied unconditionally.
 TEST_P(SVUnitTests, TaskCallArgumentDirections)
 {
   check_prover<KInduction>("task_call_args.sv", 8, ProverResult::TRUE);
 }
 
-// What copy-in copy-out inlining cannot model.
-TEST_P(SVUnitTests, TaskCallRecursiveRejected)
-{
-  expect_encode_throws("task_call_recursive.sv");
-}
-
-TEST_P(SVUnitTests, TaskCallRefArgRejected)
-{
-  expect_encode_throws("task_call_ref_arg.sv");
-}
-
-// A subroutine local written in both arms of a runtime if/else. The
-// arms cover every path between them, but the merge only knows how
-// to combine a write with a binding that already exists, so the
-// first arm walked has nothing to pair with and it is refused as
-// having "no value on the other path".
-TEST_P(SVUnitTests, Gap_LocalVarWrittenInBothArms)
+// A subroutine local written under a runtime condition in both arms of
+// an if/else, so that between them the arms give it a value on every
+// path.
+TEST_P(SVUnitTests, LocalVarWrittenInBothArms)
 {
   check_prover<KInduction>("local_var_both_arms.sv", 8, ProverResult::TRUE);
 }
 
-// A `ref` formal aliases the caller's variable for the whole call
-// rather than being copied in and back out.
-TEST_P(SVUnitTests, Gap_SubroutineRefArgument)
+// A `ref` formal, which aliases the caller's variable for the whole
+// call rather than being copied in and back out.
+TEST_P(SVUnitTests, SubroutineRefArgument)
 {
   check_prover<KInduction>("subroutine_ref_argument.sv", 8, ProverResult::TRUE);
 }
 
-// An `output` formal's write has to reach the caller, and a call in
-// an expression has no statement slot to deliver it in.
-TEST_P(SVUnitTests, Gap_SubroutineOutputArgument)
+// An `output` formal on a *function* called from an expression, where
+// the write-back has no statement of its own to be delivered through.
+TEST_P(SVUnitTests, SubroutineOutputArgument)
 {
   check_prover<KInduction>(
       "subroutine_output_argument.sv", 8, ProverResult::TRUE);
 }
 
-// A `return` under a runtime condition: the statements after it
-// still run, so the value would be whichever assignment ran last.
-TEST_P(SVUnitTests, Gap_SubroutineConditionalReturn)
+// A `return` reached only under a runtime condition, after which the
+// remaining statements still run.
+TEST_P(SVUnitTests, SubroutineConditionalReturn)
 {
   check_prover<KInduction>(
       "subroutine_conditional_return.sv", 8, ProverResult::TRUE);

@@ -325,7 +325,7 @@ TEST_P(SVUnitTests, DynamicWritePortAliasFails)
 // written above them. Concurrent assertions are walked in the first
 // pass alongside the instances, so member order decides whether the
 // target has a term yet.
-TEST_P(SVUnitTests, Gap_AssembledSignalReadEarly)
+TEST_P(SVUnitTests, AssembledSignalReadEarly)
 {
   check_prover<KInduction>(
       "assembled_signal_read_early.sv", 6, ProverResult::TRUE);
