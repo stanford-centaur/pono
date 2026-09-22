@@ -522,12 +522,14 @@ TEST_P(SVUnitTests, TaskCallRefArgRejected)
   expect_encode_throws("task_call_ref_arg.sv");
 }
 
-// Recursion is rightly refused -- there is no point at which
-// inlining stops -- but the refusal names the function's own return
-// variable instead, so the message is the gap.
-TEST_P(SVUnitTests, Gap_RecursiveSubroutineMessage)
+// A subroutine local written in both arms of a runtime if/else. The
+// arms cover every path between them, but the merge only knows how
+// to combine a write with a binding that already exists, so the
+// first arm walked has nothing to pair with and it is refused as
+// having "no value on the other path".
+TEST_P(SVUnitTests, Gap_LocalVarWrittenInBothArms)
 {
-  expect_encode_throws_saying("recursive_subroutine.sv", "recursi");
+  check_prover<KInduction>("local_var_both_arms.sv", 8, ProverResult::TRUE);
 }
 
 // A `ref` formal aliases the caller's variable for the whole call

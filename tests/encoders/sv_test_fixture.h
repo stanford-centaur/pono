@@ -200,27 +200,6 @@ class SVUnitTests : public ::testing::Test,
                  PonoException);
   }
 
-  // Assert that encoding `file` throws, and that the message says
-  // `needle`. For a gap that is a *message* rather than a behaviour:
-  // the construct is rightly refused, but the refusal names the
-  // wrong thing, and only the wording distinguishes the two.
-  void expect_encode_throws_saying(const std::string & file,
-                                   const std::string & needle)
-  {
-    using namespace pono;
-    using namespace smt;
-    SmtSolver s = create_solver(GetParam());
-    FunctionalTransitionSystem fts(s);
-    try {
-      SystemVerilogEncoder::encode(fts, sv_path(file));
-      ADD_FAILURE() << "expected encoding " << file << " to throw";
-    }
-    catch (const PonoException & e) {
-      EXPECT_NE(std::string(e.what()).find(needle), std::string::npos)
-          << "message did not mention '" << needle << "': " << e.what();
-    }
-  }
-
   // Assert that encoding `file` succeeds without throwing at all --
   // used for out-of-scope constructs that turn out (verified
   // empirically) not to hit any of the encoder's rejection paths:

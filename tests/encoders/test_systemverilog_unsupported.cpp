@@ -163,6 +163,18 @@ TEST_P(SVUnitTests, DisplayCallStatementIgnored)
 // register.
 TEST_P(SVUnitTests, BareForever) { expect_encode_throws("bare_forever.sv"); }
 
+// Recursion to a runtime depth is not synthesizable -- it describes
+// no finite piece of hardware -- so it belongs here rather than on
+// the gap list, the same as the bare `forever` above.
+// (Today the refusal arrives via an unrelated check and names the
+// wrong cause -- see Gap_LocalVarWrittenInBothArms in
+// test_systemverilog_statements.cpp. That it is refused is what
+// matters here.)
+TEST_P(SVUnitTests, UnboundedRecursion)
+{
+  expect_encode_throws("unbounded_recursion.sv");
+}
+
 // `+incdir+`/`-y`-style tool directives in a `.f` list file are
 // rejected outright rather than silently treated as filenames --
 // parse_dot_f_file() only understands bare filenames and comments,
