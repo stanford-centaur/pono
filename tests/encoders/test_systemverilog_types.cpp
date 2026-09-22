@@ -322,6 +322,22 @@ TEST_P(SVUnitTests, SignedContextWidth)
   check_bmc("signed_context_width.sv", 0, ProverResult::UNKNOWN);
 }
 
+// LRM 10.9.2 gives four structure assignment pattern forms; only the
+// by-name one is built. The default setter is ignored, so a pattern
+// that supplies one is rejected for the field it covers.
+TEST_P(SVUnitTests, Gap_StructPatternDefault)
+{
+  check_prover<KInduction>("struct_pattern_default.sv", 6, ProverResult::TRUE);
+}
+
+// The by-position form is a different expression class with no case
+// at all, so it surfaces as a bare slang enum index.
+TEST_P(SVUnitTests, Gap_StructPatternPositional)
+{
+  check_prover<KInduction>(
+      "struct_pattern_positional.sv", 6, ProverResult::TRUE);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVTypesTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));

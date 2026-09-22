@@ -321,6 +321,26 @@ TEST_P(SVUnitTests, DynamicWritePortAliasFails)
   check_bmc("dynamic_write_port_alias_fails.sv", 2);
 }
 
+// A list file that includes another with `-f`, an ordinary EDA
+// convention the parser rejects along with every other directive.
+TEST_P(SVUnitTests, Gap_NestedFilelist)
+{
+  check_prover<Bmc>("filelist_top.sv",
+                    5,
+                    ProverResult::UNKNOWN,
+                    { sv_path("nested_filelist.f") });
+}
+
+// A signal assembled from sibling instances, read by an assertion
+// written above them. Concurrent assertions are walked in the first
+// pass alongside the instances, so member order decides whether the
+// target has a term yet.
+TEST_P(SVUnitTests, Gap_AssembledSignalReadEarly)
+{
+  check_prover<KInduction>(
+      "assembled_signal_read_early.sv", 6, ProverResult::TRUE);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVHierarchyTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));

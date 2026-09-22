@@ -522,6 +522,37 @@ TEST_P(SVUnitTests, TaskCallRefArgRejected)
   expect_encode_throws("task_call_ref_arg.sv");
 }
 
+// Recursion is rightly refused -- there is no point at which
+// inlining stops -- but the refusal names the function's own return
+// variable instead, so the message is the gap.
+TEST_P(SVUnitTests, Gap_RecursiveSubroutineMessage)
+{
+  expect_encode_throws_saying("recursive_subroutine.sv", "recursi");
+}
+
+// A `ref` formal aliases the caller's variable for the whole call
+// rather than being copied in and back out.
+TEST_P(SVUnitTests, Gap_SubroutineRefArgument)
+{
+  check_prover<KInduction>("subroutine_ref_argument.sv", 8, ProverResult::TRUE);
+}
+
+// An `output` formal's write has to reach the caller, and a call in
+// an expression has no statement slot to deliver it in.
+TEST_P(SVUnitTests, Gap_SubroutineOutputArgument)
+{
+  check_prover<KInduction>(
+      "subroutine_output_argument.sv", 8, ProverResult::TRUE);
+}
+
+// A `return` under a runtime condition: the statements after it
+// still run, so the value would be whichever assignment ran last.
+TEST_P(SVUnitTests, Gap_SubroutineConditionalReturn)
+{
+  check_prover<KInduction>(
+      "subroutine_conditional_return.sv", 8, ProverResult::TRUE);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVStatementsTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));

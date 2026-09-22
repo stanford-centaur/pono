@@ -146,9 +146,10 @@ TEST_P(SVUnitTests, FinalBlockIgnored)
 // ordinary procedural block: process_statement()'s Call-expression
 // handling recognizes any system call as simulation-only and skips it
 // (logged), the same as $display inside the `final` block above --
-// distinct from a user-defined task call, which has real side effects
-// this encoder can't inline and so throws instead (Gap_VoidTaskCall in
-// test_systemverilog_statements.cpp).
+// distinct from a user-defined task call, which throws -- a task
+// exists to write its caller's variables, and inlining happens where
+// the call appeared, so such a write would land there under none of
+// the conditions guarding the call.
 TEST_P(SVUnitTests, DisplayCallStatementIgnored)
 {
   expect_encode_succeeds_ignoring("display_call_statement.sv");
@@ -168,6 +169,11 @@ TEST_P(SVUnitTests, BareForever) { expect_encode_throws("bare_forever.sv"); }
 // a deliberate scope limitation of this encoder's `.f`-file parser
 // (an unofficial, multi-vendor EDA build-flow convention, not an IEEE
 // 1800 SystemVerilog construct), not a partially-implemented feature.
+// These two change how files are *found*, which is a build-flow
+// concern. `-f other.f` is not in that category and is a gap rather
+// than a non-goal -- it asks for the one thing this parser already
+// does, applied again; see Gap_NestedFilelist in
+// test_systemverilog_hierarchy.cpp.
 TEST_P(SVUnitTests, FilelistIncdirDirective)
 {
   expect_encode_throws("filelist_top.sv",
