@@ -1,14 +1,9 @@
 // reg_bus_slice.sv with the assertion moved above the instances that
-// assemble `bus`. A module-level concurrent assertion is walked in
-// the *first* pass -- it is a ProceduralBlockSymbol(Always) with no
-// nonblocking targets and a non-edge-triggered body, so pass one's
-// Always branch sends it to process_always_comb_once() -- which puts
-// it in member order alongside the instances. Reading `bus` before
-// they are walked throws "unknown symbol".
-//
-// Intended: the same verdict as reg_bus_slice.sv, which is this
-// design with the assertion written last. Where a reader sits in the
-// file should not change what the design means.
+// assemble `bus`, so the reader is walked before its contributors.
+// Module-level concurrent assertions are walked in the same pass as
+// instances and in member order, which is what makes the two
+// orderings different designs to the encoder rather than the same
+// one. They describe the same hardware, so they hold the same way.
 module child4_reg_early (input logic clk, input logic [3:0] in,
                          output logic [3:0] out);
   always_ff @(posedge clk) out <= in;

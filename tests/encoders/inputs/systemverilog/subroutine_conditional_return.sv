@@ -1,12 +1,9 @@
-// A `return` reached only under a runtime condition. The statements
-// after it still run, so the value would be whichever assignment ran
-// last -- which is why it is refused rather than guessed. Assigning
-// the function's name under the same condition expresses the same
-// thing and is modelled today, so this is a convenience rather than
-// a missing semantics, but it is ordinary RTL style.
+// A `return` reached only under a runtime condition, after which the
+// remaining statements still run -- so the value is whichever
+// assignment ran last. Assigning the function's name under the same
+// condition says the same thing, but this is ordinary RTL style.
 //
-// Intended: provable, and the ternary spelling of the same function
-// is.
+// The ternary spelling of the same function holds, and so must this.
 module subroutine_conditional_return (input logic clk, input logic [7:0] d,
                                       output logic [7:0] q);
 

@@ -93,8 +93,8 @@ TEST_P(SVUnitTests, UnpackedArraySelect)
 
 // An index outside the declared range: the write is ignored and the
 // read is X, and neither may touch a real cell. The paired
-// refutation below is what rules out the phantom cell the truncated
-// index used to create.
+// refutation below rules out a phantom cell created by truncating
+// the index.
 TEST_P(SVUnitTests, UnpackedArrayOutOfRange)
 {
   check_prover<KInduction>(

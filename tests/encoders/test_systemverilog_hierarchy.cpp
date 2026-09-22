@@ -83,12 +83,12 @@ TEST_P(SVUnitTests, StreamingConcatPortConnection)
 
 // `<<` moves bits across the boundaries between the stream's
 // expressions, and an alias segment is one contiguous range per
-// `<<` on a port connection. An operand is no longer one contiguous
-// range of the port, but each block it is cut into is, so this needs
-// more alias segments rather than a new representation. Checked
-// against the procedural `<<`, which unpacks the same value by a
-// separate route, so agreement is evidence about the permutation
-// rather than about one implementation of it.
+// `<<` on a port connection. An operand is not one contiguous range
+// of the port, but each block it is cut into is, so this takes one
+// alias segment per block. Checked against the procedural `<<`,
+// which unpacks the same value by a separate route, so agreement is
+// evidence about the permutation rather than about one
+// implementation of it.
 TEST_P(SVUnitTests, StreamingPortLshift)
 {
   check_prover<KInduction>("streaming_port_lshift.sv", 8, ProverResult::TRUE);
@@ -156,8 +156,8 @@ TEST_P(SVUnitTests, MultipleTopsRejected)
   expect_encode_throws("multi_top.sv");
 }
 
-// ...and --sv-top resolves it, reaching the module that was previously
-// unreachable.  `dut`'s assertion is the false one, so finding exactly
+// ...and `--sv-top` names which one to encode. `dut`'s assertion is
+// the false one, so finding exactly
 // one property here, and a counterexample for it, is what shows the
 // right module got encoded.
 TEST_P(SVUnitTests, MultipleTopsSelectedByName)
@@ -306,7 +306,7 @@ TEST_P(SVUnitTests, NestedCheckerBlock)
 
 // A checker with its own local sequential state (`count`, driven by
 // an always_ff inside the checker body), not just formal-port
-// references: SymbolTable::pre_scan_state_vars() now recurses into
+// references: SymbolTable::pre_scan_state_vars() recurses into
 // checker instances to classify `count` as a state var, and
 // process_checker_instance() declares it under the checker instance's
 // own hierarchical name (checker_local_state.chk.count) exactly like
@@ -394,10 +394,9 @@ TEST_P(SVUnitTests, InoutPortUndrivenIsFree)
 
 // An explicit (named) port -- `output .o(w)` -- names its internal
 // signal through an expression, leaving the internalSymbol field
-// slang fills in for every ordinary port null. Both connection
-// directions used to read that field and skip the port without a
-// word. Each pair is the assertion: the explicit spelling must
-// behave as the ordinary one does.
+// slang fills in for every ordinary port null, so the binding is
+// read from that expression instead. Each pair is the assertion:
+// the explicit spelling must behave as the ordinary one does.
 
 TEST_P(SVUnitTests, ExplicitPortOut)
 {

@@ -5,8 +5,7 @@
 //
 // That copy-out is a blocking write inside a clocked block, so `b`
 // is a flop: it holds the *previous* `a` plus one. The property says
-// so, rather than the `b == a + 1` this fixture used to carry, which
-// no run ever reached.
+// rather than a `b == a + 1` that no run ever reaches.
 module void_task_call (
     input logic clk,
     input logic rst,

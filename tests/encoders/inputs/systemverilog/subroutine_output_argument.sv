@@ -1,9 +1,6 @@
-// A function with an `output` formal, called from an expression. The
-// write has to reach the caller, and an expression has no statement
-// slot to deliver it in -- so the call has to be hoisted out, which
-// is a statement-level change rather than an inliner one.
-//
-// Intended: provable, and the hand-hoisted equivalent is.
+// A function with an `output` formal, called from an expression, so
+// the write-back has no statement of its own to be delivered
+// through. The hand-hoisted equivalent holds, and so must this.
 module subroutine_output_argument (input logic clk, input logic [7:0] d,
                                    output logic [7:0] q);
 

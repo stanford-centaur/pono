@@ -1,9 +1,9 @@
 // Wildcard patterns wider than 64 bits, in both spellings that use
 // them: `==?` and a casex arm. The mask and value are built as bit
-// strings, so width is no longer what decides whether a pattern can
-// be masked at all -- it used to fall back to plain equality past 64
-// bits, which handed a pattern with unknown bits to the ordinary
-// literal path and aborted the solver on an X in a decimal string.
+// strings, so width does not decide whether a pattern can be masked
+// at all. Falling back to plain equality past 64 bits would hand a
+// pattern with unknown bits to the ordinary literal path, which
+// cannot carry an X.
 //
 // Each compare is asserted equivalent to comparing just the bits the
 // pattern actually pins, which is what a wildcard means. The low and

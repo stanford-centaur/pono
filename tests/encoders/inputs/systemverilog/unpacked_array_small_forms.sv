@@ -1,4 +1,4 @@
-// Three narrow unpacked-array forms that each used to throw.
+// Three narrow unpacked-array forms.
 //
 // `neg` has a negative declared lower bound, so element 0 of the SMT
 // array sits at index -1 and the index expression is signed. The two

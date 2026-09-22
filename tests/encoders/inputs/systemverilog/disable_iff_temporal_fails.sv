@@ -1,5 +1,5 @@
 // disable_iff_temporal.sv without the `disable iff (rst)`: the reset
-// cycle is no longer exempt, so `nexttime started` is evaluated there
+// cycle is not exempt, so `nexttime started` is evaluated there
 // and fails, because `started` is still low one cycle later.  Confirms
 // the holds variant passes because of the exemption and not because
 // the property was trivially true.

@@ -6,24 +6,28 @@ using namespace smt;
 
 namespace pono_tests {
 
+// A request that must eventually be acknowledged, with nothing in the
+// design forcing the acknowledgement.
 TEST_P(SVUnitTests, ReqAckLiveness) { check_liveness_bmc("req_ack.sv", 10); }
 
+// The same handshake with the acknowledgement guaranteed.
 TEST_P(SVUnitTests, ReqAckHolds)
 {
   check_liveness_bmc("req_ack_holds.sv", 8, ProverResult::UNKNOWN);
 }
 
+// `until`.
 TEST_P(SVUnitTests, UntilLiveness) { check_liveness_bmc("until_live.sv", 10); }
 
 // `iff` with a temporal (eventuality) operand on one side, forcing
-// the whole property through ltl_to_sat()'s Iff case -- previously
-// that case always visited its operands positively regardless of the
-// requested polarity, so a temporal operand never got its correct
-// negation-normalized dual construction. `done` is tied low and
+// the whole property through ltl_to_sat()'s Iff case, which builds
+// both polarities of each operand since `iff` is monotone in
+// neither. `done` is tied low and
 // `req` tied high, so `(s_eventually done) iff req` is a constant
 // false -- violated immediately.
 TEST_P(SVUnitTests, IffTemporal) { check_liveness_bmc("iff_temporal.sv", 2); }
 
+// `s_eventually`.
 TEST_P(SVUnitTests, EventuallyAssertion)
 {
   check_liveness_bmc("eventually_assertion.sv", 5);
@@ -39,15 +43,15 @@ TEST_P(SVUnitTests, EventuallyNotRecurring)
 }
 
 // `disable iff` on a temporal property.  The pair differs only in the
-// exemption, so it pins down that the condition is applied at all --
-// it used to be computed and then ignored whenever the property did
-// not take the safety fast path, making the assertion stronger than
-// written.
+// exemption, so it pins down that the condition is applied at all,
+// including where the property does not take the safety fast path.
 TEST_P(SVUnitTests, DisableIffTemporalHolds)
 {
   check_bmc("disable_iff_temporal.sv", 10, ProverResult::UNKNOWN);
 }
 
+// A temporal property whose `disable iff` condition never fires, so the
+// attempt runs to its own verdict.
 TEST_P(SVUnitTests, DisableIffTemporalFails)
 {
   check_bmc("disable_iff_temporal_fails.sv", 1);
@@ -55,13 +59,14 @@ TEST_P(SVUnitTests, DisableIffTemporalFails)
 
 // The same pairing for a property that stays on the LTL tableau
 // path. A liveness attempt's evaluation never ends, so a condition
-// that rises after it starts still aborts it; the exemption used to
-// cover only the anchor cycle and reported a violation here.
+// that rises after it starts still aborts it, so the exemption
+// covers the whole evaluation rather than the anchor cycle.
 TEST_P(SVUnitTests, DisableIffLivenessHolds)
 {
   check_liveness_bmc("disable_iff_liveness.sv", 12, ProverResult::UNKNOWN);
 }
 
+// The same for a liveness property.
 TEST_P(SVUnitTests, DisableIffLivenessFails)
 {
   check_liveness_bmc("disable_iff_liveness_fails.sv", 12);
@@ -77,6 +82,7 @@ TEST_P(SVUnitTests, UnboundedDelayHolds)
   check_liveness_bmc("unbounded_delay.sv", 12, ProverResult::UNKNOWN);
 }
 
+// An unbounded delay, `##[m:$]`.
 TEST_P(SVUnitTests, UnboundedDelayFails)
 {
   check_liveness_bmc("unbounded_delay_fails.sv", 12);
@@ -98,16 +104,19 @@ TEST_P(SVUnitTests, GotoRepetitionHolds)
   check_liveness_bmc("goto_repetition.sv", 12, ProverResult::UNKNOWN);
 }
 
+// A goto repetition, `b[->n]`.
 TEST_P(SVUnitTests, GotoRepetitionFails)
 {
   check_liveness_bmc("goto_repetition_fails.sv", 12);
 }
 
+// How many occurrences a goto repetition counts.
 TEST_P(SVUnitTests, GotoRepetitionCountFails)
 {
   check_liveness_bmc("goto_repetition_count.sv", 14);
 }
 
+// The same count satisfied.
 TEST_P(SVUnitTests, GotoRepetitionCountHolds)
 {
   check_liveness_bmc(
@@ -124,6 +133,8 @@ TEST_P(SVUnitTests, GotoRepetitionAntecedent)
   check_bmc("goto_repetition_antecedent.sv", 6);
 }
 
+// A goto repetition as an antecedent, whose match ends on the
+// occurrence itself rather than later.
 TEST_P(SVUnitTests, GotoRepetitionAntecedentEndsOnOccurrence)
 {
   check_prover<KInduction>(
@@ -143,48 +154,55 @@ TEST_P(SVUnitTests, NonconsecutiveRepetitionAntecedent)
 // drops the refutation.
 TEST_P(SVUnitTests, WeakSequenceBase) { check_bmc("weak_seq_fails.sv", 1); }
 
+// Through `intersect`.
 TEST_P(SVUnitTests, WeakSequenceIntersect)
 {
   check_bmc("weak_seq_intersect.sv", 1);
 }
 
+// Through `throughout`.
 TEST_P(SVUnitTests, WeakSequenceThroughout)
 {
   check_bmc("weak_seq_throughout.sv", 1);
 }
 
+// Through `within`.
 TEST_P(SVUnitTests, WeakSequenceWithin) { check_bmc("weak_seq_within.sv", 1); }
 
+// Through a leading `[*1]`.
 TEST_P(SVUnitTests, WeakSequenceLeadingRepetition)
 {
   check_bmc("weak_seq_repetition.sv", 1);
 }
 
 // A leading repetition that can match emptily, which leaves no cycle
-// marking where an attempt began -- once the only question is which
-// attempt is being checked, that no longer matters. Paired with the
-// unwrapped spelling at the same depth.
+// marking where an attempt began. Paired with the unwrapped
+// spelling at the same depth.
 TEST_P(SVUnitTests, WeakSequenceEmptyLeadingRepetition)
 {
   check_bmc("weak_seq_empty_leading.sv", 2);
 }
 
+// The same sequence without the qualifier `assert property` supplies
+// for it anyway.
 TEST_P(SVUnitTests, BareSequenceEmptyLeadingRepetition)
 {
   check_bmc("bare_seq_empty_leading.sv", 2);
 }
 
-// `and`/`or` over multi-cycle operands, which used to reach the
-// tableau and be handed the strong obligation weak withholds. The
-// `and` pair is the assertion: operands of spans 1 and 2 sharing a
-// start are the 3-cycle chain, so both refute at depth 2.
+// `and`/`or` over multi-cycle operands. The `and` pair is the
+// assertion: operands of spans 1 and 2 sharing a start are the
+// 3-cycle chain, so both refute at the same depth.
 TEST_P(SVUnitTests, WeakSequenceAnd) { check_bmc("weak_seq_and.sv", 2); }
 
+// The concatenation that `and` of a span-1 and a span-2 operand reduces
+// to.
 TEST_P(SVUnitTests, WeakSequenceAndChain)
 {
   check_bmc("weak_seq_and_chain.sv", 2);
 }
 
+// `or`, whose match set is the union of its operands'.
 TEST_P(SVUnitTests, WeakSequenceOr) { check_bmc("weak_seq_or.sv", 2); }
 
 // Where `and` places the composite's end, and where it insists the
@@ -205,6 +223,8 @@ TEST_P(SVUnitTests, SeqAndNoCommonStart)
       "seq_and_no_common_start.sv", 20, ProverResult::TRUE);
 }
 
+// `and` where one operand can never match, so the composite cannot
+// either.
 TEST_P(SVUnitTests, SeqAndOneOperandOnly)
 {
   check_prover<KInduction>(
@@ -241,6 +261,7 @@ TEST_P(SVUnitTests, EventuallyRangeFails)
   check_bmc("eventually_range_fails.sv", 3);
 }
 
+// `s_eventually [m:n]`, a bounded eventuality.
 TEST_P(SVUnitTests, EventuallyRangeHolds)
 {
   check_bmc("eventually_range.sv", 12, ProverResult::UNKNOWN);
@@ -253,6 +274,7 @@ TEST_P(SVUnitTests, SAlwaysRangeHolds)
   check_bmc("s_always_range.sv", 12, ProverResult::UNKNOWN);
 }
 
+// `s_always [m:n]`.
 TEST_P(SVUnitTests, SAlwaysRangeFails)
 {
   check_bmc("s_always_range_fails.sv", 5);
@@ -266,6 +288,7 @@ TEST_P(SVUnitTests, NextTimeRangeHolds)
   check_bmc("nexttime_range.sv", 12, ProverResult::UNKNOWN);
 }
 
+// `nexttime [n]`.
 TEST_P(SVUnitTests, NextTimeRangeFails)
 {
   check_bmc("nexttime_range_fails.sv", 3);
@@ -278,27 +301,31 @@ TEST_P(SVUnitTests, AlwaysRangeUnbounded)
   check_liveness_bmc("always_range_unbounded.sv", 8, ProverResult::UNKNOWN);
 }
 
+// `always`.
 TEST_P(SVUnitTests, AlwaysAssertion) { check_bmc("always_assertion.sv", 5); }
 
+// Overlapping implication, `|->`.
 TEST_P(SVUnitTests, BinaryImplication)
 {
   check_bmc("binary_implication.sv", 1);
 }
 
+// Non-overlapping implication, `|=>`.
 TEST_P(SVUnitTests, BinaryNonOverlap) { check_bmc("binary_nonoverlap.sv", 1); }
 
+// Property conjunction.
 TEST_P(SVUnitTests, BinaryAnd) { check_bmc("binary_and.sv", 0); }
 
 // Plain-boolean `iff`, exercising assertion_expr_to_bool()'s safety
 // fast path (not ltl_to_sat() -- see IffTemporal below for that).
 TEST_P(SVUnitTests, BinaryIff) { check_bmc("binary_iff.sv", 0); }
 
+// `$past`.
 TEST_P(SVUnitTests, PastCall) { check_bmc("past_call.sv", 1); }
 
 // `$past(expr, n, enable)`'s `enable` argument gates whether each cycle's
 // sample is taken -- freezing the whole delayed history on disabled
-// cycles rather than being silently ignored (as it was before this
-// history-chain gating was added). Checked as a genuine identity against
+// cycles. Checked as a genuine identity against
 // a hand-rolled "sample-on-enable, else hold" register that implements
 // the same rule directly -- see the comment in past_call_enable.sv.
 TEST_P(SVUnitTests, PastCallWithEnable)
@@ -306,8 +333,11 @@ TEST_P(SVUnitTests, PastCallWithEnable)
   check_bmc("past_call_enable.sv", 4, ProverResult::UNKNOWN);
 }
 
+// A constant sequence delay, `##n`.
 TEST_P(SVUnitTests, SequenceDelay) { check_bmc("sequence_delay.sv", 2); }
 
+// Several assertions in one module, each becoming a property of its
+// own.
 TEST_P(SVUnitTests, MultipleAssertions)
 {
   SmtSolver s = create_solver(GetParam());
@@ -331,6 +361,8 @@ TEST_P(SVUnitTests, AssumePropertyConstrainsTrace)
   check_bmc("assume_property.sv", 4, ProverResult::UNKNOWN);
 }
 
+// `restrict property` narrowing the traces a later assertion is checked
+// against.
 TEST_P(SVUnitTests, RestrictPropertyConstrainsTrace)
 {
   check_bmc("restrict_property.sv", 4, ProverResult::UNKNOWN);
@@ -352,8 +384,8 @@ TEST_P(SVUnitTests, ImmediateCover) { check_bmc("immediate_cover.sv", 1); }
 // `cover sequence(S)` is treated the same as `cover property(P)` --
 // both set the ConcurrentAssertion handler's `is_cover` flag. A
 // multi-cycle sequence goal reaches the same reachability duality as
-// CoverProperty, now that a bare sequence is a per-cycle check
-// anchored at the attempt's own tick rather than an eventuality.
+// CoverProperty: a bare sequence is a per-cycle check anchored at
+// the attempt's own tick rather than an eventuality.
 TEST_P(SVUnitTests, CoverSequence) { check_bmc("cover_sequence.sv", 1); }
 
 // ---------------------------------------------------------------------------
@@ -371,6 +403,7 @@ TEST_P(SVUnitTests, RoseFellChangedHold)
   check_bmc("rose_fell_changed.sv", 4, ProverResult::UNKNOWN);
 }
 
+// `$onehot` and `$isunknown`.
 TEST_P(SVUnitTests, OnehotIsUnknownHold)
 {
   check_bmc("onehot_isunknown.sv", 4, ProverResult::UNKNOWN);
@@ -421,6 +454,7 @@ TEST_P(SVUnitTests, NamedPropertyArgs)
   check_bmc("named_property_args.sv", 1);
 }
 
+// The same property with its arguments written out.
 TEST_P(SVUnitTests, NamedPropertyArgsInline)
 {
   check_bmc("named_property_args_inline.sv", 1);
@@ -432,21 +466,21 @@ TEST_P(SVUnitTests, NamedPropertyExprArg)
   check_bmc("named_property_expr_arg.sv", 1);
 }
 
+// The same with the expression argument written out.
 TEST_P(SVUnitTests, NamedPropertyExprArgInline)
 {
   check_bmc("named_property_expr_arg_inline.sv", 1);
 }
 
-// A named sequence used directly as a property. Until the reference
-// resolved as a sequence, offsets_ending_now() could not see through
-// it, so this fell past the bare-sequence branch to the tableau
-// while its inline twin took the safety path -- the same property,
-// encoded two different ways. They now agree, down to the depth.
+// A named sequence used directly as a property, which is a bounded
+// per-cycle check rather than an eventuality. Paired with its inline
+// twin, which it must match down to the depth.
 TEST_P(SVUnitTests, NamedSequenceArgs)
 {
   check_bmc("named_sequence_args.sv", 1);
 }
 
+// The same sequence written out.
 TEST_P(SVUnitTests, NamedSequenceArgsInline)
 {
   check_bmc("named_sequence_args_inline.sv", 1);
@@ -460,16 +494,20 @@ TEST_P(SVUnitTests, NamedAssertionNested)
   check_bmc("named_assertion_nested.sv", 2);
 }
 
+// The same property with both references written out.
 TEST_P(SVUnitTests, NamedAssertionNestedInlined)
 {
   check_bmc("named_assertion_nested_inlined.sv", 2);
 }
 
+// Two levels of nesting, the inner reference sitting inside a sequence
+// concatenation rather than alone.
 TEST_P(SVUnitTests, NamedAssertionNestedDeep)
 {
   check_bmc("named_assertion_nested_deep.sv", 3);
 }
 
+// The same with every reference written out.
 TEST_P(SVUnitTests, NamedAssertionNestedDeepInlined)
 {
   check_bmc("named_assertion_nested_deep_inlined.sv", 3);
@@ -564,8 +602,10 @@ TEST_P(SVUnitTests, WeakSeqMatchesBareSequence)
 
 TEST_P(SVUnitTests, SeqIntersect) { check_bmc("seq_intersect.sv", 1); }
 
+// `within` as a sequence operator.
 TEST_P(SVUnitTests, SeqWithin) { check_bmc("seq_within.sv", 1); }
 
+// `throughout` as a sequence operator.
 TEST_P(SVUnitTests, SeqThroughout) { check_bmc("seq_throughout.sv", 1); }
 
 // ---------------------------------------------------------------------------
@@ -575,8 +615,7 @@ TEST_P(SVUnitTests, SeqThroughout) { check_bmc("seq_throughout.sv", 1); }
 // nondeterministic per-cycle choice of which clock toggles), so
 // rather than silently collapsing `clk2` onto the same global cycle
 // as `clk1` (the property's own outer clock, established first),
-// check_clock() rejects the design outright -- correctly out of
-// scope, not a gap to eventually close.
+// check_clock() rejects the design outright.
 // A named clocking block as an assertion's clocking event. slang
 // binds `@(cb)` as a reference to the block rather than to a signal,
 // so the clock is the event the block was declared with. (A `default
@@ -590,10 +629,9 @@ TEST_P(SVUnitTests, SampledValueClockingEvent)
   check_prover<KInduction>("sampled_clocking_event.sv", 6, ProverResult::TRUE);
 }
 
-// Naming a second clock used to be accepted and ignored, which made
-// this design prove that the two clocks agree while a property on
-// that same clock was rejected. Both paths now share one record of
-// the design's clock.
+// Naming a second clock, which the design does not run on. The
+// sampled-value path and the property path consult one record of the
+// design's clock, so both refuse it.
 TEST_P(SVUnitTests, Unsupported_SampledValueSecondClock)
 {
   expect_encode_throws("sampled_clocking_event_second_clock.sv");
@@ -651,11 +689,13 @@ TEST_P(SVUnitTests, EmptyRepetitionMatch)
   check_prover<KInduction>("empty_repeat_match.sv", 16, ProverResult::TRUE);
 }
 
+// A match claimed for a repetition that matched emptily.
 TEST_P(SVUnitTests, EmptyRepetitionMatchFails)
 {
   check_bmc("empty_repeat_match_fails.sv", 2);
 }
 
+// `[*0:$]`.
 TEST_P(SVUnitTests, EmptyRepetitionUnbounded)
 {
   check_prover<KInduction>("empty_repeat_unbounded.sv", 16, ProverResult::TRUE);
@@ -671,6 +711,7 @@ TEST_P(SVUnitTests, EmptyRepetitionZeroDelay)
       "empty_repeat_zero_delay.sv", 20, ProverResult::TRUE);
 }
 
+// `##0` against an empty match, which matches nothing.
 TEST_P(SVUnitTests, EmptyRepetitionZeroDelayFails)
 {
   check_bmc("empty_repeat_zero_delay_fails.sv", 2);
@@ -688,11 +729,15 @@ TEST_P(SVUnitTests, EmptyMatchingAntecedent)
   check_bmc("unbounded_repeat_star.sv", 6);
 }
 
+// An antecedent that admits an empty match, checked against the
+// spelling it is equivalent to.
 TEST_P(SVUnitTests, EmptyMatchingAntecedentEquiv)
 {
   check_bmc("unbounded_repeat_star_equiv.sv", 6);
 }
 
+// The neighbouring case where the repetition cannot match emptily, so
+// the antecedent still constrains.
 TEST_P(SVUnitTests, NonemptyRepetitionAntecedentStillGuards)
 {
   check_prover<KInduction>(
@@ -710,66 +755,73 @@ TEST_P(SVUnitTests, EmptyRepetitionTrailing)
   check_prover<KInduction>("star_trailing.sv", 18, ProverResult::TRUE);
 }
 
+// An empty-matching repetition at the end of a sequence.
 TEST_P(SVUnitTests, EmptyRepetitionTrailingFails)
 {
   check_bmc("star_trailing_fails.sv", 4);
 }
 
+// One in the middle of a sequence.
 TEST_P(SVUnitTests, EmptyRepetitionMidSequence)
 {
   check_prover<KInduction>("star_middle.sv", 18, ProverResult::TRUE);
 }
 
+// The same with the span moved.
 TEST_P(SVUnitTests, EmptyRepetitionMidSequenceFails)
 {
   check_bmc("star_middle_fails.sv", 4);
 }
 
+// One meeting a delay range.
 TEST_P(SVUnitTests, EmptyRepetitionDelayRange)
 {
   check_prover<KInduction>("star_delay_range.sv", 18, ProverResult::TRUE);
 }
 
+// One as an `intersect` operand.
 TEST_P(SVUnitTests, EmptyRepetitionIntersectOperand)
 {
   check_prover<KInduction>("star_intersect.sv", 18, ProverResult::TRUE);
 }
 
+// One under `first_match`.
 TEST_P(SVUnitTests, EmptyRepetitionFirstMatch)
 {
   check_prover<KInduction>("star_first_match.sv", 18, ProverResult::TRUE);
 }
 
+// `[+]`, one or more.
 TEST_P(SVUnitTests, SequenceRepetitionPlus)
 {
   check_bmc("unbounded_repeat_plus.sv", 1);
 }
 
+// The same where a bound is reached.
 TEST_P(SVUnitTests, SequenceRepetitionPlusBounded)
 {
   check_bmc("unbounded_repeat_plus_bounded.sv", 1);
 }
 
+// `[*n:$]`.
 TEST_P(SVUnitTests, SequenceRepetitionUnboundedRange)
 {
   check_bmc("unbounded_repeat_range.sv", 1);
 }
 
+// The same where a bound is reached.
 TEST_P(SVUnitTests, SequenceRepetitionUnboundedRangeBounded)
 {
   check_bmc("unbounded_repeat_range_bounded.sv", 1);
 }
 
 // ---------------------------------------------------------------------------
-// Property-level connectives ltl_to_sat()/assertion_expr_to_bool()
-// previously had no gadget for -- silently dropped (the whole property
-// simply never checked, no thrown error) before this session started,
-// then converted to a clean throw, and now genuinely implemented by
-// composing this file's existing gadgets. `accept_on`/`reject_on` are
-// among them: an accept is the waiver `disable iff` already expresses,
-// threaded through the same member so each shape gates its own attempt
-// window, and a reject is its opposite. A temporal operand is still
-// refused.
+// Property-level connectives, each composed from this file's other
+// gadgets rather than having a tableau case of its own. `accept_on`
+// is the waiver `disable iff` already expresses, threaded through
+// the same member so each shape gates its own attempt window;
+// `reject_on` is its opposite, and the sync spellings coincide with
+// the async ones where there is no time between clock ticks.
 // ---------------------------------------------------------------------------
 
 // In-property `if (sel) a else b`: a plain ITE composition, reduces to
@@ -803,6 +855,8 @@ TEST_P(SVUnitTests, PropertyAcceptOnAlways)
       "property_accept_on_always.sv", 8, ProverResult::TRUE);
 }
 
+// `reject_on` with the abort condition held and the operand true, since
+// a reject causes the failure rather than waiving it.
 TEST_P(SVUnitTests, PropertyRejectOn) { check_bmc("property_reject_on.sv", 0); }
 
 // How far the abort reaches, on a design where the pulse sits at the
@@ -816,11 +870,15 @@ TEST_P(SVUnitTests, PropertyAcceptOnWindow)
       "property_accept_on_window.sv", 25, ProverResult::TRUE);
 }
 
+// The same design with the pulse clear of the failing attempt, so
+// nothing is waived.
 TEST_P(SVUnitTests, PropertyAcceptOnOutsideWindow)
 {
   check_bmc("property_accept_on_outside_window.sv", 1);
 }
 
+// `sync_accept_on`, which coincides with the asynchronous form where
+// there is no time between clock ticks.
 TEST_P(SVUnitTests, PropertySyncAcceptOn)
 {
   check_prover<KInduction>(
@@ -886,6 +944,7 @@ TEST_P(SVUnitTests, TemporalAssumeProperty)
       "temporal_assume_property.sv", 20, ProverResult::TRUE);
 }
 
+// The same design with the assumption removed.
 TEST_P(SVUnitTests, TemporalAssumeAbsent)
 {
   check_liveness_bmc("temporal_assume_absent.sv", 5);
@@ -899,6 +958,7 @@ TEST_P(SVUnitTests, TemporalAssumeUnrelated)
   check_liveness_bmc("temporal_assume_unrelated.sv", 5);
 }
 
+// `restrict property` as the same fairness constraint.
 TEST_P(SVUnitTests, TemporalRestrictProperty)
 {
   check_liveness_prover<KInduction>(
@@ -913,6 +973,7 @@ TEST_P(SVUnitTests, FairnessHandshake)
       "fairness_handshake.sv", 20, ProverResult::TRUE);
 }
 
+// The same handshake with nothing promising the acknowledgement.
 TEST_P(SVUnitTests, FairnessHandshakeUnfair)
 {
   check_liveness_bmc("fairness_handshake_unfair.sv", 5);
@@ -926,6 +987,7 @@ TEST_P(SVUnitTests, FairnessAssumeAfterAssert)
       "fairness_assume_after_assert.sv", 20, ProverResult::TRUE);
 }
 
+// Two fairness assumptions, and an assertion neither grants alone.
 TEST_P(SVUnitTests, FairnessTwoAssumptions)
 {
   check_liveness_prover<KInduction>(
@@ -951,22 +1013,20 @@ TEST_P(SVUnitTests, FairnessNotAppliedToSafety)
   check_bmc("fairness_not_applied_to_safety.sv", 1);
 }
 
+// The same design asked as a liveness property, where the assumption
+// does reach.
 TEST_P(SVUnitTests, FairnessAppliedToLiveness)
 {
   check_liveness_prover<KInduction>(
       "fairness_applied_to_liveness.sv", 20, ProverResult::TRUE);
 }
 
+// A `disable iff` on a fairness assumption, which would leave it
+// holding over some suffixes and not others.
 TEST_P(SVUnitTests, Unsupported_TemporalAssumeDisableIff)
 {
   expect_encode_throws("temporal_assume_disable_iff.sv");
 }
-
-// ---------------------------------------------------------------------------
-// Gaps: real, verification-relevant constructs this encoder does not
-// support yet. Each asserts the behaviour it should have and is RED
-// until it does -- see the ledger in memory for sizes and approach.
-// ---------------------------------------------------------------------------
 
 // A cover whose goal is a genuine eventuality has to run through the
 // LTL tableau, where reachability duality needs the verdict reported
@@ -1008,11 +1068,13 @@ TEST_P(SVUnitTests, SequenceRepetition)
   check_prover<KInduction>("sequence_repetition.sv", 20, ProverResult::TRUE);
 }
 
+// A consecutive repetition, `[*n]`.
 TEST_P(SVUnitTests, SequenceRepetitionFails)
 {
   check_bmc("sequence_repetition_fails.sv", 5);
 }
 
+// A bounded repetition range, `[*m:n]`.
 TEST_P(SVUnitTests, SequenceRepetitionRange)
 {
   check_prover<KInduction>(
@@ -1034,11 +1096,13 @@ TEST_P(SVUnitTests, UnboundedDelayAntecedent)
       "unbounded_delay_antecedent.sv", 20, ProverResult::TRUE);
 }
 
+// An unbounded delay in an antecedent.
 TEST_P(SVUnitTests, UnboundedDelayAntecedentFails)
 {
   check_bmc("unbounded_delay_antecedent_fails.sv", 3);
 }
 
+// A goto repetition followed by another element, as an antecedent.
 TEST_P(SVUnitTests, GotoThenElementAntecedent)
 {
   check_prover<KInduction>("goto_then_antecedent.sv", 20, ProverResult::TRUE);
@@ -1054,6 +1118,7 @@ TEST_P(SVUnitTests, UnboundedDelayConsequentFails)
   check_liveness_bmc("unbounded_delay_consequent.sv", 4);
 }
 
+// An unbounded delay in a consequent, which is an eventuality.
 TEST_P(SVUnitTests, UnboundedDelayConsequentHolds)
 {
   check_liveness_bmc(
@@ -1069,11 +1134,14 @@ TEST_P(SVUnitTests, GotoAfterElement)
   check_prover<KInduction>("goto_after_element.sv", 40, ProverResult::TRUE);
 }
 
+// A goto repetition that follows another element, so its count starts
+// where that element ended.
 TEST_P(SVUnitTests, GotoAfterElementFails)
 {
   check_bmc("goto_after_element_fails.sv", 9);
 }
 
+// The same with a delay between the two.
 TEST_P(SVUnitTests, GotoAfterElementDelay)
 {
   check_prover<KInduction>(
@@ -1091,6 +1159,7 @@ TEST_P(SVUnitTests, GotoAfterElementOverlap)
       "goto_after_element_overlap.sv", 40, ProverResult::TRUE);
 }
 
+// The same at `##0`.
 TEST_P(SVUnitTests, GotoAfterElementOverlapFails)
 {
   check_bmc("goto_after_element_overlap_fails.sv", 4);

@@ -1,8 +1,8 @@
 // A `<<` streaming concatenation as an output-port connection. The
 // re-ordering moves bits across the boundaries between the stream's
-// expressions, so an operand is no longer one contiguous range of
-// the port -- but the blocks it is cut into each are, so the answer
-// is more alias segments rather than a different representation.
+// expressions, so an operand is not one contiguous range of the
+// port -- but each block it is cut into is, so this takes one alias
+// segment per block.
 //
 // The check is against the procedural `<<`, which unpacks the same
 // value by a separate route (stream_unreorder() on the right-hand

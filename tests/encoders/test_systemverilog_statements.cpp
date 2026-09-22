@@ -143,7 +143,7 @@ TEST_P(SVUnitTests, ConcatenationLhsNextState)
 // else) -- unlike concat_lhs_next_state.sv above, where hi/lo are also
 // written via a plain (non-concat) NB assign in the reset branch, so
 // they get classified as state vars through that unrelated path
-// regardless. This isolates the pre-scan classification gap: the
+// regardless. This isolates the pre-scan classification: the
 // concat-target write's own base symbols must be recognized as state
 // vars by collect_nonblocking_targets() itself.
 TEST_P(SVUnitTests, ConcatenationLhsOnlyWrite)
@@ -274,7 +274,7 @@ TEST_P(SVUnitTests, NestedDynamicBitWrite)
       "nested_dynamic_bit_write.sv", 12, ProverResult::TRUE);
 }
 
-// Both of these used to drop the write with no diagnostic, leaving
+// Neither may drop the write without a diagnostic, which would leave
 // the target free.
 TEST_P(SVUnitTests, ConcatDynamicOperandRejected)
 {
@@ -289,8 +289,8 @@ TEST_P(SVUnitTests, InitialDynamicIndexRejected)
 
 // A temporary declared inside a procedural block is bound to the
 // value it carries, not turned into a register. An uninitialized
-// 4-state one used to be forced to its all-X default and stringified
-// into the solver, which aborted with no source location at all.
+// 4-state one is unconstrained rather than forced to its all-X
+// default and stringified into the solver.
 TEST_P(SVUnitTests, ProceduralTemporary)
 {
   check_prover<KInduction>("procedural_temp.sv", 12, ProverResult::TRUE);
@@ -477,15 +477,9 @@ TEST_P(SVUnitTests, DisableNamedBlock)
 }
 
 // A `break` guarded by a runtime signal rather than a compile-time
-// constant can't be modeled as C++-level control flow today (the
-// general symbolic-guard path processes both `if` arms
-// unconditionally) -- but a statically-bounded loop with a
-// data-dependent early exit is ordinary synthesizable RTL (e.g. a
-// priority-encoder-style search-with-break), not an inherent modeling
-// impossibility like a truly unbounded `forever`. The fixture's own
-// assertion demonstrates the correctly-encoded reachable behavior
-// (`cond` staying low lets the loop run to completion and set
-// `reg_any_set`); today this just throws instead.
+// constant, inside a statically bounded loop -- the shape a
+// priority encoder takes. `cond` staying low lets the loop run to
+// completion and set `reg_any_set`.
 TEST_P(SVUnitTests, BreakRuntimeDependent)
 {
   check_bmc("break_runtime_dependent.sv", 2);

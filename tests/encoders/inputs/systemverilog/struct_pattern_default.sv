@@ -1,11 +1,6 @@
 // The `'{default: v}` form of a structure assignment pattern (LRM
-// 10.9.2), which fills every member without naming them.
-// expr_to_term() reads only the pattern's named member setters and
-// ignores its default setter, so this is rejected as "assignment
-// pattern missing field 'hi'" -- blaming the writer for omitting
-// what they did in fact supply.
-//
-// Intended: provable, and the by-name spelling of the same value is.
+// 10.9.2), which fills every member without naming them. The by-name
+// spelling of the same value holds, and so must this.
 typedef struct packed {
   logic [3:0] hi;
   logic [3:0] lo;

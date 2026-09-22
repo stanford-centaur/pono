@@ -2,9 +2,9 @@
 // bits X, so nothing may be proved about them -- but whatever the
 // select does reach must still come through exactly.
 //
-// A constant index past the end used to reach the solver as an
-// out-of-bounds Extract and abort; a dynamic one shifted in zeros
-// instead, which made `p[i] == 0` provable for an i the array has no
+// A constant index past the end must not reach the solver as an
+// out-of-bounds Extract, and a dynamic one must not shift in zeros,
+// which would make `p[i] == 0` provable for an i the array has no
 // element for. The refutations live in select_out_of_range_fails.sv,
 // since only the in-range halves can be asserted here.
 module select_out_of_range (
