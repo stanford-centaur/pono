@@ -169,15 +169,22 @@ TEST_P(SVUnitTests, BareForever) { expect_encode_throws("bare_forever.sv"); }
 // a deliberate scope limitation of this encoder's `.f`-file parser
 // (an unofficial, multi-vendor EDA build-flow convention, not an IEEE
 // 1800 SystemVerilog construct), not a partially-implemented feature.
-// These two change how files are *found*, which is a build-flow
-// concern. `-f other.f` is not in that category and is a gap rather
-// than a non-goal -- it asks for the one thing this parser already
-// does, applied again; see Gap_NestedFilelist in
-// test_systemverilog_hierarchy.cpp.
+// `-f other.f`, which nests one list file inside another, is the
+// same answer and for the same reason: the parser understands bare
+// filenames, and nothing else in a `.f` file is planned.
 TEST_P(SVUnitTests, FilelistIncdirDirective)
 {
   expect_encode_throws("filelist_top.sv",
                        { sv_path("filelist_bad_directive.f") });
+}
+
+// The nesting directive specifically, since it is the one a reader
+// is most likely to expect to work -- it asks for what the parser
+// already does, applied again. Still refused: bare filenames are the
+// whole of the supported `.f` syntax.
+TEST_P(SVUnitTests, FilelistNestedInclude)
+{
+  expect_encode_throws("filelist_top.sv", { sv_path("nested_filelist.f") });
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVUnsupportedTests,
