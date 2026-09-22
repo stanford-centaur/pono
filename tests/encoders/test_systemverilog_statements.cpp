@@ -16,6 +16,7 @@ TEST_P(SVUnitTests, CompoundAssignOrReduce)
   check_bmc("compound_assign.sv", 2);
 }
 
+// An element select as an assignment target.
 TEST_P(SVUnitTests, ElementSelectLhs) { check_bmc("element_select_lhs.sv", 2); }
 
 // Range-select (bit-slice) LHS on a plain continuous assign
@@ -75,6 +76,8 @@ TEST_P(SVUnitTests, SelectOutOfRangeReads)
   check_prover<KInduction>("select_out_of_range.sv", 6, ProverResult::TRUE);
 }
 
+// A constant out-of-range select read as some fixed value rather than
+// as unknown.
 TEST_P(SVUnitTests, SelectOutOfRangeConstantFails)
 {
   check_bmc("select_out_of_range_fails.sv", 0);
@@ -197,6 +200,7 @@ TEST_P(SVUnitTests, Unsupported_StreamingConcatWithRange)
 // solely on `initial` to pin state.
 TEST_P(SVUnitTests, EncodeCounter) { check_bmc("counter.sv", 5); }
 
+// An `initial` block giving a register its starting value.
 TEST_P(SVUnitTests, InitialBlockSetsState) { check_bmc("initial_block.sv", 0); }
 
 // `always_latch`: pre_scan_always_latch() marks every blocking-
@@ -239,6 +243,8 @@ TEST_P(SVUnitTests, CombPartialWriteComposes)
   check_prover<KInduction>("comb_partial_write.sv", 8, ProverResult::TRUE);
 }
 
+// The bits an `always_comb` block does not write claimed to hold a
+// value.
 TEST_P(SVUnitTests, CombPartialWriteFails)
 {
   check_bmc("comb_partial_write_fails.sv", 0);
@@ -252,6 +258,7 @@ TEST_P(SVUnitTests, InitialPartialWriteComposes)
   check_prover<KInduction>("initial_partial_write.sv", 6, ProverResult::TRUE);
 }
 
+// The same for an `initial` block.
 TEST_P(SVUnitTests, InitialPartialWriteFails)
 {
   check_bmc("initial_partial_write_fails.sv", 0);
@@ -274,6 +281,7 @@ TEST_P(SVUnitTests, ConcatDynamicOperandRejected)
   expect_encode_throws("concat_dynamic_operand.sv");
 }
 
+// A runtime-indexed write in an `initial` block.
 TEST_P(SVUnitTests, InitialDynamicIndexRejected)
 {
   expect_encode_throws("initial_dynamic_index.sv");
@@ -321,6 +329,8 @@ TEST_P(SVUnitTests, PriorityIfUniqueCaseFails)
   check_bmc("priority_if_unique_case.sv", 2);
 }
 
+// `priority if` and `unique case`, whose qualifiers narrow nothing the
+// encoder may rely on.
 TEST_P(SVUnitTests, PriorityIfUniqueCaseHolds)
 {
   check_bmc("priority_if_unique_case_holds.sv", 6, ProverResult::UNKNOWN);
@@ -428,10 +438,13 @@ TEST_P(SVUnitTests, PatternCaseTaggedIgnoringTagFails)
 
 TEST_P(SVUnitTests, WhileLoop) { check_bmc("while_loop.sv", 2); }
 
+// A `do ... while` loop, unrolled.
 TEST_P(SVUnitTests, DoWhileLoop) { check_bmc("do_while_loop.sv", 2); }
 
+// A `repeat` loop.
 TEST_P(SVUnitTests, RepeatLoop) { check_bmc("repeat_loop.sv", 2); }
 
+// A `foreach` loop.
 TEST_P(SVUnitTests, ForeachLoop) { check_bmc("foreach_loop.sv", 2); }
 
 // ---------------------------------------------------------------------------
@@ -450,11 +463,14 @@ TEST_P(SVUnitTests, BreakInForLoop)
   check_bmc("break_in_for.sv", 6, ProverResult::UNKNOWN);
 }
 
+// `continue` inside an unrolled for-loop, skipping the rest of one
+// iteration.
 TEST_P(SVUnitTests, ContinueInForLoop)
 {
   check_bmc("continue_in_for.sv", 6, ProverResult::UNKNOWN);
 }
 
+// `disable` naming an enclosing block.
 TEST_P(SVUnitTests, DisableNamedBlock)
 {
   check_bmc("disable_named_block.sv", 6, ProverResult::UNKNOWN);
@@ -586,6 +602,8 @@ TEST_P(SVUnitTests, InitialOnlyDriver)
   check_prover<KInduction>("initial_only_driver.sv", 8, ProverResult::TRUE);
 }
 
+// A register whose only driver is an `initial` block, left free where
+// that block does not write it.
 TEST_P(SVUnitTests, InitialOnlyDriverUnwrittenIsFree)
 {
   check_bmc("initial_only_driver_fails.sv", 1);
@@ -600,6 +618,7 @@ TEST_P(SVUnitTests, InitialDynamicWrite)
   check_prover<KInduction>("initial_dynamic_write.sv", 8, ProverResult::TRUE);
 }
 
+// The elements a runtime-indexed initial write does not reach.
 TEST_P(SVUnitTests, InitialDynamicWriteRestIsFree)
 {
   check_bmc("initial_dynamic_write_fails.sv", 0);
@@ -664,11 +683,14 @@ TEST_P(SVUnitTests, AlwaysCombLatch)
   check_prover<KInduction>("always_comb_latch.sv", 12, ProverResult::TRUE);
 }
 
+// An `always_comb` block that does not write on every path, which holds
+// its value rather than being a wire.
 TEST_P(SVUnitTests, AlwaysCombLatchIsNotAWire)
 {
   check_bmc("always_comb_latch_fails.sv", 1);
 }
 
+// An `always_comb` block that does write on every path.
 TEST_P(SVUnitTests, AlwaysCombFullyAssigned)
 {
   check_prover<KInduction>("always_comb_full.sv", 12, ProverResult::TRUE);

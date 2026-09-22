@@ -6,11 +6,13 @@ using namespace smt;
 
 namespace pono_tests {
 
+// A design of more than one module.
 TEST_P(SVUnitTests, HierarchicalModules)
 {
   check_bmc("hierarchical.sv", 5, ProverResult::UNKNOWN);
 }
 
+// A read of a child instance's signal through a dot-path.
 TEST_P(SVUnitTests, HierarchicalValue)
 {
   check_bmc("hierarchical_value.sv", 6);
@@ -92,12 +94,16 @@ TEST_P(SVUnitTests, StreamingPortLshift)
   check_prover<KInduction>("streaming_port_lshift.sv", 8, ProverResult::TRUE);
 }
 
+// The same where the slice size does not divide the width, so one block
+// is short.
 TEST_P(SVUnitTests, StreamingPortLshiftShortBlock)
 {
   check_prover<KInduction>(
       "streaming_port_lshift_short_block.sv", 8, ProverResult::TRUE);
 }
 
+// The same with operands of unequal width, so operand and block
+// boundaries fall in different places.
 TEST_P(SVUnitTests, StreamingPortLshiftUneven)
 {
   check_prover<KInduction>(
@@ -111,18 +117,23 @@ TEST_P(SVUnitTests, StreamingPortLshiftMismatch)
   check_bmc("streaming_port_lshift_mismatch.sv", 0);
 }
 
+// A `generate for` block.
 TEST_P(SVUnitTests, GenerateForBlock) { check_bmc("generate_block.sv", 6); }
 
+// A procedural for-loop, unrolled.
 TEST_P(SVUnitTests, ForLoopPopcount) { check_bmc("for_loop.sv", 2); }
 
+// A module parameter.
 TEST_P(SVUnitTests, Parameter) { check_bmc("parameter.sv", 16); }
 
+// Sources named by a `--sv-filelist` list file.
 TEST_P(SVUnitTests, Filelist)
 {
   check_bmc(
       "filelist_top.sv", 5, ProverResult::UNKNOWN, { sv_path("filelist.f") });
 }
 
+// A list file naming a source that does not exist.
 TEST_P(SVUnitTests, FilelistMissingFile)
 {
   SmtSolver s = create_solver(GetParam());
@@ -172,11 +183,13 @@ TEST_P(SVUnitTests, MultipleTopsSelectedByName)
   EXPECT_EQ(bmc.check_until(4), ProverResult::FALSE);
 }
 
+// A `generate if`, which picks one branch at elaboration.
 TEST_P(SVUnitTests, GenerateIfSelectsFastPath)
 {
   check_bmc("generate_if.sv", 4);
 }
 
+// A `generate case`.
 TEST_P(SVUnitTests, GenerateCaseSelectsBranch)
 {
   check_bmc("generate_case.sv", 4);
@@ -189,6 +202,7 @@ TEST_P(SVUnitTests, ParameterPositionalOverride)
   check_bmc("positional_param_override.sv", 8);
 }
 
+// A parameter overridden by name at instantiation.
 TEST_P(SVUnitTests, ParameterNamedOverride)
 {
   check_bmc("named_param_override.sv", 8);
@@ -347,6 +361,7 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVHierarchyTests,
 
 TEST_P(SVUnitTests, ProgramAssertion) { check_bmc("program_assertion.sv", 6); }
 
+// An assertion inside a `program` block that holds.
 TEST_P(SVUnitTests, ProgramAssertionHolds)
 {
   check_prover<KInduction>(
@@ -370,6 +385,8 @@ TEST_P(SVUnitTests, InoutPort)
   check_prover<KInduction>("inout_port.sv", 8, ProverResult::TRUE);
 }
 
+// An `inout` port with nothing driving it, which is free rather than
+// some fixed value.
 TEST_P(SVUnitTests, InoutPortUndrivenIsFree)
 {
   check_bmc("inout_port_fails.sv", 1);
@@ -387,11 +404,15 @@ TEST_P(SVUnitTests, ExplicitPortOut)
   check_prover<KInduction>("explicit_port_out.sv", 8, ProverResult::TRUE);
 }
 
+// The same design written with an ordinary output port, which the
+// explicit form has to match.
 TEST_P(SVUnitTests, ExplicitPortOutPlain)
 {
   check_prover<KInduction>("explicit_port_out_plain.sv", 8, ProverResult::TRUE);
 }
 
+// An explicit input port, `input .i(a)`, carrying the parent's value to
+// the child's own signal.
 TEST_P(SVUnitTests, ExplicitPortIn)
 {
   check_prover<KInduction>("explicit_port_in.sv", 8, ProverResult::TRUE);
@@ -413,6 +434,8 @@ TEST_P(SVUnitTests, Unsupported_ExplicitPortPartial)
   expect_encode_throws("explicit_port_partial.sv");
 }
 
+// An explicit port bound to a concatenation of several signals, which
+// is parts of several symbols rather than one.
 TEST_P(SVUnitTests, Unsupported_ExplicitPortConcat)
 {
   expect_encode_throws("explicit_port_concat.sv");

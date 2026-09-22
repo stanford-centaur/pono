@@ -16,6 +16,7 @@ TEST_P(SVUnitTests, PackedArrayConstIndexChain)
   check_bmc("array_const_index.sv", 7);
 }
 
+// A runtime-index read and write on a packed array.
 TEST_P(SVUnitTests, PackedArrayDynIndexReadWrite)
 {
   check_bmc("array_dyn_index.sv", 16);
@@ -29,6 +30,8 @@ TEST_P(SVUnitTests, PackedArrayRanges)
   check_prover<KInduction>("packed_array_ranges.sv", 12, ProverResult::TRUE);
 }
 
+// The declared index taken as a bit offset counted from zero, which is
+// the reading the previous test rules out.
 TEST_P(SVUnitTests, PackedArrayRangesFails)
 {
   check_bmc("packed_array_ranges_fails.sv", 2);
@@ -98,6 +101,7 @@ TEST_P(SVUnitTests, UnpackedArrayOutOfRange)
       "unpacked_array_out_of_range.sv", 12, ProverResult::TRUE);
 }
 
+// An out-of-range index reaching a real cell.
 TEST_P(SVUnitTests, UnpackedArrayOutOfRangeFails)
 {
   check_bmc("unpacked_array_out_of_range_fails.sv", 0);
@@ -187,6 +191,7 @@ TEST_P(SVUnitTests, UnpackedArrayWholeOps)
 // target rather than staying a free state variable.
 TEST_P(SVUnitTests, PackedStructFieldState) { check_bmc("struct_state.sv", 5); }
 
+// A struct field that is itself a struct.
 TEST_P(SVUnitTests, PackedStructNested) { check_bmc("struct_nested.sv", 4); }
 
 // Struct-typed *ports* only exercise the read-side MemberAccess path,
@@ -211,13 +216,16 @@ TEST_P(SVUnitTests, TypedefStructPort)
 // test_systemverilog_statements.cpp.
 TEST_P(SVUnitTests, PackedEnumStateMachine) { check_bmc("enum_fsm.sv", 3); }
 
+// An enum-typed state register stepping through its values.
 TEST_P(SVUnitTests, PackedEnumStateMachineHolds)
 {
   check_bmc("enum_fsm_holds.sv", 5, ProverResult::UNKNOWN);
 }
 
+// A packed array whose element type is an enum.
 TEST_P(SVUnitTests, PackedArrayOfEnums) { check_bmc("array_of_enums.sv", 3); }
 
+// A cast from an integer to an enum type.
 TEST_P(SVUnitTests, EnumCastFromInt) { check_bmc("enum_cast.sv", 2); }
 
 // ---------------------------------------------------------------------------
@@ -286,6 +294,7 @@ TEST_P(SVUnitTests, BitVsLogicParityHolds)
   check_bmc("bit_vs_logic_parity.sv", 10, ProverResult::UNKNOWN);
 }
 
+// The same two accumulators asserted to differ, which they never do.
 TEST_P(SVUnitTests, BitVsLogicParityMismatchFails)
 {
   check_bmc("bit_vs_logic_parity_mismatch.sv", 1);
@@ -302,21 +311,26 @@ TEST_P(SVUnitTests, SignedSignExtend)
   check_bmc("signed_sign_extend.sv", 0, ProverResult::UNKNOWN);
 }
 
+// Signed comparison.
 TEST_P(SVUnitTests, SignedCompare)
 {
   check_bmc("signed_compare.sv", 0, ProverResult::UNKNOWN);
 }
 
+// Signed division.
 TEST_P(SVUnitTests, SignedDivide)
 {
   check_bmc("signed_divide.sv", 0, ProverResult::UNKNOWN);
 }
 
+// `$signed` and `$unsigned` casts.
 TEST_P(SVUnitTests, SignedCast)
 {
   check_bmc("signed_cast.sv", 0, ProverResult::UNKNOWN);
 }
 
+// Signedness carried through the width an expression's context gives
+// it.
 TEST_P(SVUnitTests, SignedContextWidth)
 {
   check_bmc("signed_context_width.sv", 0, ProverResult::UNKNOWN);
@@ -352,6 +366,8 @@ TEST_P(SVUnitTests, UnpackedArrayDescendingPattern)
       "unpacked_array_descending.sv", 10, ProverResult::TRUE);
 }
 
+// A descending array's pattern filled by position rather than by
+// declared index.
 TEST_P(SVUnitTests, UnpackedArrayDescendingPatternFails)
 {
   check_bmc("unpacked_array_descending_fails.sv", 2);
@@ -367,6 +383,8 @@ TEST_P(SVUnitTests, UnpackedPatternNonConstant)
       "unpacked_pattern_nonconstant.sv", 10, ProverResult::TRUE);
 }
 
+// The same for an ascending array, where filling by position would put
+// the value at the far end.
 TEST_P(SVUnitTests, UnpackedPatternNonConstantFails)
 {
   check_bmc("unpacked_pattern_nonconstant_fails.sv", 2);
@@ -381,11 +399,15 @@ TEST_P(SVUnitTests, UnpackedArrayNet)
   check_prover<KInduction>("unpacked_array_net.sv", 8, ProverResult::TRUE);
 }
 
+// An undriven array net element, which reads as unknown rather than
+// zero.
 TEST_P(SVUnitTests, UnpackedArrayNetUndrivenIsFree)
 {
   check_bmc("unpacked_array_net_fails.sv", 1);
 }
 
+// An unpacked array driven through a child's output port, the child
+// writing its own port array one element at a time.
 TEST_P(SVUnitTests, UnpackedArrayOutPort)
 {
   check_prover<KInduction>("unpacked_array_out_port.sv", 8, ProverResult::TRUE);
@@ -402,6 +424,7 @@ TEST_P(SVUnitTests, UnpackedStruct)
   check_prover<KInduction>("unpacked_struct.sv", 10, ProverResult::TRUE);
 }
 
+// Writing one field of an unpacked struct leaving the others alone.
 TEST_P(SVUnitTests, UnpackedStructFieldsDoNotOverlap)
 {
   check_bmc("unpacked_struct_fails.sv", 2);
@@ -419,6 +442,8 @@ TEST_P(SVUnitTests, UnpackedArrayPortSlice)
       "unpacked_array_port_slice.sv", 8, ProverResult::TRUE);
 }
 
+// Elements outside a port-connected slice staying undriven, and the
+// slice's offset counting.
 TEST_P(SVUnitTests, UnpackedArrayPortSliceOffsetIsReal)
 {
   check_bmc("unpacked_array_port_slice_fails.sv", 1);

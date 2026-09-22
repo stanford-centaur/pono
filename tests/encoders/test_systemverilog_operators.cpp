@@ -31,6 +31,7 @@ TEST_P(SVUnitTests, ArithCompareHolds)
   check_bmc("arith_compare.sv", 8, ProverResult::UNKNOWN);
 }
 
+// The same invariant perturbed, so it must be refuted.
 TEST_P(SVUnitTests, ArithCompareFails)
 {
   check_bmc("arith_compare_fails.sv", 1);
@@ -42,6 +43,7 @@ TEST_P(SVUnitTests, BitwiseLogicalHolds)
   check_bmc("bitwise_logical.sv", 6, ProverResult::UNKNOWN);
 }
 
+// The same invariant perturbed.
 TEST_P(SVUnitTests, BitwiseLogicalFails)
 {
   check_bmc("bitwise_logical_fails.sv", 1);
@@ -53,6 +55,7 @@ TEST_P(SVUnitTests, ShiftUnaryReductionHolds)
   check_bmc("shift_unary_reduction.sv", 6, ProverResult::UNKNOWN);
 }
 
+// The same invariant perturbed.
 TEST_P(SVUnitTests, ShiftUnaryReductionFails)
 {
   check_bmc("shift_unary_reduction_fails.sv", 1);
@@ -64,6 +67,7 @@ TEST_P(SVUnitTests, TernarySelectConcatHolds)
   check_bmc("ternary_select_concat.sv", 6, ProverResult::UNKNOWN);
 }
 
+// The same invariant perturbed.
 TEST_P(SVUnitTests, TernarySelectConcatFails)
 {
   check_bmc("ternary_select_concat_fails.sv", 1);
@@ -82,6 +86,7 @@ TEST_P(SVUnitTests, CombPathsEquivalenceHolds)
   check_bmc("comb_paths.sv", 4, ProverResult::UNKNOWN);
 }
 
+// One style computing something else, so the three disagree.
 TEST_P(SVUnitTests, CombPathsEquivalenceFails)
 {
   check_bmc("comb_paths_fails.sv", 2);
@@ -140,16 +145,19 @@ TEST_P(SVUnitTests, InsideExpression)
   check_prover<KInduction>("inside_expression.sv", 8, ProverResult::TRUE);
 }
 
+// A value outside the set.
 TEST_P(SVUnitTests, InsideExpressionFails)
 {
   check_bmc("inside_expression_fails.sv", 0);
 }
 
+// The `case ... inside` form, including a `[lo:hi]` member.
 TEST_P(SVUnitTests, CaseInsideRange)
 {
   check_prover<KInduction>("case_inside_range.sv", 12, ProverResult::TRUE);
 }
 
+// A selector outside every arm's set.
 TEST_P(SVUnitTests, CaseInsideRangeFails)
 {
   check_bmc("case_inside_range_fails.sv", 2);
@@ -170,6 +178,7 @@ TEST_P(SVUnitTests, PredicateValueAndConditionHolds)
   check_bmc("predicate_value_and_condition.sv", 6, ProverResult::UNKNOWN);
 }
 
+// The two roles made to disagree.
 TEST_P(SVUnitTests, PredicateValueAndConditionFails)
 {
   check_bmc("predicate_value_and_condition_fails.sv", 1);
