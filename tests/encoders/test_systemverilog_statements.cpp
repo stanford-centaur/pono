@@ -438,6 +438,9 @@ TEST_P(SVUnitTests, PatternCaseTaggedIgnoringTagFails)
 
 TEST_P(SVUnitTests, WhileLoop) { check_bmc("while_loop.sv", 2); }
 
+// A procedural for-loop, unrolled.
+TEST_P(SVUnitTests, ForLoopPopcount) { check_bmc("for_loop.sv", 2); }
+
 // A `do ... while` loop, unrolled.
 TEST_P(SVUnitTests, DoWhileLoop) { check_bmc("do_while_loop.sv", 2); }
 
