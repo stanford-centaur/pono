@@ -547,6 +547,20 @@ TEST_P(SVUnitTests, AssignDeassign)
   check_prover<KInduction>("assign_deassign.sv", 8, ProverResult::TRUE);
 }
 
+// What `release` leaves behind, which is where a variable and a net
+// part company. A released variable keeps the forced value until
+// something assigns it again...
+TEST_P(SVUnitTests, ReleaseVariableHolds)
+{
+  check_prover<KInduction>("release_variable_holds.sv", 12, ProverResult::TRUE);
+}
+
+// ...while a released net takes its drivers' value at once.
+TEST_P(SVUnitTests, ReleaseNetReverts)
+{
+  check_prover<KInduction>("release_net_reverts.sv", 12, ProverResult::TRUE);
+}
+
 // ---------------------------------------------------------------------------
 // Subroutines. A call is inlined where it appears, so the body's
 // statements land in the caller's context and its arguments are copied
