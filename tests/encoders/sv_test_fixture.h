@@ -84,8 +84,7 @@ class SVUnitTests : public ::testing::Test,
   // solver) constructor and the check_until()/witness_length()
   // interface.
   //
-  // `engine_opts` names the same engine as `EngineT` and is only
-  // needed
+  // `engine` names the same engine as `EngineT` and is only needed
   // where the solver has to be configured for it -- the IC3 family
   // wants options, such as unsat-assumption production, that Bmc and
   // KInduction do without. Left unset, the plain incremental and
@@ -95,14 +94,14 @@ class SVUnitTests : public ::testing::Test,
                     size_t bound,
                     pono::ProverResult expected = pono::ProverResult::FALSE,
                     const std::vector<std::string> & filelists = {},
-                    std::optional<pono::Engine> engine_opts = std::nullopt)
+                    std::optional<pono::Engine> engine = std::nullopt)
   {
     using namespace pono;
     using namespace smt;
 
     SmtSolver s;
-    if (engine_opts) {
-      s = create_solver_for(GetParam(), *engine_opts, /*logging=*/false);
+    if (engine) {
+      s = create_solver_for(GetParam(), *engine, /*logging=*/false);
     } else {
       s = create_solver(GetParam());
       s->set_opt("incremental", "true");
@@ -130,10 +129,10 @@ class SVUnitTests : public ::testing::Test,
     }
 
     SafetyProperty prop(ts.solver(), prop_term);
-    EngineT engine(prop, ts, s);
-    EXPECT_EQ(engine.check_until(bound), expected);
+    EngineT prover(prop, ts, s);
+    EXPECT_EQ(prover.check_until(bound), expected);
     if (expected == ProverResult::FALSE) {
-      EXPECT_EQ(engine.witness_length(), bound);
+      EXPECT_EQ(prover.witness_length(), bound);
     }
   }
 
@@ -194,8 +193,8 @@ class SVUnitTests : public ::testing::Test,
     }
 
     SafetyProperty prop(ts.solver(), safety_term);
-    EngineT engine(prop, ts, s);
-    EXPECT_EQ(engine.check_until(bound), expected);
+    EngineT prover(prop, ts, s);
+    EXPECT_EQ(prover.check_until(bound), expected);
   }
 
   // Assert that encoding `file` throws a PonoException (the clean-
