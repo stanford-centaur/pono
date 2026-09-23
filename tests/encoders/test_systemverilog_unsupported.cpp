@@ -44,8 +44,8 @@ TEST_P(SVUnitTests, RandomizeConstraint)
 TEST_P(SVUnitTests, DpiImport) { expect_encode_throws("dpi_import.sv"); }
 
 // A covergroup, the one construct in this group that is walked past
-// rather than rejected: functional coverage observes the design and
-// never drives it, so nothing the model keeps depends on it.
+// rather than rejected. Declaring one, and sampling it, only
+// accumulates coverage state, which nothing else in the model reads.
 TEST_P(SVUnitTests, CovergroupIgnored)
 {
   check_prover<KInduction>("covergroup_ignored.sv", 14, ProverResult::TRUE);
@@ -56,6 +56,15 @@ TEST_P(SVUnitTests, CovergroupIgnored)
 TEST_P(SVUnitTests, CovergroupIgnoredBoundFails)
 {
   check_bmc("covergroup_ignored_bound.sv", 7);
+}
+
+// Reading the accumulated coverage back with `get_coverage()`, which
+// is what makes the two tests above conditional: a design that
+// branches on its own coverage is one the skipped state would have
+// decided.
+TEST_P(SVUnitTests, CovergroupCoverageRead)
+{
+  expect_encode_throws("covergroup_coverage_read.sv");
 }
 
 // ---------------------------------------------------------------------------
