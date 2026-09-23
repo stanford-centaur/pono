@@ -41,15 +41,24 @@ TEST_P(SVUnitTests, RegfileCtrlKInductionProves)
 // `push` from firing at zero credits. Without the assumption
 // reaching the solver the counter wraps below zero and the bound is
 // violated, so this is really a test that the assumption is there.
-//
-// Checked with IC3Bits, the one engine in this suite that is neither
-// Bmc nor KInduction: it consumes the transition system differently
-// and wants solver options of its own, so it is also a check that
-// the frontend's output travels.
-TEST_P(SVUnitTests, CreditLinkAssumeHonoredByIC3)
+TEST_P(SVUnitTests, CreditLinkAssumeHonoredByKInduction)
 {
-  check_prover<IC3Bits>("integration/credit_link.sv",
-                        10,
+  check_prover<KInduction>(
+      "integration/credit_link.sv", 10, ProverResult::TRUE);
+}
+
+// Integration #4: a property that needs an invariant discovered
+// rather than reached. k-induction has to unroll past a twenty-four
+// state chain of unreachable states before it can say anything; IC3
+// finds the invariant instead. The one test here that runs neither
+// Bmc nor KInduction over the frontend's output, so also a check
+// that what the encoder produces travels to an engine that consumes
+// a transition system differently and wants solver options of its
+// own.
+TEST_P(SVUnitTests, UnreachableWindowProvedByIC3)
+{
+  check_prover<IC3Bits>("integration/unreachable_window.sv",
+                        100,
                         ProverResult::TRUE,
                         /*filelists=*/{},
                         Engine::IC3_BITS);
