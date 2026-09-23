@@ -285,7 +285,7 @@ TEST_P(SVUnitTests, ConcatDynamicOperand)
 // An initial value that depends on an input, which has no value at
 // time 0. Indexing by a *state* variable is a different matter and
 // works -- see InitialDynamicWrite.
-TEST_P(SVUnitTests, InitialValueFromInput)
+TEST_P(SVUnitTests, InitialValueFromInputRejected)
 {
   expect_encode_throws("initial_value_from_input.sv");
 }

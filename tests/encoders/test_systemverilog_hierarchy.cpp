@@ -238,7 +238,7 @@ TEST_P(SVUnitTests, RegisterBankUncoveredBitIsFree)
 
 // Two registers claiming the same bits, which is two drivers on one
 // variable and a malformed design rather than a shape to model.
-TEST_P(SVUnitTests, RegisterBankDoubleDriver)
+TEST_P(SVUnitTests, RegisterBankDoubleDriverRejected)
 {
   expect_encode_throws("reg_bus_slice_double_driver.sv");
 }
