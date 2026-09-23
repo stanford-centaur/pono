@@ -132,13 +132,38 @@ TEST_P(SVUnitTests, FinalBlockIgnored)
   expect_encode_succeeds_ignoring("final_block.sv");
 }
 
-// `$display` and the rest of the display, severity, file-I/O and
-// simulation-control system tasks, called as a bare statement. A call
-// to a *user-defined* task is a different matter and throws, since a
-// task exists to write its caller's variables.
-TEST_P(SVUnitTests, DisplayCallStatementIgnored)
+// Every class of system task slang registers that only reports:
+// console and file output in each radix, the end-of-timestep and
+// value-change variants, severity, simulation control, waveform
+// dumping, time formatting, `$system`, and writing a memory out.
+// A register surrounded by all of them is still proved to follow its
+// input. A call to a *user-defined* task is a different matter and
+// throws, since a task exists to write its caller's variables.
+TEST_P(SVUnitTests, ReportingSystemTasksIgnored)
 {
-  expect_encode_succeeds_ignoring("display_call_statement.sv");
+  check_prover<KInduction>("display_call_statement.sv", 12, ProverResult::TRUE);
+}
+
+// The same module and the same tasks under a property the register
+// violates, so they are shown not to suppress a counterexample.
+TEST_P(SVUnitTests, ReportingSystemTasksIgnoredWrongFails)
+{
+  check_bmc("display_call_statement_wrong.sv", 2);
+}
+
+// The other half of the split: a system task that takes an argument
+// by reference writes through it, so skipping the call would drop
+// that write.
+TEST_P(SVUnitTests, SystemTaskOutputArg)
+{
+  expect_encode_throws("system_task_output_arg.sv");
+}
+
+// Assertion control writes nothing and still decides which
+// properties are live.
+TEST_P(SVUnitTests, AssertionControl)
+{
+  expect_encode_throws("assertion_control.sv");
 }
 
 // A `specify` block, which carries path delays and timing checks and so

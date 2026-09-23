@@ -1556,6 +1556,31 @@ void StatementEncoder::process_statement(
                 + "' operates on a value this encoder does not model, and "
                   "skipping the call would drop whatever it changed");
           }
+          // Carrying a `$` is not on its own a promise that the call
+          // only reports: `$readmemh` fills a memory, `$deposit` and
+          // `$cast` assign a variable, `$sformat` writes its target.
+          // slang knows which ones take an argument by reference, so
+          // ask rather than keep a list of names to fall behind.
+          if (call.hasOutputArgs()) {
+            throw PonoException(
+                "SystemVerilogEncoder: the system task '"
+                + std::string(call_name)
+                + "' writes through one of its arguments, so skipping the "
+                  "call would drop that write and leave its target holding "
+                  "whatever it had before");
+          }
+          // The `$assert*` family writes nothing, and still decides
+          // something: it turns the assertions being checked on and
+          // off (LRM 20.12). Ignoring one checks a property the
+          // design had disabled, which reports a counterexample
+          // against something nobody claimed.
+          if (call_name.rfind("$assert", 0) == 0) {
+            throw PonoException(
+                "SystemVerilogEncoder: '" + std::string(call_name)
+                + "' turns assertion checking on or off, which this encoder "
+                  "does not model -- skipping it would check a property the "
+                  "design had switched off");
+          }
           logger.log(1,
                      "SystemVerilogEncoder: skipping simulation-only system "
                      "call '{}' used as a statement",
