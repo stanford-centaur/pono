@@ -165,7 +165,18 @@ void Declarer::declare_variables_internal(const slang::ast::Scope & body,
       }
 
       string name = symbol_table_.make_name(walk_prefix, string(var.name));
-      Sort sort = type_to_sort(solver_, var.getType());
+      string why;
+      Sort sort = try_type_to_sort(solver_, var.getType(), why);
+      if (!sort) {
+        // Nothing about a declaration needs a value, so a type with
+        // no sort is not by itself a reason to reject the design --
+        // an `event` declared only so that a `wait_order` can name
+        // it, say. Record why there is no term and carry on; any
+        // reference to the variable is refused by lookup_symbol().
+        symbol_table_.unrepresentable_symbols()[&var] = why;
+        logger.log(2, "SystemVerilogEncoder: no term for {} -- {}", name, why);
+        return;
+      }
 
       if (symbol_table_.state_var_symbols().count(&var)) {
         // This is a register: create a state variable.

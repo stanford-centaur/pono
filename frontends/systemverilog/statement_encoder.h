@@ -53,6 +53,7 @@ class FixedSizeUnpackedArrayType;
 class Expression;
 class Statement;
 class Symbol;
+class TimingControl;
 class Type;
 class ValueSymbol;
 }  // namespace slang::ast
@@ -191,6 +192,9 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
   smt::Term array_pending_value(const slang::ast::Symbol * sym,
                                 const smt::Term & state_term,
                                 StmtContext ctx);
+
+  /** Throw if an event control waits on a symbol with no term. */
+  void require_representable_events(const slang::ast::TimingControl & tc);
 
   /** Record `value` as what that target now carries. */
   void record_array_pending(const slang::ast::Symbol * sym,

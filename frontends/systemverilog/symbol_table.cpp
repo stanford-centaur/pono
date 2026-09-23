@@ -493,6 +493,20 @@ bool SymbolTable::resolve_wire_on_demand(const slang::ast::Symbol * sym)
   return true;
 }
 
+void SymbolTable::require_representable(const slang::ast::Symbol * sym)
+{
+  // The declaration was allowed to stand, since a declaration on its
+  // own does nothing. So whoever calls this is the first thing that
+  // actually needs a value, and the first thing that can be refused.
+  auto it = unrepresentable_symbols_.find(sym);
+  if (it != unrepresentable_symbols_.end()) {
+    throw PonoException("SystemVerilogEncoder: '" + string(sym->name)
+                        + "' has no representation here, so it can only be "
+                          "declared, not used -- "
+                        + it->second);
+  }
+}
+
 Term SymbolTable::lookup_symbol(const slang::ast::Symbol * sym)
 {
   using namespace slang::ast;
@@ -503,6 +517,10 @@ Term SymbolTable::lookup_symbol(const slang::ast::Symbol * sym)
   if (lvt != loop_var_terms_.end()) {
     return lvt->second;
   }
+
+  // A variable whose type has no sort. Checked ahead of every path
+  // below that would otherwise invent a term for an unknown symbol.
+  require_representable(sym);
 
   // `cb.d` reaches here as the clocking block's own variable rather
   // than the signal it samples, since a member access does not go

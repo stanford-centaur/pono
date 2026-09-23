@@ -8,6 +8,7 @@
 #include "frontends/systemverilog/bit_utils.h"
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
 #include "slang/ast/symbols/VariableSymbols.h"
@@ -151,7 +152,24 @@ Sort type_to_sort(const SmtSolver & solver, const slang::ast::Type & type)
     return solver->make_sort(BV, st.selectableWidth);
   }
 
-  throw PonoException("SystemVerilogEncoder: unsupported type kind");
+  throw PonoException("SystemVerilogEncoder: unsupported type kind ("
+                      + std::string(slang::ast::toString(ct.kind)) + ")");
+}
+
+Sort try_type_to_sort(const SmtSolver & solver,
+                      const slang::ast::Type & type,
+                      std::string & reason)
+{
+  // Deferring to type_to_sort() rather than re-deciding what is
+  // representable keeps the two answers from drifting apart, and
+  // carries its message along for whoever ends up reporting this.
+  try {
+    return type_to_sort(solver, type);
+  }
+  catch (const PonoException & e) {
+    reason = e.what();
+    return Sort();
+  }
 }
 
 uint64_t value_width(const slang::ast::Type & type)

@@ -1,3 +1,4 @@
+#include "engines/kinduction.h"
 #include "sv_test_fixture.h"
 
 using namespace pono;
@@ -11,13 +12,15 @@ namespace pono_tests {
 // outside the module-port interface. The filename says "unsupported",
 // so test names do not repeat it.
 //
-// Each asserts how the construct is turned away -- expect_encode_throws()
-// where the encoder rejects it, expect_encode_succeeds_ignoring() where
-// it is walked past without affecting the model. Which of the two
-// applies is a property of the construct rather than an accident:
-// something with no hardware meaning at all can be skipped, while
-// something that would silently change the model if dropped has to
-// throw.
+// Each asserts how the construct is turned away: expect_encode_throws()
+// where the encoder rejects it, and where it is walked past instead, a
+// property that is still proved (and a companion that is still
+// refuted) with the construct in scope, which is what shows it made no
+// difference. Which of the two applies is a property of the construct
+// rather than an accident: something with no hardware meaning at all
+// can be skipped, while something that would silently change the model
+// if dropped has to throw. A few older walked-past tests still assert
+// only that encoding succeeded.
 //
 // Grouped by why the construct is out of scope; add a new test to the
 // group whose reason it shares.
@@ -40,18 +43,29 @@ TEST_P(SVUnitTests, RandomizeConstraint)
 // A DPI import of a foreign function.
 TEST_P(SVUnitTests, DpiImport) { expect_encode_throws("dpi_import.sv"); }
 
-// A covergroup declaration.
-TEST_P(SVUnitTests, CovergroupDecl)
+// A covergroup, the one construct in this group that is walked past
+// rather than rejected: functional coverage observes the design and
+// never drives it, so nothing the model keeps depends on it.
+TEST_P(SVUnitTests, CovergroupIgnored)
 {
-  expect_encode_throws("covergroup_decl.sv");
+  check_prover<KInduction>("covergroup_ignored.sv", 14, ProverResult::TRUE);
+}
+
+// The same design and covergroup under a bound the counter passes, so
+// the covergroup is shown not to suppress a counterexample either.
+TEST_P(SVUnitTests, CovergroupIgnoredBoundFails)
+{
+  check_bmc("covergroup_ignored_bound.sv", 7);
 }
 
 // ---------------------------------------------------------------------------
 // Simulation-time control. These turn on time passing within a clock
 // cycle, or on simulation start-up and shutdown, neither of which a
-// cycle-based model has. They are walked past rather than rejected:
-// with no hardware meaning at all, skipping one cannot change what the
-// design does.
+// cycle-based model has. Which of them can be walked past divides on
+// whether anything the model keeps depends on the timing: a `final`
+// block or a `$display` can be dropped whole, while a `fork` or a
+// `wait` decides when the statements around it run, and dropping one
+// answers that question by accident.
 // ---------------------------------------------------------------------------
 
 // `fork`/`join` and its two other terminators. Each statement in a
@@ -90,6 +104,11 @@ TEST_P(SVUnitTests, WaitLatch) { expect_encode_throws("wait_latch.sv"); }
 // `wait fork`, which waits on child processes rather than on a value.
 TEST_P(SVUnitTests, WaitFork) { expect_encode_throws("wait_fork.sv"); }
 
+// `wait_order`, which waits for named events to arrive in a given
+// order. Its fixture's module cannot be called `wait_order`, since
+// that is a keyword.
+TEST_P(SVUnitTests, WaitOrder) { expect_encode_throws("wait_order_stmt.sv"); }
+
 // `expect (property_expr)`, a procedural blocking wait for a property
 // rather than a checked invariant.
 TEST_P(SVUnitTests, ExpectProperty)
@@ -122,19 +141,23 @@ TEST_P(SVUnitTests, SpecifyBlock)
 
 // ---------------------------------------------------------------------------
 // Types with no bit-vector representation: either not integral at all,
-// or sized at run time rather than at elaboration.
+// or sized at run time rather than at elaboration. Declaring a
+// variable of one is allowed and computes nothing -- see
+// UnreferencedUnrepresentableDecls in test_systemverilog_types.cpp --
+// so each fixture below goes on to reference its variable, which is
+// the first point at which a value is actually needed.
 // ---------------------------------------------------------------------------
 
-// The `event` type.
+// Triggering an `event` with `->`.
 TEST_P(SVUnitTests, EventType) { expect_encode_throws("event_type.sv"); }
 
-// The `real` type.
+// Reading a `real` variable.
 TEST_P(SVUnitTests, RealType) { expect_encode_throws("real_type.sv"); }
 
-// The `string` type.
+// Writing a `string` variable.
 TEST_P(SVUnitTests, StringType) { expect_encode_throws("string_type.sv"); }
 
-// The `chandle` type.
+// Writing a `chandle`.
 TEST_P(SVUnitTests, ChandleType) { expect_encode_throws("chandle_type.sv"); }
 
 // A dynamic array, whose size is set at run time.

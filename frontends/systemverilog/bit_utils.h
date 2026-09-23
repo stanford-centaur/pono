@@ -77,6 +77,16 @@ smt::Term normalize_array_index(const smt::SmtSolver & solver,
 smt::Sort type_to_sort(const smt::SmtSolver & solver,
                        const slang::ast::Type & type);
 
+/** The sort for `type`, or a null Sort if it has none.
+ *  @param solver the solver to build the sort with
+ *  @param type the slang type
+ *  @param reason set to why there is no sort, when there is none
+ *  @return the corresponding sort, or a null Sort
+ */
+smt::Sort try_type_to_sort(const smt::SmtSolver & solver,
+                           const slang::ast::Type & type,
+                           std::string & reason);
+
 /** Throw unless `t` is bit-vector-sorted, naming `who` and the sort.
  *
  *  `get_sort()->get_width()` is the backend's bit-vector-size query,

@@ -338,6 +338,16 @@ class SymbolTable
   {
     return symbol_to_term_;
   }
+  /** Variables whose type has no sort, mapped to why it has none.
+   *  Declaring one is allowed and does nothing; lookup_symbol()
+   *  refuses any reference to one, quoting the reason stored here. */
+  std::unordered_map<const slang::ast::Symbol *, std::string> &
+  unrepresentable_symbols()
+  {
+    return unrepresentable_symbols_;
+  }
+  /** Throw if `sym` is one of them, quoting why it has no term. */
+  void require_representable(const slang::ast::Symbol * sym);
   std::unordered_set<const slang::ast::Symbol *> & state_var_symbols()
   {
     return state_var_symbols_;
@@ -406,6 +416,8 @@ class SymbolTable
   DriverResolver * driver_resolver_ = nullptr;
 
   std::unordered_map<const slang::ast::Symbol *, smt::Term> symbol_to_term_;
+  std::unordered_map<const slang::ast::Symbol *, std::string>
+      unrepresentable_symbols_;
   std::unordered_set<const slang::ast::Symbol *> state_var_symbols_;
   std::unordered_set<const slang::ast::Symbol *> wire_symbols_;
   std::unordered_map<const slang::ast::Symbol *, WireDriver> wire_drivers_;

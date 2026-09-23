@@ -453,6 +453,23 @@ smt::Term StatementEncoder::array_pending_value(const slang::ast::Symbol * sym,
                                                           : it->second;
 }
 
+void StatementEncoder::require_representable_events(
+    const slang::ast::TimingControl & tc)
+{
+  using namespace slang::ast;
+  if (tc.kind == TimingControlKind::EventList) {
+    for (auto * ev : tc.as<EventListControl>().events) {
+      require_representable_events(*ev);
+    }
+    return;
+  }
+  if (tc.kind != TimingControlKind::SignalEvent) return;
+  const Expression & e = tc.as<SignalEventControl>().expr;
+  if (e.kind == ExpressionKind::NamedValue) {
+    symbol_table_.require_representable(&e.as<NamedValueExpression>().symbol);
+  }
+}
+
 void StatementEncoder::record_array_pending(const slang::ast::Symbol * sym,
                                             const Term & state_term,
                                             StmtContext ctx,
@@ -1109,6 +1126,13 @@ void StatementEncoder::process_statement(
           return writes;
         }
 
+        // Ahead of resolve_lvalue(), whose zero-width check would
+        // otherwise report a `string` target as a width problem
+        // rather than as a type with nothing to represent it.
+        if (lhs_expr.kind == ExpressionKind::NamedValue) {
+          symbol_table_.require_representable(&canonicalize_signal_alias(
+              lhs_expr.as<NamedValueExpression>().symbol));
+        }
         auto desc = resolve_lvalue(lhs_expr, expr_encoder_.eval_ctx());
         if (!desc) return {};
         bool base_aliased =
@@ -1120,6 +1144,11 @@ void StatementEncoder::process_statement(
         writes.reserve(pieces.size());
         for (auto & piece : pieces) {
           const Symbol * sym = piece.sym;
+          // Before the NEXT_STATE arm below, which drops a write
+          // whose target has no state term. That is the right answer
+          // for a write this pass cannot resolve yet, and the wrong
+          // one for a target that will never have a term at all.
+          symbol_table_.require_representable(sym);
           uint64_t lo = piece.target_lo;
           uint64_t hi = piece.target_hi;
           uint64_t sym_w = value_width(sym->as<ValueSymbol>().getType());
@@ -1511,6 +1540,20 @@ void StatementEncoder::process_statement(
         // instead of risking an unsound model.
         auto & call = expr.as<CallExpression>();
         if (call.isSystemCall()) {
+          // A built-in method on a value (`q.push_back(1)`,
+          // `arr.delete()`) is reported as a system call too, and is
+          // not simulation-only: it changes data the design can read
+          // back. The `$` is what separates the two -- every system
+          // task and function carries one, and no built-in method
+          // does.
+          std::string_view call_name = call.getSubroutineName();
+          if (call_name.empty() || call_name.front() != '$') {
+            throw PonoException(
+                "SystemVerilogEncoder: the built-in method '"
+                + std::string(call_name)
+                + "' operates on a value this encoder does not model, and "
+                  "skipping the call would drop whatever it changed");
+          }
           logger.log(1,
                      "SystemVerilogEncoder: skipping simulation-only system "
                      "call '{}' used as a statement",
@@ -1987,8 +2030,14 @@ void StatementEncoder::process_statement(
     }
 
     case StatementKind::Timed: {
-      // Skip timing control (e.g., @(posedge clk)) and process the body.
+      // Skip timing control (e.g., @(posedge clk)) and process the
+      // body. Walking past the control is right where what the block
+      // is sensitive to is implied by what it reads, and wrong where
+      // the control is the only thing that says when the body runs --
+      // `@(ev)` on an `event` variable, whose arrival this encoder
+      // has no term for. Ignoring that one runs the body every cycle.
       auto & timed = stmt.as<TimedStatement>();
+      require_representable_events(timed.timing);
       process_statement(
           timed.stmt, ctx, condition, prefix, default_disable_expr);
       break;
@@ -2426,6 +2475,17 @@ void StatementEncoder::process_statement(
           "leave the target following the driver the design meant to "
           "override");
 
+    case slang::ast::StatementKind::EventTrigger:
+      // `-> ev` makes an event arrive, which is only observable
+      // through a construct that waits for it, and those are refused
+      // below. Skipping the trigger while some future pass does model
+      // the waiting side would leave that side waiting forever, so
+      // refuse it here rather than leave the two answers to drift.
+      throw PonoException(
+          "SystemVerilogEncoder: `->` triggers an event, and an event "
+          "arrival has no representation in a cycle-based transition "
+          "system");
+
     case slang::ast::StatementKind::Wait:
     case slang::ast::StatementKind::WaitFork:
     case slang::ast::StatementKind::WaitOrder:
@@ -2445,11 +2505,11 @@ void StatementEncoder::process_statement(
       // passes at once, wrong in opposite directions and decided by
       // nothing but where the semicolon went.
       throw PonoException(
-          "SystemVerilogEncoder: `wait` holds a process until its "
-          "condition holds, and this encoder has no resumption point "
-          "to park it at -- skipping the wait would either drop the "
-          "statements it guards or run them unguarded, depending only "
-          "on how the wait was written");
+          "SystemVerilogEncoder: `wait`/`wait fork`/`wait_order` hold a "
+          "process until what they wait for happens, and this encoder "
+          "has no resumption point to park one at -- skipping one would "
+          "either drop the statements it guards or run them unguarded, "
+          "depending on how it was written");
 
     default:
       // Other statement kinds (e.g. return, event triggers,

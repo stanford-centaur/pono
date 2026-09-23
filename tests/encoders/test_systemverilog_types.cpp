@@ -456,4 +456,26 @@ TEST_P(SVUnitTests, UnpackedArrayPortSliceOffsetIsReal)
   check_bmc("unpacked_array_port_slice_fails.sv", 1);
 }
 
+// ---------------------------------------------------------------------------
+// Types with no bit-vector representation (`event`, `real`, `string`,
+// `chandle`, dynamic arrays, queues). A declaration computes nothing,
+// so declaring a variable of one is allowed and leaves the rest of the
+// module alone; the refusal belongs at the first reference, and those
+// refusals are tested in test_systemverilog_unsupported.cpp.
+// ---------------------------------------------------------------------------
+
+// Four such variables declared alongside working logic and never
+// referenced, with a counter bound that still proves.
+TEST_P(SVUnitTests, UnreferencedUnrepresentableDecls)
+{
+  check_prover<KInduction>("unrepresentable_decls.sv", 14, ProverResult::TRUE);
+}
+
+// The same declarations under a bound the counter passes, so they are
+// shown not to suppress a counterexample either.
+TEST_P(SVUnitTests, UnreferencedUnrepresentableDeclsBoundFails)
+{
+  check_bmc("unrepresentable_decls_bound.sv", 7);
+}
+
 }  // namespace pono_tests
