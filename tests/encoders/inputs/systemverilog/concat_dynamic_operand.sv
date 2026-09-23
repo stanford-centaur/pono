@@ -1,7 +1,11 @@
-// A concatenation target with one runtime-indexed operand. The
-// dynamic operand cannot be routed through the bit-range write path,
-// and dropping it would drop `hi`'s write with it, so the whole
-// assignment is rejected rather than half-encoded.
+// A concatenation target one of whose operands is runtime-indexed:
+// `{hi, arr[i]} <= src`. The same write on its own, `arr[i] <= x`,
+// splices the selected bit onto the variable's own term, so the
+// shape has a representation; what it needs is for a concatenation
+// operand to reach it.
+//
+// `src`'s high bit goes to `hi` and its low bit to whichever bit of
+// `arr` the index named.
 module concat_dynamic_operand (
     input logic clk,
     input logic [1:0] i,
@@ -10,9 +14,17 @@ module concat_dynamic_operand (
 
   logic hi;
   logic [3:0] arr;
+  logic started;
 
-  always_ff @(posedge clk) {hi, arr[i]} <= src;
+  initial started = 1'b0;
 
-  assert property (@(posedge clk) hi == hi);
+  always_ff @(posedge clk) begin
+    started <= 1'b1;
+    {hi, arr[i]} <= src;
+  end
+
+  assert property (@(posedge clk) started
+                   |-> (hi == $past(src[1])
+                        && arr[$past(i)] == $past(src[0])));
 
 endmodule

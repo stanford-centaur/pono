@@ -276,17 +276,18 @@ TEST_P(SVUnitTests, NestedDynamicBitWrite)
       "nested_dynamic_bit_write.sv", 12, ProverResult::TRUE);
 }
 
-// Neither may drop the write without a diagnostic, which would leave
-// the target free.
-TEST_P(SVUnitTests, ConcatDynamicOperandRejected)
+// A concatenation target one of whose operands is runtime-indexed.
+TEST_P(SVUnitTests, ConcatDynamicOperand)
 {
-  expect_encode_throws("concat_dynamic_operand.sv");
+  check_prover<KInduction>("concat_dynamic_operand.sv", 8, ProverResult::TRUE);
 }
 
-// A runtime-indexed write in an `initial` block.
-TEST_P(SVUnitTests, InitialDynamicIndexRejected)
+// An initial value that depends on an input, which has no value at
+// time 0. Indexing by a *state* variable is a different matter and
+// works -- see InitialDynamicWrite.
+TEST_P(SVUnitTests, InitialValueFromInput)
 {
-  expect_encode_throws("initial_dynamic_index.sv");
+  expect_encode_throws("initial_value_from_input.sv");
 }
 
 // A temporary declared inside a procedural block is bound to the
@@ -648,7 +649,7 @@ TEST_P(SVUnitTests, ClockingBlockSignalsAreNotFree)
 
 // An explicit skew places the sample inside the cycle, and there is
 // no inside the cycle here.
-TEST_P(SVUnitTests, Unsupported_ClockingBlockSkew)
+TEST_P(SVUnitTests, ClockingBlockSkewRejected)
 {
   expect_encode_throws("clocking_block_skew.sv");
 }

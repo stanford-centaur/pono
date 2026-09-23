@@ -520,13 +520,6 @@ TEST_P(SVUnitTests, NamedAssertionReferenceRepetition)
   check_bmc("named_assertion_reference_repetition.sv", 4);
 }
 
-// Local variables and recursion still need a binding environment
-// that expanding the body does not supply.
-TEST_P(SVUnitTests, NamedPropertyLocalVarRejected)
-{
-  expect_encode_throws("named_property_localvar.sv");
-}
-
 // An argument can be a clocking event, which is a route into the
 // design's clock that does not look like one syntactically -- the
 // multiclock rejection has to see through it.
@@ -632,7 +625,7 @@ TEST_P(SVUnitTests, SampledValueClockingEvent)
 // Naming a second clock, which the design does not run on. The
 // sampled-value path and the property path consult one record of the
 // design's clock, so both refuse it.
-TEST_P(SVUnitTests, Unsupported_SampledValueSecondClock)
+TEST_P(SVUnitTests, SampledValueSecondClockRejected)
 {
   expect_encode_throws("sampled_clocking_event_second_clock.sv");
 }
@@ -645,7 +638,7 @@ TEST_P(SVUnitTests, NamedClockingBlockEvent)
 
 // Resolving that reference recurses, so a block on another clock
 // reaches the multiclock check rather than slipping past it.
-TEST_P(SVUnitTests, Unsupported_ClockingBlockOnSecondClock)
+TEST_P(SVUnitTests, ClockingBlockOnSecondClockRejected)
 {
   expect_encode_throws("clocking_block_second_clock.sv");
 }

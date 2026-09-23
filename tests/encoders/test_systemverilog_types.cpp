@@ -265,7 +265,7 @@ TEST_P(SVUnitTests, TaggedUnionVoidMember)
 // The packed qualifier is what makes any of this possible: an
 // unpacked union has no required representation, so its tag has no
 // position to read.
-TEST_P(SVUnitTests, Unsupported_UnpackedTaggedUnion)
+TEST_P(SVUnitTests, UnpackedTaggedUnionRejected)
 {
   expect_encode_throws("unpacked_tagged_union.sv");
 }
