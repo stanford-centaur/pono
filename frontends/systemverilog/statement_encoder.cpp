@@ -1127,11 +1127,13 @@ void StatementEncoder::process_statement(
         }
 
         // Ahead of resolve_lvalue(), whose zero-width check would
-        // otherwise report a `string` target as a width problem
-        // rather than as a type with nothing to represent it.
-        if (lhs_expr.kind == ExpressionKind::NamedValue) {
-          symbol_table_.require_representable(&canonicalize_signal_alias(
-              lhs_expr.as<NamedValueExpression>().symbol));
+        // otherwise report a `string` target, or an element of an
+        // associative array, as a width problem rather than as a type
+        // with nothing to represent it.
+        if (const Symbol * lhs_root =
+                lhs_expr.getSymbolReference(/*allowPacked=*/true)) {
+          symbol_table_.require_representable(
+              &canonicalize_signal_alias(*lhs_root));
         }
         auto desc = resolve_lvalue(lhs_expr, expr_encoder_.eval_ctx());
         if (!desc) return {};
