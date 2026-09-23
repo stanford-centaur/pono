@@ -424,6 +424,13 @@ TEST_P(SVUnitTests, UnpackedStruct)
   check_prover<KInduction>("unpacked_struct.sv", 10, ProverResult::TRUE);
 }
 
+// An unpacked struct with a field that is itself an unpacked array.
+TEST_P(SVUnitTests, UnpackedStructArrayField)
+{
+  check_prover<KInduction>(
+      "unpacked_struct_array_field.sv", 8, ProverResult::TRUE);
+}
+
 // Writing one field of an unpacked struct leaving the others alone.
 TEST_P(SVUnitTests, UnpackedStructFieldsDoNotOverlap)
 {

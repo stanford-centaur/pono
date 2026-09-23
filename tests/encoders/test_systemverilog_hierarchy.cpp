@@ -31,6 +31,21 @@ TEST_P(SVUnitTests, HierarchicalValue)
   check_bmc("hierarchical_value.sv", 6);
 }
 
+// A continuous assign driving a child instance's internal, non-port
+// signal through a dot-path.
+TEST_P(SVUnitTests, HierarchicalContinuousAssign)
+{
+  check_prover<KInduction>("hier_continuous_assign.sv", 6, ProverResult::TRUE);
+}
+
+// The same with the assign written above the instance it reaches
+// into.
+TEST_P(SVUnitTests, HierarchicalContinuousAssignForwardRef)
+{
+  check_prover<KInduction>(
+      "hier_continuous_assign_forward_ref.sv", 6, ProverResult::TRUE);
+}
+
 // -------------------------------------------------------------------------
 // Ports and port connections. Ordered outwards from the simplest binding: a
 // whole port to a whole signal, then a port whose bits are split across

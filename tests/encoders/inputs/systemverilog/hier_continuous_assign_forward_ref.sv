@@ -1,18 +1,21 @@
-// A continuous assign whose target is a child instance's internal
-// (non-port) signal, referenced via a hierarchical dot-path, where the
-// assign appears BEFORE that instance's own declaration in the same
-// scope. Declaration is interleaved with (and ordered by) source
-// position, so at the point this assign is processed the target has
-// no declared term yet. This -- like driving a child's internal net
-// from outside its own scope at all -- isn't real synthesizable RTL
-// (module ports are the only sanctioned cross-instance wiring
-// mechanism), so it must throw rather than silently dropping the
-// write and leaving the target fully unconstrained.
-module sub;
+// The same hierarchical drive as hier_continuous_assign.sv, with the
+// assign written *above* the instance it reaches into. Declarations
+// are walked in source order, so the target has no term yet when the
+// assign is processed.
+//
+// Where a statement sits in the file does not change what the design
+// means, so this holds exactly as its reordered twin does.
+module hier_continuous_assign_fwd_sub;
   logic [1:0] x;
 endmodule
 
-module hier_continuous_assign_forward_ref;
+module hier_continuous_assign_forward_ref (
+    input logic clk
+);
+
   assign u1.x[0] = 1'b1;
-  sub u1 ();
+  hier_continuous_assign_fwd_sub u1 ();
+
+  assert property (@(posedge clk) u1.x[0] == 1'b1);
+
 endmodule

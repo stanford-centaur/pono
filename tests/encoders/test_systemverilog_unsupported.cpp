@@ -128,15 +128,6 @@ TEST_P(SVUnitTests, QueueType) { expect_encode_throws("queue_type.sv"); }
 // An associative array.
 TEST_P(SVUnitTests, AssocArray) { expect_encode_throws("assoc_array.sv"); }
 
-// A packed struct with a field that is itself an unpacked array: there
-// is no flat layout to give that field a bit range in, so the struct
-// has no sort. (An unpacked *union* is refused for a different reason
-// -- its fields overlap rather than concatenate.)
-TEST_P(SVUnitTests, UnpackedStructNonIntegralField)
-{
-  expect_encode_throws("unpacked_struct_nonintegral.sv");
-}
-
 // ---------------------------------------------------------------------------
 // Control flow with no static bound. Neither describes a finite piece
 // of hardware, and synthesis tools reject them too.
@@ -160,20 +151,12 @@ TEST_P(SVUnitTests, RecursiveTaskCall)
 }
 
 // ---------------------------------------------------------------------------
-// Cross-instance wiring outside the module-port interface, which is the
-// only sanctioned mechanism; synthesis tools reject these too. A port
-// connection is a structural, elaboration-time binding rather than a
-// per-cycle write, so there is no mux for a runtime index to build. All
-// three throw rather than drop the write, which would leave the target
-// unconstrained.
+// A runtime index in a port connection. A port connection is a
+// structural, elaboration-time binding rather than a per-cycle write,
+// so there is no mux for an index to build, and synthesis tools
+// reject these too. Both throw rather than drop the write, which
+// would leave the target unconstrained.
 // ---------------------------------------------------------------------------
-
-// A continuous assign driving a child instance's internal, non-port
-// signal through a hierarchical dot-path.
-TEST_P(SVUnitTests, HierarchicalContinuousAssignForwardRef)
-{
-  expect_encode_throws("hier_continuous_assign_forward_ref.sv");
-}
 
 // An output port connected to a runtime-variable bit select,
 // `.out(bus[idx])`.
