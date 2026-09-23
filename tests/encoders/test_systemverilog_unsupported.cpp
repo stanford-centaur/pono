@@ -54,10 +54,23 @@ TEST_P(SVUnitTests, CovergroupDecl)
 // design does.
 // ---------------------------------------------------------------------------
 
-// `fork`/`join` concurrent processes.
-TEST_P(SVUnitTests, ForkJoin)
+// `fork`/`join` and its two other terminators. Each statement in a
+// parallel block is a concurrent process with timing of its own,
+// which a cycle-based transition system has no notion of. Running
+// the branches one after another instead would decide a race the
+// language leaves open, and for `join_none` would run code that has
+// not started.
+TEST_P(SVUnitTests, ForkJoin) { expect_encode_throws("fork_join.sv"); }
+
+TEST_P(SVUnitTests, ForkJoinAny) { expect_encode_throws("fork_join_any.sv"); }
+
+TEST_P(SVUnitTests, ForkJoinNone) { expect_encode_throws("fork_join_none.sv"); }
+
+// The shape the construct exists for: branches whose delays are not
+// ordered against each other.
+TEST_P(SVUnitTests, ForkJoinTimed)
 {
-  expect_encode_succeeds_ignoring("fork_join.sv");
+  expect_encode_throws("fork_join_timed.sv");
 }
 
 // A bare `wait` statement.

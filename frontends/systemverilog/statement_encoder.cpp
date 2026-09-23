@@ -1666,6 +1666,24 @@ void StatementEncoder::process_statement(
 
     case StatementKind::Block: {
       auto & block = stmt.as<BlockStatement>();
+      if (block.blockKind != slang::ast::StatementBlockKind::Sequential) {
+        // A parallel block's statements are concurrent processes with
+        // timing of their own (LRM 9.3.2), and there is no scheduler
+        // here to run them against each other. Walking them in source
+        // order instead would answer questions the language leaves
+        // open -- two branches writing one variable have no defined
+        // winner -- and for `join_none`, whose processes do not start
+        // until the parent blocks, it would run code that has not
+        // begun. A `fork ... join` whose branches neither share a
+        // target nor carry timing does mean the same as `begin ...
+        // end`, and that spelling is available.
+        throw PonoException(
+            "SystemVerilogEncoder: the statements of a `fork` block are "
+            "concurrent processes, which this encoder has no scheduler "
+            "for -- running them in source order would decide a race "
+            "the language leaves open; write `begin ... end` where the "
+            "order is what you meant");
+      }
       try {
         for_each_stmt_in_block(block, [&](const Statement & s) {
           process_statement(s, ctx, condition, prefix, default_disable_expr);
