@@ -25,7 +25,7 @@ TEST_P(SVUnitTests, ElementSelectLhs) { check_bmc("element_select_lhs.sv", 2); }
 // half of `w` instead of leaving it a free state var.
 TEST_P(SVUnitTests, RangeSelectLhs)
 {
-  check_bmc("range_select_lhs.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("range_select_lhs.sv", 12, ProverResult::TRUE);
 }
 
 // A range-select lvalue with a non-constant base (`w[base +: 4]`):
@@ -98,7 +98,7 @@ TEST_P(SVUnitTests, SelectOutOfRangeDynamicFails)
 // resolve_lvalue() directly.
 TEST_P(SVUnitTests, ConcatenationLhs)
 {
-  check_bmc("concat_lhs.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("concat_lhs.sv", 12, ProverResult::TRUE);
 }
 
 // The wire pre-scan (process_module(), encoder.cpp) that decides
@@ -214,7 +214,7 @@ TEST_P(SVUnitTests, InitialBlockSetsState) { check_bmc("initial_block.sv", 0); }
 // semantics a register's next-state gets.
 TEST_P(SVUnitTests, AlwaysLatchHold)
 {
-  check_bmc("always_latch.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("always_latch.sv", 12, ProverResult::TRUE);
 }
 
 // A blocking write in a clocked block infers a register too, and is
@@ -319,7 +319,7 @@ TEST_P(SVUnitTests, ProceduralTemporaryHolds)
 // test_systemverilog_unsupported.cpp.
 TEST_P(SVUnitTests, ForeverEventAsRegister)
 {
-  check_bmc("forever_loop.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("forever_loop.sv", 12, ProverResult::TRUE);
 }
 
 // ---------------------------------------------------------------------------
@@ -336,7 +336,8 @@ TEST_P(SVUnitTests, PriorityIfUniqueCaseFails)
 // encoder may rely on.
 TEST_P(SVUnitTests, PriorityIfUniqueCaseHolds)
 {
-  check_bmc("priority_if_unique_case_holds.sv", 6, ProverResult::UNKNOWN);
+  check_prover<KInduction>(
+      "priority_if_unique_case_holds.sv", 12, ProverResult::TRUE);
 }
 
 // A `&&&`-joined multi-condition `if` (`if (a &&& b) ...`, LRM 12.4.4)
@@ -345,7 +346,7 @@ TEST_P(SVUnitTests, PriorityIfUniqueCaseHolds)
 // analogous ConditionalOp path for the ConditionalStatement path.
 TEST_P(SVUnitTests, MultiConditionIf)
 {
-  check_bmc("multi_cond_if.sv", 0, ProverResult::UNKNOWN);
+  check_prover<KInduction>("multi_cond_if.sv", 12, ProverResult::TRUE);
 }
 
 // A `case` statement's `default:` arm only applies when no other item
@@ -370,7 +371,7 @@ TEST_P(SVUnitTests, CaseStatementDefaultOnlyWhenNoMatch)
 
 TEST_P(SVUnitTests, CasexCasezWildcard)
 {
-  check_bmc("casex_casez.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("casex_casez.sv", 12, ProverResult::TRUE);
 }
 
 // `case (x) matches ... endcase` (StatementKind::PatternCase) is a
@@ -466,20 +467,20 @@ TEST_P(SVUnitTests, ForeachLoop) { check_bmc("foreach_loop.sv", 2); }
 
 TEST_P(SVUnitTests, BreakInForLoop)
 {
-  check_bmc("break_in_for.sv", 6, ProverResult::UNKNOWN);
+  check_prover<KInduction>("break_in_for.sv", 12, ProverResult::TRUE);
 }
 
 // `continue` inside an unrolled for-loop, skipping the rest of one
 // iteration.
 TEST_P(SVUnitTests, ContinueInForLoop)
 {
-  check_bmc("continue_in_for.sv", 6, ProverResult::UNKNOWN);
+  check_prover<KInduction>("continue_in_for.sv", 12, ProverResult::TRUE);
 }
 
 // `disable` naming an enclosing block.
 TEST_P(SVUnitTests, DisableNamedBlock)
 {
-  check_bmc("disable_named_block.sv", 6, ProverResult::UNKNOWN);
+  check_prover<KInduction>("disable_named_block.sv", 12, ProverResult::TRUE);
 }
 
 // A `break` guarded by a runtime signal rather than a compile-time
@@ -508,7 +509,7 @@ TEST_P(SVUnitTests, ImmediateAssert) { check_bmc("immediate_assert.sv", 1); }
 // Immediate `assume` (Assume/Restrict share the same code path as assert).
 TEST_P(SVUnitTests, ImmediateAssume)
 {
-  check_bmc("immediate_assume.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("immediate_assume.sv", 12, ProverResult::TRUE);
 }
 
 // ---------------------------------------------------------------------------

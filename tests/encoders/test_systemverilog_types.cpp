@@ -48,7 +48,7 @@ TEST_P(SVUnitTests, PackedArrayRangesFails)
 
 TEST_P(SVUnitTests, UnpackedRegfileMemory)
 {
-  check_bmc("unpacked_regfile.sv", 3, ProverResult::UNKNOWN);
+  check_prover<KInduction>("unpacked_regfile.sv", 12, ProverResult::TRUE);
 }
 
 // The read-after-write invariant is 1-inductive, so BMC alone can only
@@ -219,7 +219,7 @@ TEST_P(SVUnitTests, PackedEnumStateMachine) { check_bmc("enum_fsm.sv", 3); }
 // An enum-typed state register stepping through its values.
 TEST_P(SVUnitTests, PackedEnumStateMachineHolds)
 {
-  check_bmc("enum_fsm_holds.sv", 5, ProverResult::UNKNOWN);
+  check_prover<KInduction>("enum_fsm_holds.sv", 12, ProverResult::TRUE);
 }
 
 // A packed array whose element type is an enum.
@@ -238,7 +238,7 @@ TEST_P(SVUnitTests, EnumCastFromInt) { check_bmc("enum_cast.sv", 2); }
 // bit-consistent.
 TEST_P(SVUnitTests, PackedUnionOverlap)
 {
-  check_bmc("union_overlap.sv", 6, ProverResult::UNKNOWN);
+  check_prover<KInduction>("union_overlap.sv", 12, ProverResult::TRUE);
 }
 
 // Packed-union construction via `'{default: ...}` (distinct from
@@ -273,7 +273,7 @@ TEST_P(SVUnitTests, UnpackedTaggedUnionRejected)
 // enforcing the fixture's own reset-value invariant.
 TEST_P(SVUnitTests, UnionAssignmentPatternLiteral)
 {
-  check_bmc("union_literal.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("union_literal.sv", 12, ProverResult::TRUE);
 }
 
 // ---------------------------------------------------------------------------
@@ -291,7 +291,7 @@ TEST_P(SVUnitTests, TypedefVectorWidth) { check_bmc("typedef_vector.sv", 5); }
 
 TEST_P(SVUnitTests, BitVsLogicParityHolds)
 {
-  check_bmc("bit_vs_logic_parity.sv", 10, ProverResult::UNKNOWN);
+  check_prover<KInduction>("bit_vs_logic_parity.sv", 12, ProverResult::TRUE);
 }
 
 // The same two accumulators asserted to differ, which they never do.
@@ -308,32 +308,32 @@ TEST_P(SVUnitTests, BitVsLogicParityMismatchFails)
 
 TEST_P(SVUnitTests, SignedSignExtend)
 {
-  check_bmc("signed_sign_extend.sv", 0, ProverResult::UNKNOWN);
+  check_prover<KInduction>("signed_sign_extend.sv", 12, ProverResult::TRUE);
 }
 
 // Signed comparison.
 TEST_P(SVUnitTests, SignedCompare)
 {
-  check_bmc("signed_compare.sv", 0, ProverResult::UNKNOWN);
+  check_prover<KInduction>("signed_compare.sv", 12, ProverResult::TRUE);
 }
 
 // Signed division.
 TEST_P(SVUnitTests, SignedDivide)
 {
-  check_bmc("signed_divide.sv", 0, ProverResult::UNKNOWN);
+  check_prover<KInduction>("signed_divide.sv", 12, ProverResult::TRUE);
 }
 
 // `$signed` and `$unsigned` casts.
 TEST_P(SVUnitTests, SignedCast)
 {
-  check_bmc("signed_cast.sv", 0, ProverResult::UNKNOWN);
+  check_prover<KInduction>("signed_cast.sv", 12, ProverResult::TRUE);
 }
 
 // Signedness carried through the width an expression's context gives
 // it.
 TEST_P(SVUnitTests, SignedContextWidth)
 {
-  check_bmc("signed_context_width.sv", 0, ProverResult::UNKNOWN);
+  check_prover<KInduction>("signed_context_width.sv", 12, ProverResult::TRUE);
 }
 
 // LRM 10.9.2 gives four structure assignment pattern forms; only the

@@ -13,7 +13,7 @@ TEST_P(SVUnitTests, ReqAckLiveness) { check_liveness_bmc("req_ack.sv", 10); }
 // The same handshake with the acknowledgement guaranteed.
 TEST_P(SVUnitTests, ReqAckHolds)
 {
-  check_liveness_bmc("req_ack_holds.sv", 8, ProverResult::UNKNOWN);
+  check_liveness_prover<KInduction>("req_ack_holds.sv", 12, ProverResult::TRUE);
 }
 
 // `until`.
@@ -47,7 +47,7 @@ TEST_P(SVUnitTests, EventuallyNotRecurring)
 // including where the property does not take the safety fast path.
 TEST_P(SVUnitTests, DisableIffTemporalHolds)
 {
-  check_bmc("disable_iff_temporal.sv", 10, ProverResult::UNKNOWN);
+  check_prover<KInduction>("disable_iff_temporal.sv", 12, ProverResult::TRUE);
 }
 
 // A temporal property whose `disable iff` condition never fires, so the
@@ -63,7 +63,8 @@ TEST_P(SVUnitTests, DisableIffTemporalFails)
 // covers the whole evaluation rather than the anchor cycle.
 TEST_P(SVUnitTests, DisableIffLivenessHolds)
 {
-  check_liveness_bmc("disable_iff_liveness.sv", 12, ProverResult::UNKNOWN);
+  check_liveness_prover<KInduction>(
+      "disable_iff_liveness.sv", 12, ProverResult::TRUE);
 }
 
 // The same for a liveness property.
@@ -79,7 +80,8 @@ TEST_P(SVUnitTests, DisableIffLivenessFails)
 // case, and one that is vacuously true would satisfy it too.
 TEST_P(SVUnitTests, UnboundedDelayHolds)
 {
-  check_liveness_bmc("unbounded_delay.sv", 12, ProverResult::UNKNOWN);
+  check_liveness_prover<KInduction>(
+      "unbounded_delay.sv", 12, ProverResult::TRUE);
 }
 
 // An unbounded delay, `##[m:$]`.
@@ -101,7 +103,8 @@ TEST_P(SVUnitTests, UnboundedDelayMinimumFails)
 // occurrence would still pass the n=1 pair.
 TEST_P(SVUnitTests, GotoRepetitionHolds)
 {
-  check_liveness_bmc("goto_repetition.sv", 12, ProverResult::UNKNOWN);
+  check_liveness_prover<KInduction>(
+      "goto_repetition.sv", 12, ProverResult::TRUE);
 }
 
 // A goto repetition, `b[->n]`.
@@ -119,8 +122,8 @@ TEST_P(SVUnitTests, GotoRepetitionCountFails)
 // The same count satisfied.
 TEST_P(SVUnitTests, GotoRepetitionCountHolds)
 {
-  check_liveness_bmc(
-      "goto_repetition_count_holds.sv", 14, ProverResult::UNKNOWN);
+  check_liveness_prover<KInduction>(
+      "goto_repetition_count_holds.sv", 14, ProverResult::TRUE);
 }
 
 // A goto or nonconsecutive count as an antecedent. It needs its match
@@ -264,14 +267,14 @@ TEST_P(SVUnitTests, EventuallyRangeFails)
 // `s_eventually [m:n]`, a bounded eventuality.
 TEST_P(SVUnitTests, EventuallyRangeHolds)
 {
-  check_bmc("eventually_range.sv", 12, ProverResult::UNKNOWN);
+  check_prover<KInduction>("eventually_range.sv", 12, ProverResult::TRUE);
 }
 
 // Nested under an implication, i.e. where the window is relative to
 // the match point rather than to the start of the trace.
 TEST_P(SVUnitTests, SAlwaysRangeHolds)
 {
-  check_bmc("s_always_range.sv", 12, ProverResult::UNKNOWN);
+  check_prover<KInduction>("s_always_range.sv", 12, ProverResult::TRUE);
 }
 
 // `s_always [m:n]`.
@@ -285,7 +288,7 @@ TEST_P(SVUnitTests, SAlwaysRangeFails)
 // count == 1 rather than count == 3.
 TEST_P(SVUnitTests, NextTimeRangeHolds)
 {
-  check_bmc("nexttime_range.sv", 12, ProverResult::UNKNOWN);
+  check_prover<KInduction>("nexttime_range.sv", 12, ProverResult::TRUE);
 }
 
 // `nexttime [n]`.
@@ -298,7 +301,8 @@ TEST_P(SVUnitTests, NextTimeRangeFails)
 // unbounded, encoded as m forward shifts around the ordinary G tester.
 TEST_P(SVUnitTests, AlwaysRangeUnbounded)
 {
-  check_liveness_bmc("always_range_unbounded.sv", 8, ProverResult::UNKNOWN);
+  check_liveness_prover<KInduction>(
+      "always_range_unbounded.sv", 12, ProverResult::TRUE);
 }
 
 // `always`.
@@ -330,7 +334,7 @@ TEST_P(SVUnitTests, PastCall) { check_bmc("past_call.sv", 1); }
 // the same rule directly -- see the comment in past_call_enable.sv.
 TEST_P(SVUnitTests, PastCallWithEnable)
 {
-  check_bmc("past_call_enable.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("past_call_enable.sv", 12, ProverResult::TRUE);
 }
 
 // A constant sequence delay, `##n`.
@@ -358,14 +362,14 @@ TEST_P(SVUnitTests, MultipleAssertions)
 
 TEST_P(SVUnitTests, AssumePropertyConstrainsTrace)
 {
-  check_bmc("assume_property.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("assume_property.sv", 12, ProverResult::TRUE);
 }
 
 // `restrict property` narrowing the traces a later assertion is checked
 // against.
 TEST_P(SVUnitTests, RestrictPropertyConstrainsTrace)
 {
-  check_bmc("restrict_property.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("restrict_property.sv", 12, ProverResult::TRUE);
 }
 
 // `cover property (P)`: implemented via reachability duality (see the
@@ -400,13 +404,13 @@ TEST_P(SVUnitTests, CoverSequence) { check_bmc("cover_sequence.sv", 1); }
 
 TEST_P(SVUnitTests, RoseFellChangedHold)
 {
-  check_bmc("rose_fell_changed.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("rose_fell_changed.sv", 12, ProverResult::TRUE);
 }
 
 // `$onehot` and `$isunknown`.
 TEST_P(SVUnitTests, OnehotIsUnknownHold)
 {
-  check_bmc("onehot_isunknown.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("onehot_isunknown.sv", 12, ProverResult::TRUE);
 }
 
 // ---------------------------------------------------------------------------
@@ -536,7 +540,7 @@ TEST_P(SVUnitTests, NamedPropertyClockArgRejected)
 
 TEST_P(SVUnitTests, UntilHoldsViaReleaseTableau)
 {
-  check_liveness_bmc("until_holds.sv", 6, ProverResult::UNKNOWN);
+  check_liveness_prover<KInduction>("until_holds.sv", 12, ProverResult::TRUE);
 }
 
 // ---------------------------------------------------------------------------
@@ -1115,8 +1119,8 @@ TEST_P(SVUnitTests, UnboundedDelayConsequentFails)
 // An unbounded delay in a consequent, which is an eventuality.
 TEST_P(SVUnitTests, UnboundedDelayConsequentHolds)
 {
-  check_liveness_bmc(
-      "unbounded_delay_consequent_holds.sv", 12, ProverResult::UNKNOWN);
+  check_liveness_prover<KInduction>(
+      "unbounded_delay_consequent_holds.sv", 12, ProverResult::TRUE);
 }
 
 // A counted repetition *following* another element counts from where

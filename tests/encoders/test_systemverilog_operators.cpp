@@ -28,7 +28,7 @@ namespace pono_tests {
 // Arithmetic and comparison.
 TEST_P(SVUnitTests, ArithCompareHolds)
 {
-  check_bmc("arith_compare.sv", 8, ProverResult::UNKNOWN);
+  check_prover<KInduction>("arith_compare.sv", 12, ProverResult::TRUE);
 }
 
 // The same invariant perturbed, so it must be refuted.
@@ -40,7 +40,7 @@ TEST_P(SVUnitTests, ArithCompareFails)
 // Bitwise and logical.
 TEST_P(SVUnitTests, BitwiseLogicalHolds)
 {
-  check_bmc("bitwise_logical.sv", 6, ProverResult::UNKNOWN);
+  check_prover<KInduction>("bitwise_logical.sv", 12, ProverResult::TRUE);
 }
 
 // The same invariant perturbed.
@@ -52,7 +52,7 @@ TEST_P(SVUnitTests, BitwiseLogicalFails)
 // Shift, unary and reduction.
 TEST_P(SVUnitTests, ShiftUnaryReductionHolds)
 {
-  check_bmc("shift_unary_reduction.sv", 6, ProverResult::UNKNOWN);
+  check_prover<KInduction>("shift_unary_reduction.sv", 12, ProverResult::TRUE);
 }
 
 // The same invariant perturbed.
@@ -64,7 +64,7 @@ TEST_P(SVUnitTests, ShiftUnaryReductionFails)
 // Ternary, select and concatenation.
 TEST_P(SVUnitTests, TernarySelectConcatHolds)
 {
-  check_bmc("ternary_select_concat.sv", 6, ProverResult::UNKNOWN);
+  check_prover<KInduction>("ternary_select_concat.sv", 12, ProverResult::TRUE);
 }
 
 // The same invariant perturbed.
@@ -76,14 +76,15 @@ TEST_P(SVUnitTests, TernarySelectConcatFails)
 // Replication together with every sized-literal spelling.
 TEST_P(SVUnitTests, ReplicationSizedLiteralsHold)
 {
-  check_bmc("replication_sized_literals.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>(
+      "replication_sized_literals.sv", 12, ProverResult::TRUE);
 }
 
 // The three equivalent combinational-block styles -- `assign`,
 // `always_comb`, and legacy `always @*` -- computing the same function.
 TEST_P(SVUnitTests, CombPathsEquivalenceHolds)
 {
-  check_bmc("comb_paths.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("comb_paths.sv", 12, ProverResult::TRUE);
 }
 
 // One style computing something else, so the three disagree.
@@ -95,7 +96,8 @@ TEST_P(SVUnitTests, CombPathsEquivalenceFails)
 // Reduction NAND, NOR and XNOR (`~&`, `~|`, `~^`).
 TEST_P(SVUnitTests, ReductionNandNorXnor)
 {
-  check_bmc("reduction_nand_nor_xnor.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>(
+      "reduction_nand_nor_xnor.sv", 12, ProverResult::TRUE);
 }
 
 // Power (`**`) with a compile-time-constant exponent, unrolled into
@@ -121,7 +123,7 @@ TEST_P(SVUnitTests, StreamingOperator) { check_bmc("streaming_op.sv", 2); }
 // right of the wildcard comparison.
 TEST_P(SVUnitTests, EqualityVariants)
 {
-  check_bmc("equality_variants.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("equality_variants.sv", 12, ProverResult::TRUE);
 }
 
 // A wildcard pattern wider than 64 bits, through `==?`, `!=?` and a
@@ -175,7 +177,8 @@ TEST_P(SVUnitTests, CaseInsideRangeFails)
 // comparison in both roles at once.
 TEST_P(SVUnitTests, PredicateValueAndConditionHolds)
 {
-  check_bmc("predicate_value_and_condition.sv", 6, ProverResult::UNKNOWN);
+  check_prover<KInduction>(
+      "predicate_value_and_condition.sv", 12, ProverResult::TRUE);
 }
 
 // The two roles made to disagree.
@@ -189,7 +192,7 @@ TEST_P(SVUnitTests, PredicateValueAndConditionFails)
 // condition is ANDed together, not just the first.
 TEST_P(SVUnitTests, MultiConditionTernary)
 {
-  check_bmc("multi_cond_ternary.sv", 0, ProverResult::UNKNOWN);
+  check_prover<KInduction>("multi_cond_ternary.sv", 12, ProverResult::TRUE);
 }
 
 // ---------------------------------------------------------------------------
@@ -219,7 +222,7 @@ TEST_P(SVUnitTests, PastInLogicalAndBuildsOneChain)
 // The same design's own invariant.
 TEST_P(SVUnitTests, PastInLogicalAndHolds)
 {
-  check_bmc("past_in_logical_and.sv", 6, ProverResult::UNKNOWN);
+  check_prover<KInduction>("past_in_logical_and.sv", 12, ProverResult::TRUE);
 }
 
 // ---------------------------------------------------------------------------

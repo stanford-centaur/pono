@@ -22,7 +22,7 @@ namespace pono_tests {
 // A design of more than one module.
 TEST_P(SVUnitTests, HierarchicalModules)
 {
-  check_bmc("hierarchical.sv", 5, ProverResult::UNKNOWN);
+  check_prover<KInduction>("hierarchical.sv", 12, ProverResult::TRUE);
 }
 
 // A read of a child instance's signal through a dot-path.
@@ -84,7 +84,7 @@ TEST_P(SVUnitTests, InoutPortUndrivenIsFree)
 // `hi`/`lo` each track their own slice of the child's driven value.
 TEST_P(SVUnitTests, ConcatenationOutputPort)
 {
-  check_bmc("concat_output_port.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("concat_output_port.sv", 12, ProverResult::TRUE);
 }
 
 // A streaming concatenation as an output-port connection. `>>`
@@ -214,7 +214,7 @@ TEST_P(SVUnitTests, NullPortSlot)
 // than mistaking a partial first write for a full one.
 TEST_P(SVUnitTests, GappedBusSliceFromSiblingInstances)
 {
-  check_bmc("gapped_bus_slice.sv", 4, ProverResult::UNKNOWN);
+  check_prover<KInduction>("gapped_bus_slice.sv", 12, ProverResult::TRUE);
 }
 
 // A register whose output port is aliased through an instance-array
@@ -318,19 +318,14 @@ TEST_P(SVUnitTests, ClogTwoAndBitsElaborationFunctions)
 // Sources named by a `--sv-filelist` list file.
 TEST_P(SVUnitTests, Filelist)
 {
-  check_bmc(
-      "filelist_top.sv", 5, ProverResult::UNKNOWN, { sv_path("filelist.f") });
+  check_prover<KInduction>(
+      "filelist_top.sv", 12, ProverResult::TRUE, { sv_path("filelist.f") });
 }
 
 // A list file naming a source that does not exist.
-TEST_P(SVUnitTests, FilelistMissingFile)
+TEST_P(SVUnitTests, FilelistMissingFileRejected)
 {
-  SmtSolver s = create_solver(GetParam());
-  FunctionalTransitionSystem fts(s);
-  EXPECT_THROW(
-      SystemVerilogEncoder::encode(
-          fts, sv_path("filelist_top.sv"), { sv_path("filelist_missing.f") }),
-      PonoException);
+  expect_encode_throws("filelist_top.sv", { sv_path("filelist_missing.f") });
 }
 
 // ---------------------------------------------------------------------------
@@ -416,6 +411,10 @@ TEST_P(SVUnitTests, InterfaceModportPort)
 // Verification code attached to a design without being part of it.
 // -------------------------------------------------------------------------
 
+// The counter reaches 15 sixteen cycles after reset releases, so the
+// refutation depth is what shows the bound instance's port really
+// sees `leaf2`'s internal `count`: a free `count` would be refuted
+// at once instead.
 // `bind` works: slang's elaborator splices the bound instance directly
 // into the target module's body as an ordinary child instance, so
 // Pono's regular instance walk picks up `checker_mod`'s assertion --
@@ -425,7 +424,7 @@ TEST_P(SVUnitTests, InterfaceModportPort)
 // warning; it doesn't skip anything.
 TEST_P(SVUnitTests, BindDirectiveAttachesAssertion)
 {
-  check_bmc("bind_directive.sv", 3, ProverResult::UNKNOWN);
+  check_bmc("bind_directive.sv", 16);
 }
 
 // `checker` is IEEE 1800's standard non-invasive formal-assertion-

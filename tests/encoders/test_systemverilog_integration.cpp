@@ -18,7 +18,8 @@ namespace pono_tests {
 // Integration #1a: round-robin arbiter safety property, plain Bmc.
 TEST_P(SVUnitTests, ArbiterBusSafetyHolds)
 {
-  check_bmc("integration/arbiter_bus.sv", 6, ProverResult::UNKNOWN);
+  check_prover<KInduction>(
+      "integration/arbiter_bus.sv", 12, ProverResult::TRUE);
 }
 
 // Integration #1b: the same design's liveness property, via the
@@ -28,16 +29,8 @@ TEST_P(SVUnitTests, ArbiterBusLivenessFails)
   check_liveness_bmc("integration/arbiter_bus_live.sv", 8);
 }
 
-// Integration #2a: register-file read-after-write invariant, plain
-// Bmc -- can only ever report UNKNOWN, not an inductive proof.
-TEST_P(SVUnitTests, RegfileCtrlBmcInconclusive)
-{
-  check_bmc("integration/regfile_ctrl.sv", 6, ProverResult::UNKNOWN);
-}
-
-// Integration #2b: the same invariant, actually *proved* via
-// KInduction (it is 1-inductive) -- the first test in this suite to
-// run a non-Bmc engine over the SV frontend's output.
+// Integration #2: register-file read-after-write invariant, proved
+// via KInduction -- it is 1-inductive.
 TEST_P(SVUnitTests, RegfileCtrlKInductionProves)
 {
   check_prover<KInduction>(
