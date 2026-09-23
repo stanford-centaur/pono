@@ -2426,8 +2426,33 @@ void StatementEncoder::process_statement(
           "leave the target following the driver the design meant to "
           "override");
 
+    case slang::ast::StatementKind::Wait:
+    case slang::ast::StatementKind::WaitFork:
+    case slang::ast::StatementKind::WaitOrder:
+      // `wait (expr) stmt` holds the statement it guards until the
+      // condition becomes true (LRM 9.4.3); `wait fork` and
+      // `wait_order` hold until child processes finish or named
+      // events arrive in order (9.6.1, 15.5.4). All three park a
+      // process part-way through and resume it later, which needs a
+      // per-process resumption point a cycle-based transition system
+      // does not carry.
+      //
+      // Walking past one is not a conservative widening. The guarded
+      // statement is the wait's own child in the grammar (Syntax
+      // 9-5), so `wait (go) x = 1;` would lose the write while
+      // `wait (go); x = 1;` would keep it unguarded -- the first
+      // reads as a wait that never passes and the second as one that
+      // passes at once, wrong in opposite directions and decided by
+      // nothing but where the semicolon went.
+      throw PonoException(
+          "SystemVerilogEncoder: `wait` holds a process until its "
+          "condition holds, and this encoder has no resumption point "
+          "to park it at -- skipping the wait would either drop the "
+          "statements it guards or run them unguarded, depending only "
+          "on how the wait was written");
+
     default:
-      // Other statement kinds (e.g. wait, return, event triggers,
+      // Other statement kinds (e.g. return, event triggers,
       // randcase): not supported in synthesizable subset. Log a
       // warning and skip.
       logger.log(1,

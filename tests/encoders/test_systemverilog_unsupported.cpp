@@ -73,11 +73,22 @@ TEST_P(SVUnitTests, ForkJoinTimed)
   expect_encode_throws("fork_join_timed.sv");
 }
 
-// A bare `wait` statement.
-TEST_P(SVUnitTests, WaitStmt)
-{
-  expect_encode_succeeds_ignoring("wait_stmt.sv");
-}
+// `wait (expr)`, level-sensitive event control: the statements it
+// guards stay blocked until the condition holds. Parking a process
+// part-way through and resuming it later is per-process state that a
+// transition system does not carry. The two spellings differ only in
+// whether the guarded write is the wait's own substatement or sits
+// after it in the enclosing block; they mean the same thing.
+TEST_P(SVUnitTests, WaitLevel) { expect_encode_throws("wait_level.sv"); }
+
+TEST_P(SVUnitTests, WaitThen) { expect_encode_throws("wait_then.sv"); }
+
+// The level-sensitive latch idiom, the one shape of `wait` that
+// describes hardware rather than a testbench.
+TEST_P(SVUnitTests, WaitLatch) { expect_encode_throws("wait_latch.sv"); }
+
+// `wait fork`, which waits on child processes rather than on a value.
+TEST_P(SVUnitTests, WaitFork) { expect_encode_throws("wait_fork.sv"); }
 
 // `expect (property_expr)`, a procedural blocking wait for a property
 // rather than a checked invariant.
