@@ -2390,6 +2390,24 @@ void StatementEncoder::process_statement(
       throw LoopControlSignal{ LoopControlSignal::Disable, target };
     }
 
+    case slang::ast::StatementKind::ProceduralAssign:
+    case slang::ast::StatementKind::ProceduralDeassign:
+      // `force`/`release` and their variable-only siblings
+      // `assign`/`deassign` (LRM 10.6). A procedural continuous
+      // assignment overrides every other driver of its target until
+      // it is undone, so skipping one does not widen the model or
+      // narrow it -- it *substitutes* one behaviour for another,
+      // leaving the target following a driver the design had
+      // overridden. Both a spurious counterexample and a false proof
+      // follow from that, so this throws rather than joining the
+      // simulation-only constructs the default below walks past.
+      throw PonoException(
+          "SystemVerilogEncoder: `force`/`release` (and `assign`/"
+          "`deassign`) override every other driver of their target, "
+          "which this encoder does not model -- dropping one would "
+          "leave the target following the driver the design meant to "
+          "override");
+
     default:
       // Other statement kinds (e.g. wait, return, event triggers,
       // randcase): not supported in synthesizable subset. Log a

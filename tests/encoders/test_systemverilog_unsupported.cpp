@@ -73,12 +73,6 @@ TEST_P(SVUnitTests, ExpectProperty)
   expect_encode_succeeds_ignoring("expect_property.sv");
 }
 
-// Procedural `force`/`release`.
-TEST_P(SVUnitTests, ForceRelease)
-{
-  expect_encode_succeeds_ignoring("force_release.sv");
-}
-
 // A `final` block, which runs once when simulation ends -- a moment an
 // infinite-trace model does not have.
 TEST_P(SVUnitTests, FinalBlockIgnored)
@@ -135,6 +129,13 @@ TEST_P(SVUnitTests, AssocArray) { expect_encode_throws("assoc_array.sv"); }
 
 // A bare `forever` with no event control.
 TEST_P(SVUnitTests, BareForever) { expect_encode_throws("bare_forever.sv"); }
+
+// A `force` held for a delay rather than for a number of cycles.
+// The clock-scoped spellings of force and release are modelled.
+TEST_P(SVUnitTests, ForceReleaseWithDelay)
+{
+  expect_encode_throws("force_release_delay.sv");
+}
 
 // A function that recurses to a depth known only at run time.
 // (Recursion to a *constant* depth is a separate question: that

@@ -512,6 +512,42 @@ TEST_P(SVUnitTests, ImmediateAssume)
 }
 
 // ---------------------------------------------------------------------------
+// Procedural continuous assignments: `force`/`release` and their
+// variable-only siblings `assign`/`deassign` (LRM 10.6). Each
+// overrides every other driver of its target until it is undone, so
+// what has to be modelled is the override and how long it lasts.
+// Ordered by extent -- for the whole run first, then bounded by
+// clock edges.
+// ---------------------------------------------------------------------------
+
+// A `force` never released, so the override lasts the whole run.
+TEST_P(SVUnitTests, ForcePermanent)
+{
+  check_prover<KInduction>("force_permanent.sv", 8, ProverResult::TRUE);
+}
+
+// The same on a net, which differs from a variable in what release
+// does rather than in the override itself.
+TEST_P(SVUnitTests, ForceNet)
+{
+  check_prover<KInduction>("force_net.sv", 8, ProverResult::TRUE);
+}
+
+// `force` and `release` applied at clock edges, so the override
+// lasts a number of cycles.
+TEST_P(SVUnitTests, ForceReleaseOnClockEdge)
+{
+  check_prover<KInduction>(
+      "force_release_on_clock_edge.sv", 8, ProverResult::TRUE);
+}
+
+// `assign`/`deassign`, the same structure restricted to variables.
+TEST_P(SVUnitTests, AssignDeassign)
+{
+  check_prover<KInduction>("assign_deassign.sv", 8, ProverResult::TRUE);
+}
+
+// ---------------------------------------------------------------------------
 // Subroutines. A call is inlined where it appears, so the body's
 // statements land in the caller's context and its arguments are copied
 // in and back out. Function calls come first, then task calls, which
