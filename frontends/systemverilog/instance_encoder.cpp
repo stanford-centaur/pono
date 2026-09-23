@@ -177,17 +177,10 @@ void InstanceEncoder::process_assignments(const slang::ast::Scope & body,
       // no functional effect on the DUT's logic.
       logger.log(1,
                  "SystemVerilogEncoder: ignoring specify block (timing-only)");
-    } else if (member.kind == SymbolKind::DefParam) {
-      // `defparam inst.PARAM = value;`: a legacy parameter-override
-      // mechanism with no functional-logic representation of its own
-      // (the target instance is encoded with its own declared
-      // defaults instead). The `#(...)` instantiation-time override
-      // styles are fully supported; only this legacy spelling isn't.
-      logger.log(1,
-                 "SystemVerilogEncoder: ignoring defparam (parameter "
-                 "overrides via `#(...)` at instantiation are supported; "
-                 "`defparam` is not)");
     }
+    // A DefParam member needs nothing here: slang applies the
+    // override while elaborating, so the target instance already
+    // carries the overridden value by the time it is walked.
   });
 
   // Sequential and assertion-bearing blocks come second.
@@ -1162,11 +1155,6 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
     } else if (m.kind == SymbolKind::SpecifyBlock) {
       logger.log(1,
                  "SystemVerilogEncoder: ignoring specify block (timing-only)");
-    } else if (m.kind == SymbolKind::DefParam) {
-      logger.log(1,
-                 "SystemVerilogEncoder: ignoring defparam (parameter "
-                 "overrides via `#(...)` at instantiation are supported; "
-                 "`defparam` is not)");
     }
   });
 

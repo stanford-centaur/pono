@@ -149,28 +149,6 @@ std::vector<std::string> parse_dot_f_file(const std::string & filelist_path)
   return files;
 }
 
-// Recursively scans `node` for `bind` directive syntax, logging a
-// warning for each one found. A `bind` directive injects an
-// additional instance into another module's scope from outside its
-// source and has no functional-logic representation in this encoder's
-// model, but (unlike a program/checker instance or a specify block)
-// it has no corresponding elaborated Symbol to catch during the usual
-// member walk -- it has to be found in the raw syntax tree instead.
-void warn_on_bind_directives(const slang::syntax::SyntaxNode & node)
-{
-  if (node.kind == slang::syntax::SyntaxKind::BindDirective) {
-    logger.log(
-        1,
-        "SystemVerilogEncoder: ignoring `bind` directive (simulation-only "
-        "construct)");
-  }
-  for (size_t i = 0, n = node.getChildCount(); i < n; i++) {
-    if (auto * child = node.childNode(i)) {
-      warn_on_bind_directives(*child);
-    }
-  }
-}
-
 // Classifies a continuous-assign LHS during process_module()'s wire
 // pre-scan: a plain NamedValue base becomes a wire (macro-substituted
 // with its defining expression rather than declared as a free input
@@ -298,13 +276,6 @@ void SystemVerilogEncoder::run(const string & filename,
     }
     throw PonoException("SystemVerilogEncoder: errors in SystemVerilog file:\n"
                         + diag_messages);
-  }
-
-  // `bind` directives have no corresponding elaborated Symbol to catch
-  // during the usual member walk, so scan the raw syntax for them
-  // directly and warn -- see warn_on_bind_directives().
-  for (auto & tree : compilation_->getSyntaxTrees()) {
-    warn_on_bind_directives(tree->root());
   }
 
   // Walk the top-level instances.
