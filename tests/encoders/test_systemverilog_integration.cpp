@@ -37,34 +37,22 @@ TEST_P(SVUnitTests, RegfileCtrlKInductionProves)
       "integration/regfile_ctrl.sv", 6, ProverResult::TRUE);
 }
 
-// Integration #3: credit-based link, checked with IC3Bits.  Written
-// by hand rather than via check_prover() because IC3Bits needs a
-// differently-configured solver (see below).  The design has an
-// `assume property` constraining `push` to never fire while credits
-// == 0; with that assumption honored, IC3 proves credits never
-// overflow past 4'd4.
+// Integration #3: a credit-based link whose `assume property` keeps
+// `push` from firing at zero credits. Without the assumption
+// reaching the solver the counter wraps below zero and the bound is
+// violated, so this is really a test that the assumption is there.
+//
+// Checked with IC3Bits, the one engine in this suite that is neither
+// Bmc nor KInduction: it consumes the transition system differently
+// and wants solver options of its own, so it is also a check that
+// the frontend's output travels.
 TEST_P(SVUnitTests, CreditLinkAssumeHonoredByIC3)
 {
-  // IC3Bits needs solver options (e.g. unsat-assumptions production)
-  // beyond the plain incremental/produce-models pair Bmc/KInduction
-  // get away with -- create_solver_for(..., Engine::IC3_BITS, ...)
-  // is the same helper test_ic3bits.cpp uses for exactly this reason.
-  SmtSolver s = create_solver_for(GetParam(), Engine::IC3_BITS, false);
-  FunctionalTransitionSystem fts(s);
-  auto sv_result =
-      SystemVerilogEncoder::encode(fts, sv_path("integration/credit_link.sv"));
-  ASSERT_EQ(sv_result.propvec.size(), 1u);
-  Term prop_term = sv_result.propvec[0];
-
-  TransitionSystem ts = fts;
-  if (Term rst = find_reset(ts)) {
-    Term reset_done = add_reset_seq(ts, rst, /*reset_bnd=*/1);
-    prop_term = ts.solver()->make_term(Implies, reset_done, prop_term);
-  }
-
-  SafetyProperty prop(ts.solver(), prop_term);
-  IC3Bits ic3bits(prop, ts, s);
-  EXPECT_EQ(ic3bits.check_until(10), ProverResult::TRUE);
+  check_prover<IC3Bits>("integration/credit_link.sv",
+                        10,
+                        ProverResult::TRUE,
+                        /*filelists=*/{},
+                        Engine::IC3_BITS);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVIntegrationTests,

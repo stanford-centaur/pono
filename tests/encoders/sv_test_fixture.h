@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -81,20 +82,32 @@ class SVUnitTests : public ::testing::Test,
   // Generalization of check_bmc() over any SafetyProver-shaped engine
   // (Bmc, KInduction, IC3Bits, ...) that shares the EngineT(prop, ts,
   // solver) constructor and the check_until()/witness_length()
-  // interface.  Used by the integration tests to exercise more than
-  // just Bmc against the SV frontend's output.
+  // interface.
+  //
+  // `engine_opts` names the same engine as `EngineT` and is only
+  // needed
+  // where the solver has to be configured for it -- the IC3 family
+  // wants options, such as unsat-assumption production, that Bmc and
+  // KInduction do without. Left unset, the plain incremental and
+  // model-producing pair is used.
   template <typename EngineT>
   void check_prover(const std::string & file,
                     size_t bound,
                     pono::ProverResult expected = pono::ProverResult::FALSE,
-                    const std::vector<std::string> & filelists = {})
+                    const std::vector<std::string> & filelists = {},
+                    std::optional<pono::Engine> engine_opts = std::nullopt)
   {
     using namespace pono;
     using namespace smt;
 
-    SmtSolver s = create_solver(GetParam());
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
+    SmtSolver s;
+    if (engine_opts) {
+      s = create_solver_for(GetParam(), *engine_opts, /*logging=*/false);
+    } else {
+      s = create_solver(GetParam());
+      s->set_opt("incremental", "true");
+      s->set_opt("produce-models", "true");
+    }
     FunctionalTransitionSystem fts(s);
     auto sv_result =
         SystemVerilogEncoder::encode(fts, sv_path(file), filelists);
