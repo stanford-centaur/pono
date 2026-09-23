@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -84,29 +83,21 @@ class SVUnitTests : public ::testing::Test,
   // solver) constructor and the check_until()/witness_length()
   // interface.
   //
-  // `engine` names the same engine as `EngineT` and is only needed
-  // where the solver has to be configured for it -- the IC3 family
-  // wants options, such as unsat-assumption production, that Bmc and
-  // KInduction do without. Left unset, the plain incremental and
-  // model-producing pair is used.
+  // `engine` names the same engine as `EngineT`, so the solver can be
+  // configured for it: the IC3 family wants unsat-assumption
+  // production, which the others do without. `NONE` asks for nothing
+  // beyond the incremental, model-producing solver they all share.
   template <typename EngineT>
   void check_prover(const std::string & file,
                     size_t bound,
                     pono::ProverResult expected = pono::ProverResult::FALSE,
                     const std::vector<std::string> & filelists = {},
-                    std::optional<pono::Engine> engine = std::nullopt)
+                    pono::Engine engine = pono::Engine::NONE)
   {
     using namespace pono;
     using namespace smt;
 
-    SmtSolver s;
-    if (engine) {
-      s = create_solver_for(GetParam(), *engine, /*logging=*/false);
-    } else {
-      s = create_solver(GetParam());
-      s->set_opt("incremental", "true");
-      s->set_opt("produce-models", "true");
-    }
+    SmtSolver s = create_solver_for(GetParam(), engine, /*logging=*/false);
     FunctionalTransitionSystem fts(s);
     auto sv_result =
         SystemVerilogEncoder::encode(fts, sv_path(file), filelists);
@@ -160,14 +151,13 @@ class SVUnitTests : public ::testing::Test,
   void check_liveness_prover(
       const std::string & file,
       size_t bound,
-      pono::ProverResult expected = pono::ProverResult::FALSE)
+      pono::ProverResult expected = pono::ProverResult::FALSE,
+      pono::Engine engine = pono::Engine::NONE)
   {
     using namespace pono;
     using namespace smt;
 
-    SmtSolver s = create_solver(GetParam());
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
+    SmtSolver s = create_solver_for(GetParam(), engine, /*logging=*/false);
     FunctionalTransitionSystem fts(s);
     auto sv_result = SystemVerilogEncoder::encode(fts, sv_path(file));
     ASSERT_EQ(sv_result.propvec.size(), 0u);
