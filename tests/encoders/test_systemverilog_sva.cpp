@@ -513,11 +513,11 @@ TEST_P(SVUnitTests, NamedAssertionNestedDeepInlined)
   check_bmc("named_assertion_nested_deep_inlined.sv", 3);
 }
 
-// A repetition on the reference is a different operator from a
-// repetition on a Boolean, so it is refused rather than guessed.
-TEST_P(SVUnitTests, Unsupported_NamedAssertionReferenceRepetition)
+// A repetition applied to a named sequence reference, which repeats
+// the whole sequence rather than a Boolean.
+TEST_P(SVUnitTests, NamedAssertionReferenceRepetition)
 {
-  expect_encode_throws("named_assertion_reference_repetition.sv");
+  check_bmc("named_assertion_reference_repetition.sv", 4);
 }
 
 // Local variables and recursion still need a binding environment
@@ -885,12 +885,12 @@ TEST_P(SVUnitTests, PropertySyncAcceptOn)
       "property_sync_accept_on.sv", 25, ProverResult::TRUE);
 }
 
-// A temporal operand needs its eventualities waived from the abort
-// onward while its safety part still holds before it, which is a
-// split of the property the tableau does not expose.
-TEST_P(SVUnitTests, Unsupported_PropertyAcceptOnTemporal)
+// An abort over a temporal operand, whose eventualities the
+// truncation waives from the abort onward.
+TEST_P(SVUnitTests, PropertyAcceptOnTemporal)
 {
-  expect_encode_throws("property_accept_on_temporal.sv");
+  check_prover<KInduction>(
+      "property_accept_on_temporal.sv", 8, ProverResult::TRUE);
 }
 
 // `a intersect b` used directly as a property (as opposed to as the
@@ -1021,11 +1021,12 @@ TEST_P(SVUnitTests, FairnessAppliedToLiveness)
       "fairness_applied_to_liveness.sv", 20, ProverResult::TRUE);
 }
 
-// A `disable iff` on a fairness assumption, which would leave it
-// holding over some suffixes and not others.
-TEST_P(SVUnitTests, Unsupported_TemporalAssumeDisableIff)
+// A `disable iff` on a fairness assumption, which holds over the
+// suffixes the condition does not abort.
+TEST_P(SVUnitTests, TemporalAssumeDisableIff)
 {
-  expect_encode_throws("temporal_assume_disable_iff.sv");
+  check_liveness_prover<KInduction>(
+      "temporal_assume_disable_iff.sv", 20, ProverResult::TRUE);
 }
 
 // A cover whose goal is a genuine eventuality has to run through the

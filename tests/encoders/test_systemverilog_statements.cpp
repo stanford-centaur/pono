@@ -180,18 +180,20 @@ TEST_P(SVUnitTests, StreamingConcatContinuousAssign)
       "streaming_concat_continuous.sv", 4, ProverResult::TRUE);
 }
 
-// Streaming an unpacked array means walking its elements in `foreach`
-// order, which positional bit-splicing cannot express.
-TEST_P(SVUnitTests, Unsupported_StreamingConcatUnpackedTarget)
+// A streaming concatenation whose target is an unpacked array,
+// walked in `foreach` order.
+TEST_P(SVUnitTests, StreamingConcatUnpackedTarget)
 {
-  expect_encode_throws("streaming_concat_unpacked_target.sv");
+  check_prover<KInduction>(
+      "streaming_concat_unpacked_target.sv", 8, ProverResult::TRUE);
 }
 
-// A `with` range sizes dynamically sized stream data, which is out of
-// scope here.
-TEST_P(SVUnitTests, Unsupported_StreamingConcatWithRange)
+// A constant `with` range inside a streaming concatenation, naming
+// which elements of a fixed-size array take part.
+TEST_P(SVUnitTests, StreamingConcatWithRange)
 {
-  expect_encode_throws("streaming_concat_with_range.sv");
+  check_prover<KInduction>(
+      "streaming_concat_with_range.sv", 8, ProverResult::TRUE);
 }
 
 // Minimal, direct checks of two patterns that recur composed with other

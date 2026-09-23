@@ -417,11 +417,20 @@ void SystemVerilogEncoder::process_module(
   // Fourth pass: process behavioral code and continuous assignments.
   instance_encoder_.process_assignments(body, prefix, parent_prefix);
 
-  // A register bank assembled from sibling instances is only sound if
-  // its contributors cover it. Any bit none of them wrote still holds
-  // the free value the target was seeded with, and would drift every
-  // cycle with nothing to say so. Checked here because only now is it
-  // settled which instances contribute.
+  // What the contributors to an assembled register bank leave.
+  // Checked here because only now is it settled which instances
+  // contribute.
+  //
+  // Two drivers on one bit is a malformed design -- nothing resolves
+  // them -- so that throws. A bit *no* contributor drives is a
+  // different matter: it is legal, and an undriven signal is
+  // unconstrained everywhere else in this encoder, so it is left
+  // that way here too and only reported. The bits it leaves free
+  // change every cycle, which is the sound reading of a signal
+  // nothing drives -- a register would hold its value, and floating
+  // wires do not. Worth saying out loud even so, since a hole in a
+  // register bank is usually a missing instance rather than an
+  // intent.
   for (auto & [root, ranges] : symbol_table_.spliced_alias_ranges()) {
     uint64_t root_w =
         value_width(root->as<slang::ast::ValueSymbol>().getType());
@@ -440,11 +449,12 @@ void SystemVerilogEncoder::process_module(
       covered = hi + 1;
     }
     if (covered != root_w) {
-      throw PonoException(
-          "SystemVerilogEncoder: bit " + std::to_string(covered) + " of '"
-          + std::string(root->name)
-          + "' has no driver, though registers in sibling instances drive "
-            "other bits of it -- an undriven bit would be free every cycle");
+      logger.log(0,
+                 "SystemVerilogEncoder: bit {} of '{}' has no driver, though "
+                 "registers in sibling instances drive other bits of it -- "
+                 "it is left free, and takes a fresh value every cycle",
+                 covered,
+                 std::string(root->name));
     }
   }
 

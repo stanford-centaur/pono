@@ -1,8 +1,10 @@
-// A repetition applied to the reference itself. `inner(x)[*2]`
-// repeats a whole sequence, which is a convolution of its offsets
-// with themselves -- not the per-cycle repetition a Boolean operand
-// gets. Refused rather than quietly given the wrong one, which is
-// the reading a bare `resolve and recurse` would have fallen into.
+// A repetition applied to a named sequence reference. `inner(x)[*2]`
+// repeats a whole sequence, which is its offsets convolved with
+// themselves -- the same composition `(seq)[*n]` written inline gets,
+// rather than the per-cycle repetition a Boolean operand takes.
+//
+// `inner(x)` is `x ##1 x`, so `inner(x)[*2]` is four consecutive
+// cycles of `x`, and the consequent is checked at the fifth.
 module named_assertion_reference_repetition (
     input logic clk,
     input logic x,

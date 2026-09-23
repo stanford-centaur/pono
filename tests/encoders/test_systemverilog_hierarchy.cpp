@@ -167,18 +167,16 @@ TEST_P(SVUnitTests, ExplicitPortInFails)
   check_bmc("explicit_port_in_fails.sv", 0);
 }
 
-// An explicit port standing for part of a signal, or for parts of
-// several, has no single internal symbol to bind to.
-TEST_P(SVUnitTests, Unsupported_ExplicitPortPartial)
+// An explicit port bound to a bit range, `output .o(w[3:0])`.
+TEST_P(SVUnitTests, ExplicitPortPartial)
 {
-  expect_encode_throws("explicit_port_partial.sv");
+  check_prover<KInduction>("explicit_port_partial.sv", 8, ProverResult::TRUE);
 }
 
-// An explicit port bound to a concatenation of several signals, which
-// is parts of several symbols rather than one.
-TEST_P(SVUnitTests, Unsupported_ExplicitPortConcat)
+// An explicit port bound to a concatenation, `output .o({x, y})`.
+TEST_P(SVUnitTests, ExplicitPortConcat)
 {
-  expect_encode_throws("explicit_port_concat.sv");
+  check_prover<KInduction>("explicit_port_concat.sv", 8, ProverResult::TRUE);
 }
 
 // An empty slot in a port list connects to nothing and has no type
@@ -216,16 +214,16 @@ TEST_P(SVUnitTests, RegisterAliasedToPartialTarget)
   check_prover<KInduction>("reg_bus_slice.sv", 6, ProverResult::TRUE);
 }
 
-// The hole the splicing has to notice: a bit no contributor writes
-// keeps the free value the target was seeded with.
-TEST_P(SVUnitTests, Unsupported_RegisterBankUncoveredBit)
+// A bit no contributor drives, which is left unconstrained like any
+// other undriven signal rather than taking a value from nowhere.
+TEST_P(SVUnitTests, RegisterBankUncoveredBitIsFree)
 {
-  expect_encode_throws("reg_bus_slice_uncovered.sv");
+  check_bmc("reg_bus_slice_uncovered.sv", 0);
 }
 
-// And the opposite: two registers claiming the same bits are two
-// drivers on one signal, which nothing here resolves.
-TEST_P(SVUnitTests, Unsupported_RegisterBankDoubleDriver)
+// Two registers claiming the same bits, which is two drivers on one
+// variable and a malformed design rather than a shape to model.
+TEST_P(SVUnitTests, RegisterBankDoubleDriver)
 {
   expect_encode_throws("reg_bus_slice_double_driver.sv");
 }
