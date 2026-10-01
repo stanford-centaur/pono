@@ -270,10 +270,6 @@ class Reader
   [[noreturn]] void error(const Location & loc,
                           const std::string & message) const;
 
-  /** @return a symbol of the solver to stand for a value in the terms of the
-   *  file, named apart from any other that any reader makes */
-  smt::Term make_placeholder(const smt::Sort & sort);
-
   // The rest is for the lexer and the parser.
 
   /** @return the location the lexer keeps up to date */
@@ -356,6 +352,10 @@ class Reader
  private:
   /** Reads the file with the lexer and parser, defined in moxiparser.l. */
   void parse();
+
+  /** @return a symbol of the solver to stand for a value in the terms of the
+   *  file, named apart from any other that any reader makes */
+  smt::Term make_placeholder(const smt::Sort & sort);
 
   /** A function from define-fun, applied by substituting its body. */
   struct Macro

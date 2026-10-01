@@ -19,6 +19,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <unordered_map>
 
 #include "frontends/moxi_reader.h"
 #include "smt-switch/utils.h"
@@ -99,41 +100,92 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
   // The variables of the check-system rename those of the system it checks,
   // which a declared constant, fixed over time, joins as a state that keeps
   // its value.
-  vector<const FlatVar *> actuals;
+  vector<FlatVar *> actuals;
   for (const auto * group : { &check.inputs, &check.outputs, &check.locals }) {
     for (const moxi::Variable & var : *group) {
       vars_.push_back({ var.name, &var.sort, var.curr, var.next, false });
       actuals.push_back(&vars_.back());
     }
   }
+  vector<FlatVar *> constants;
   for (const moxi::Constant & constant : reader_->constants()) {
     vars_.push_back({ constant.name,
                       &constant.sort,
                       constant.placeholder,
                       constant.placeholder,
                       true });
+    constants.push_back(&vars_.back());
   }
   flatten(*check.system, actuals, "");
-
-  // The query's initiality condition replaces the initial one.
-  const Term init = current ? current->term : conjunction(solver, init_);
-  const Term trans = conjunction(solver, trans_);
-  const Term inv = conjunction(solver, inv_);
 
   // A variable has to be a state if a formula that holds in each state
   // refers to it, or if a formula refers to its next value. Otherwise only
   // the transitions refer to it, which lets it be an input.
-  UnorderedTermSet next_values;
-  for (const FlatVar & var : vars_) {
-    if (!var.frozen) {
-      next_values.insert(var.next);
+  auto refer = [](FlatVar & var,
+                  const Term & curr,
+                  const Term & next,
+                  const UnorderedTermSet & state_refs,
+                  const UnorderedTermSet & step_refs) {
+    var.in_state |= state_refs.count(curr) > 0;
+    var.in_step |= step_refs.count(curr) > 0 || step_refs.count(next) > 0;
+    var.next_in_step |= step_refs.count(next) > 0;
+  };
+
+  // The formulas of a system refer to its variables and to constants. Their
+  // symbols are collected once, for all instances of the system, although
+  // the solver can simplify some away once an instance's variables are
+  // substituted, e.g. if it passes the same variable for two of the system's.
+  // That variable then stays a state where it could have been an input.
+  struct References
+  {
+    UnorderedTermSet state;
+    UnorderedTermSet step;
+  };
+  unordered_map<const moxi::System *, References> system_refs;
+  for (const Instance & instance : instances_) {
+    const moxi::System & system = *instance.system;
+    const auto [it, is_new] = system_refs.try_emplace(&system);
+    References & refs = it->second;
+    if (is_new) {
+      // The query's initiality condition replaces the initial one.
+      if (system.init && !current) {
+        get_free_symbolic_consts(system.init, refs.state);
+      }
+      if (system.inv) {
+        get_free_symbolic_consts(system.inv, refs.state);
+      }
+      if (system.trans) {
+        get_free_symbolic_consts(system.trans, refs.step);
+      }
     }
+    for (size_t i = 0; i < instance.actuals.size(); ++i) {
+      const moxi::Variable & formal = system.variable(i);
+      refer(*instance.actuals[i],
+            formal.curr,
+            formal.next,
+            refs.state,
+            refs.step);
+    }
+    for (FlatVar * constant : constants) {
+      refer(*constant,
+            constant->curr_placeholder,
+            constant->next_placeholder,
+            refs.state,
+            refs.step);
+    }
+  }
+
+  // The formulas of the query refer to the variables of the check-system
+  // and to constants.
+  UnorderedTermSet next_values;
+  for (const FlatVar * var : actuals) {
+    next_values.insert(var->next_placeholder);
   }
   UnorderedTermSet state_refs;
   UnorderedTermSet step_refs;
-  get_free_symbolic_consts(init, state_refs);
-  get_free_symbolic_consts(inv, state_refs);
-  get_free_symbolic_consts(trans, step_refs);
+  if (current) {
+    get_free_symbolic_consts(current->term, state_refs);
+  }
   vector<bool> is_step_assumption;
   for (const moxi::CheckFormula * assumption : assumptions) {
     UnorderedTermSet refs;
@@ -151,22 +203,26 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
     state_refs.insert(refs.begin(), refs.end());
     step_refs.insert(refs.begin(), refs.end());
   }
+  for (const auto * group : { &actuals, &constants }) {
+    for (FlatVar * var : *group) {
+      refer(*var,
+            var->curr_placeholder,
+            var->next_placeholder,
+            state_refs,
+            step_refs);
+    }
+  }
 
-  UnorderedTermMap to_rts;
-  for (const FlatVar & var : vars_) {
-    const bool in_state = state_refs.count(var.curr) > 0;
-    const bool in_step =
-        step_refs.count(var.curr) > 0 || step_refs.count(var.next) > 0;
-    if (var.frozen && !in_state && !in_step) {
+  for (FlatVar & var : vars_) {
+    if (var.frozen && !var.in_state && !var.in_step) {
       continue;
     }
-    const bool is_state = var.frozen || in_state || step_refs.count(var.next);
-    const Term term = make_variable(var.name, *var.sort, is_state);
-    to_rts[var.curr] = term;
+    const bool is_state = var.frozen || var.in_state || var.next_in_step;
+    var.curr = make_variable(var.name, *var.sort, is_state);
     if (var.frozen) {
-      rts_.assign_next(term, term);
+      rts_.assign_next(var.curr, var.curr);
     } else if (is_state) {
-      to_rts[var.next] = rts_.next(term);
+      var.next = rts_.next(var.curr);
     }
     if (const moxi::EnumSort * enumeration = var.sort->enumeration) {
       // The bit-vectors encoding an enumeration can outnumber its values.
@@ -175,24 +231,69 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
       if (width < 64 && num_values < (uint64_t{ 1 } << width)) {
         rts_.add_constraint(
             rts_.make_term(BVUle,
-                           term,
+                           var.curr,
                            rts_.make_term(static_cast<int64_t>(num_values - 1),
                                           var.sort->sort)));
       }
     }
   }
 
+  // Each instance contributes the formulas of its system, with the variables
+  // of the transition system substituted for those of the system at once.
+  TermVec init;
+  TermVec trans;
+  TermVec inv;
+  for (const Instance & instance : instances_) {
+    const moxi::System & system = *instance.system;
+    UnorderedTermMap to_rts;
+    for (size_t i = 0; i < instance.actuals.size(); ++i) {
+      const moxi::Variable & formal = system.variable(i);
+      const FlatVar & actual = *instance.actuals[i];
+      to_rts[formal.curr] = actual.curr;
+      if (actual.next) {
+        to_rts[formal.next] = actual.next;
+      }
+    }
+    for (const FlatVar * constant : constants) {
+      if (constant->curr) {
+        to_rts[constant->curr_placeholder] = constant->curr;
+      }
+    }
+    if (system.init && !current) {
+      init.push_back(solver->substitute(system.init, to_rts));
+    }
+    if (system.trans) {
+      trans.push_back(solver->substitute(system.trans, to_rts));
+    }
+    if (system.inv) {
+      inv.push_back(solver->substitute(system.inv, to_rts));
+    }
+  }
+
+  UnorderedTermMap to_rts;
+  for (const auto * group : { &actuals, &constants }) {
+    for (const FlatVar * var : *group) {
+      if (var->curr) {
+        to_rts[var->curr_placeholder] = var->curr;
+      }
+      if (var->next) {
+        to_rts[var->next_placeholder] = var->next;
+      }
+    }
+  }
   auto encoded = [&](const Term & term) {
     return solver->substitute(term, to_rts);
   };
-  if (current || !init_.empty()) {
-    rts_.constrain_init(encoded(init));
+  if (current) {
+    rts_.constrain_init(encoded(current->term));
+  } else if (!init.empty()) {
+    rts_.constrain_init(conjunction(solver, init));
   }
-  if (!trans_.empty()) {
-    rts_.constrain_trans(encoded(trans));
+  if (!trans.empty()) {
+    rts_.constrain_trans(conjunction(solver, trans));
   }
-  if (!inv_.empty()) {
-    rts_.add_constraint(encoded(inv));
+  if (!inv.empty()) {
+    rts_.add_constraint(conjunction(solver, inv));
   }
   for (size_t i = 0; i < assumptions.size(); ++i) {
     const Term assumption = encoded(assumptions[i]->term);
@@ -232,42 +333,22 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
 }
 
 void MoxiEncoder::flatten(const moxi::System & system,
-                          const vector<const FlatVar *> & actuals,
+                          const vector<FlatVar *> & actuals,
                           const string & prefix)
 {
   assert(actuals.size() == system.num_variables());
-  const SmtSolver & solver = rts_.solver();
-
-  UnorderedTermMap substitution;
-  for (size_t i = 0; i < actuals.size(); ++i) {
-    const moxi::Variable & formal = system.variable(i);
-    substitution[formal.curr] = actuals[i]->curr;
-    substitution[formal.next] = actuals[i]->next;
-  }
-  if (system.init) {
-    init_.push_back(solver->substitute(system.init, substitution));
-  }
-  if (system.trans) {
-    trans_.push_back(solver->substitute(system.trans, substitution));
-  }
-  if (system.inv) {
-    inv_.push_back(solver->substitute(system.inv, substitution));
-  }
+  instances_.push_back({ &system, actuals });
 
   // Each instance of a subsystem has its own local variables.
   for (const moxi::Subsystem & subsystem : system.subsystems) {
     const string name = prefix + subsystem.name + ".";
-    vector<const FlatVar *> sub_actuals;
+    vector<FlatVar *> sub_actuals;
     for (const size_t pos : subsystem.args) {
       sub_actuals.push_back(actuals[pos]);
     }
     for (const moxi::Variable & local : subsystem.system->locals) {
-      const Sort & sort = local.sort.sort;
-      vars_.push_back({ name + local.name,
-                        &local.sort,
-                        reader_->make_placeholder(sort),
-                        reader_->make_placeholder(sort),
-                        false });
+      vars_.push_back(
+          { name + local.name, &local.sort, nullptr, nullptr, false });
       sub_actuals.push_back(&vars_.back());
     }
     flatten(*subsystem.system, sub_actuals, name);

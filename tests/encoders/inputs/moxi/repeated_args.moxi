@@ -1,0 +1,29 @@
+; Instances that pass the same variable for two variables of their system.
+(set-logic QF_LIA)
+
+(define-system Diff
+  :input ((a Int) (b Int))
+  :output ((d Int))
+  :inv (= d (- a b)))
+
+(define-system Step
+  :input ((a Int) (b Int))
+  :output ((d Int))
+  :init (= d 0)
+  :trans (= d' (- a' b')))
+
+(define-system Twice
+  :input ((x Int))
+  :output ((now Int) (step Int))
+  :subsys (n (Diff x x now))
+  :subsys (s (Step x x step)))
+
+(check-system Twice
+  :input ((x Int))
+  :output ((now Int) (step Int))
+  :reachable (now_zero (= now 0))
+  :reachable (now_nonzero (distinct now 0))
+  :reachable (step_nonzero (distinct step 0))
+  :query (zero (now_zero))
+  :query (nonzero (now_nonzero))
+  :query (stepped (step_nonzero)))

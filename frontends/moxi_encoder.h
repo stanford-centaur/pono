@@ -90,27 +90,46 @@ class MoxiEncoder
   const std::string & query_name() const { return query_names_[query_idx_]; }
 
  private:
-  /** A variable of the flattened system. Placeholders stand for its values
-   *  until it is known whether it must be a state or can be an input. */
+  /** A variable of the flattened system. */
   struct FlatVar
   {
     std::string name;
     const moxi::SortInfo * sort;
-    smt::Term curr;
-    smt::Term next;
+    /** the placeholders of its current and next values in the formulas of
+     *  the check-system, and of a constant in all formulas; null for the
+     *  local variables of subsystems */
+    smt::Term curr_placeholder;
+    smt::Term next_placeholder;
     bool frozen;  ///< whether it is a declared constant
+    // the references to it, which decide whether it must be a state
+    bool in_state = false;      ///< by a formula that holds in each state
+    bool in_step = false;       ///< by a formula over transitions
+    bool next_in_step = false;  ///< to its next value, by one of the latter
+    // its values in the transition system, once it is made
+    smt::Term curr = nullptr;
+    smt::Term next = nullptr;  ///< remains null for an input or a constant
+  };
+
+  /** An instance of a system, i.e. of the check-system's or a subsystem. */
+  struct Instance
+  {
+    const moxi::System * system;
+    /** the variables that its variables stand for, in the order
+     *  System::variable counts them */
+    std::vector<FlatVar *> actuals;
   };
 
   void encode(const moxi::Check & check, const moxi::Query & query);
 
-  /** Instantiates a system and, recursively, its subsystems.
+  /** Instantiates a system and, recursively, its subsystems, with their own
+   *  local variables.
    *  @param system the system to instantiate
    *  @param actuals the variables that its variables stand for, in the order
    *         System::variable counts them
    *  @param prefix the name of the instance, including a trailing dot
    */
   void flatten(const moxi::System & system,
-               const std::vector<const FlatVar *> & actuals,
+               const std::vector<FlatVar *> & actuals,
                const std::string & prefix);
 
   /** Creates a variable of the transition system, under the given name
@@ -127,9 +146,7 @@ class MoxiEncoder
 
   // the flattened system
   std::deque<FlatVar> vars_;  ///< a deque keeps pointers valid
-  smt::TermVec init_;
-  smt::TermVec trans_;
-  smt::TermVec inv_;
+  std::vector<Instance> instances_;
   std::unordered_set<std::string> taken_names_;
 };
 

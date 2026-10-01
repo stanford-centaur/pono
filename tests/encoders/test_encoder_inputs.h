@@ -104,6 +104,9 @@ const vector<MoxiQuery> moxi_queries({
       { smt::THEORY_REAL },
       pono::ProverResult::TRUE,
       { smt::MSAT } },
+    { "repeated_args.moxi", 0, { smt::THEORY_INT }, pono::ProverResult::FALSE },
+    { "repeated_args.moxi", 1, { smt::THEORY_INT }, pono::ProverResult::TRUE },
+    { "repeated_args.moxi", 2, { smt::THEORY_INT }, pono::ProverResult::TRUE },
     { "subsystems.moxi", 0, { smt::THEORY_BV }, pono::ProverResult::FALSE },
     { "subsystems.moxi", 1, { smt::THEORY_BV }, pono::ProverResult::TRUE },
 });
