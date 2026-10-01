@@ -26,6 +26,16 @@ string moxi_path(const string & file)
   return string(STRFY(PONO_SRC_DIR)) + "/tests/encoders/inputs/moxi/" + file;
 }
 
+/** @return whether the two formulas are equivalent */
+bool equivalent(const SmtSolver & s, const Term & a, const Term & b)
+{
+  s->push();
+  s->assert_formula(s->make_term(Distinct, a, b));
+  const bool result = s->check_sat().is_unsat();
+  s->pop();
+  return result;
+}
+
 /** Each query with each solver that has the theories it needs. */
 vector<tuple<SolverEnum, MoxiQuery>> moxi_query_params()
 {
@@ -137,6 +147,50 @@ TEST_F(MoxiEncoderUnitTests, KeepsDeclaredConstants)
   const Term k = rts.lookup("k");
   ASSERT_TRUE(rts.is_curr_var(k));
   EXPECT_EQ(rts.state_updates().at(k), k);
+}
+
+// A :current formula that the query lists replaces the initial conditions of
+// the system and of its subsystems, rather than joining them.
+TEST_F(MoxiEncoderUnitTests, ReplacesTheInitialConditionsWithTheCurrentFormula)
+{
+  const string path = testing::TempDir() + "pono_current.moxi";
+  {
+    ofstream file(path);
+    file << "(set-logic QF_LIA)\n"
+         << "(define-system Inner :output ((y Int)) :init (= y 1)"
+         << " :trans (= y' y))\n"
+         << "(define-system Outer :output ((x Int)) :local ((y Int))"
+         << " :init (= x 0) :trans (= x' (+ x y)) :subsys (sub (Inner y)))\n";
+    // the same formulas twice, of which only the first query lists :current
+    for (const string formulas : { "(high seven)", "(seven)" }) {
+      file << "(check-system Outer :output ((x Int)) :local ((y Int))"
+           << " :current (high (> x 5)) :reachable (seven (= x 7))"
+           << " :query (q " << formulas << "))\n";
+    }
+  }
+  RelationalTransitionSystem current_rts(s);
+  MoxiEncoder current(path, current_rts, 0);
+  // a solver of its own, as it cannot have two variables of the same name
+  SmtSolver s2 = create_solver(CVC5);
+  RelationalTransitionSystem init_rts(s2);
+  MoxiEncoder init(path, init_rts, 1);
+  remove(path.c_str());
+
+  EXPECT_TRUE(equivalent(
+      s,
+      current_rts.init(),
+      s->make_term(
+          Gt, current_rts.lookup("x"), s->make_term(5, s->make_sort(INT)))));
+  const Sort int_sort = s2->make_sort(INT);
+  EXPECT_TRUE(equivalent(
+      s2,
+      init_rts.init(),
+      s2->make_term(
+          And,
+          s2->make_term(
+              Equal, init_rts.lookup("x"), s2->make_term(0, int_sort)),
+          s2->make_term(
+              Equal, init_rts.lookup("y"), s2->make_term(1, int_sort)))));
 }
 
 // The symbols standing for variables while a file is read are apart from
