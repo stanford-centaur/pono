@@ -32,6 +32,11 @@
   :output ((y (_ BitVec 8)))
   :local ((m (_ BitVec 8)) (steps (_ BitVec 8)))
   :reachable (answer (= y #x2a))
+  :query (delayed (answer)))
+
+(check-system QuadDelay
+  :input ((x (_ BitVec 8)))
+  :output ((y (_ BitVec 8)))
+  :local ((m (_ BitVec 8)) (steps (_ BitVec 8)))
   :reachable (early (and (bvult steps #x04) (distinct y #x00)))
-  :query (delayed (answer))
   :query (too_early (early)))

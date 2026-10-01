@@ -13,10 +13,17 @@
   :output ((x Int) (y Int))
   :reachable (two (= x 2))
   :reachable (four (= x 4))
+  :query (two_then_four (two four)))
+
+; only if k could change in between
+(check-system Stride
+  :output ((x Int) (y Int))
+  :reachable (two (= x 2))
   :reachable (minus_one (= x (- 1)))
+  :query (two_then_minus_one (two minus_one)))
+
+; y can cycle back to 0, as f is any function
+(check-system Stride
+  :output ((x Int) (y Int))
   :reachable (y_back (and (= y 0) (distinct x 0)))
-  :query (two_then_four (two four))
-  ; only if k could change in between
-  :query (two_then_minus_one (two minus_one))
-  ; y can cycle back to 0, as f is any function
   :query (y_cycles (y_back)))

@@ -14,6 +14,10 @@
   :input ((c Color))
   :output ((n Int))
   :reachable (saw_blue (= n 3))
+  :query (blue (saw_blue)))
+
+(check-system Light
+  :input ((c Color))
+  :output ((n Int))
   :reachable (saw_none (= n 4))
-  :query (blue (saw_blue))
   :query (none (saw_none)))

@@ -416,7 +416,8 @@ int main(int argc, char ** argv)
       Term prop;
       if (file_ext == "moxi") {
         // A MoXI query brings its own assumptions into the transition
-        // system, so the encoder selects the query rather than a property.
+        // system, so the encoder selects a check-system command, which has a
+        // single query, rather than a property.
         MoxiEncoder moxi_enc(
             pono_options.filename_, rts, pono_options.prop_idx_);
         prop = moxi_enc.prop();

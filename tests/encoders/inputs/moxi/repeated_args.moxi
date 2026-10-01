@@ -22,8 +22,16 @@
   :input ((x Int))
   :output ((now Int) (step Int))
   :reachable (now_zero (= now 0))
+  :query (zero (now_zero)))
+
+(check-system Twice
+  :input ((x Int))
+  :output ((now Int) (step Int))
   :reachable (now_nonzero (distinct now 0))
+  :query (nonzero (now_nonzero)))
+
+(check-system Twice
+  :input ((x Int))
+  :output ((now Int) (step Int))
   :reachable (step_nonzero (distinct step 0))
-  :query (zero (now_zero))
-  :query (nonzero (now_nonzero))
   :query (stepped (step_nonzero)))

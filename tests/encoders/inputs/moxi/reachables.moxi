@@ -13,9 +13,18 @@
   :local ((z Bool))
   :reachable (one (= c #b01))
   :reachable (three (= c #b11))
-  :reachable (never z)
-  ; never in the same state
+  :query (one_then_three (one three)))
+
+; never in the same state
+(check-system Cycle
+  :output ((c (_ BitVec 2)))
+  :local ((z Bool))
   :reachable (one_and_three (and (= c #b01) (= c #b11)))
-  :query (one_then_three (one three))
-  :query (at_once (one_and_three))
+  :query (at_once (one_and_three)))
+
+(check-system Cycle
+  :output ((c (_ BitVec 2)))
+  :local ((z Bool))
+  :reachable (one (= c #b01))
+  :reachable (never z)
   :query (one_then_never (one never)))

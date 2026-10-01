@@ -41,13 +41,14 @@ const unordered_map<string, pono::ProverResult> smv_inputs(
       { "counter_boolean.smv", pono::ProverResult::FALSE },
       { "signed_comparison.smv", pono::ProverResult::TRUE } });
 
-/** A query of a MoXI file, with the result of checking its property: FALSE
- *  if the query is satisfiable, TRUE if it is not, and UNKNOWN if k-induction
- *  cannot tell up to the bound the tests use. */
+/** The query of a check-system command of a MoXI file, with the result of
+ *  checking its property: FALSE if the query is satisfiable, TRUE if it is
+ *  not, and UNKNOWN if k-induction cannot tell up to the bound the tests use.
+ */
 struct MoxiQuery
 {
   string file;
-  size_t index;
+  size_t index;  ///< of the check-system command
   unordered_set<smt::SolverAttribute> theories;  ///< what the solver needs
   pono::ProverResult result;
   unordered_set<smt::SolverEnum> excluded{};  ///< solvers that cannot tell
@@ -86,9 +87,9 @@ const vector<MoxiQuery> moxi_queries({
       { smt::THEORY_BV },
       pono::ProverResult::TRUE,
       { smt::BZLA } },
-    { "queries.moxi", 0, { smt::THEORY_BV }, pono::ProverResult::FALSE },
-    { "queries.moxi", 1, { smt::THEORY_BV }, pono::ProverResult::TRUE },
-    { "queries.moxi", 2, { smt::THEORY_BV }, pono::ProverResult::FALSE },
+    { "checks.moxi", 0, { smt::THEORY_BV }, pono::ProverResult::FALSE },
+    { "checks.moxi", 1, { smt::THEORY_BV }, pono::ProverResult::TRUE },
+    { "checks.moxi", 2, { smt::THEORY_BV }, pono::ProverResult::FALSE },
     { "reachables.moxi", 0, { smt::THEORY_BV }, pono::ProverResult::FALSE },
     { "reachables.moxi", 1, { smt::THEORY_BV }, pono::ProverResult::TRUE },
     { "reachables.moxi", 2, { smt::THEORY_BV }, pono::ProverResult::TRUE },

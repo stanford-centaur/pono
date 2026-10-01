@@ -12,6 +12,9 @@
 (check-system Decay
   :output ((v Real))
   :reachable (one (= v 1))
+  :query (reach_one (one)))
+
+(check-system Decay
+  :output ((v Real))
   :reachable (negative (< v 0.0))
-  :query (reach_one (one))
   :query (reach_negative (negative)))

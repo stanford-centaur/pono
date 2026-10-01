@@ -88,12 +88,10 @@ class MoxiEncoderUnitTests : public ::testing::Test
   SmtSolver s;
 };
 
-TEST_F(MoxiEncoderUnitTests, CountsTheQueriesOfAllChecks)
+TEST_F(MoxiEncoderUnitTests, SelectsACheckSystemCommand)
 {
   RelationalTransitionSystem rts(s);
-  MoxiEncoder encoder(moxi_path("queries.moxi"), rts, 1);
-  const vector<string> names{ "turns_on", "impossible", "off_then_enabled" };
-  EXPECT_EQ(encoder.query_names(), names);
+  MoxiEncoder encoder(moxi_path("checks.moxi"), rts, 1);
   EXPECT_EQ(encoder.query_name(), "impossible");
 }
 
@@ -203,12 +201,12 @@ TEST_F(MoxiEncoderUnitTests, SharesASolverBetweenFiles)
   EXPECT_NO_THROW(MoxiEncoder(moxi_path("current.moxi"), current_rts));
 }
 
-TEST_F(MoxiEncoderUnitTests, RejectsAQueryIndexOutOfRange)
+TEST_F(MoxiEncoderUnitTests, RejectsACheckSystemIndexOutOfRange)
 {
   RelationalTransitionSystem rts(s);
   try {
     MoxiEncoder encoder(moxi_path("counter.moxi"), rts, 4);
-    FAIL() << "query 4 of 4 was encoded";
+    FAIL() << "check-system 4 of 4 was encoded";
   }
   catch (const PonoException & e) {
     EXPECT_NE(string(e.what()).find("out of range"), string::npos) << e.what();
@@ -316,6 +314,11 @@ const vector<MoxiError> moxi_errors({
       "(check-system S :fairness (f o) :reachable (r o) :query (q (f r)))",
       "only queries without fairness conditions are supported" },
     { "(define-system S :output ((o Bool)))", "has no check-system command" },
+    { "(define-system S) (check-system S)",
+      "the check-system command has no query" },
+    { "(define-system S :output ((o Bool)))"
+      "(check-system S :reachable (r o) :query (q1 (r)) :query (q2 (r)))",
+      "has 2 queries, but only one query per command is supported" },
 });
 
 class MoxiErrorUnitTests : public ::testing::Test,

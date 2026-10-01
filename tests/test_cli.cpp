@@ -431,11 +431,11 @@ TEST_F(CliUnitTests, SmvJusticeIsRejected)
                   "--justice is not supported for smv");
 }
 
-// A MoXI query brings its own assumptions, so --prop picks the query to
-// encode, counting the queries of all check-system commands. The two here
-// disagree, which is what makes the selection visible. "sat" occurs in
-// "unsat", so the line it is on is matched.
-TEST_F(CliUnitTests, MoxiPropSelectsTheQuery)
+// A MoXI query brings its own assumptions, so --prop picks the check-system
+// command whose query to encode. The two here disagree, which is what makes
+// the selection visible. "sat" occurs in "unsat", so the line it is on is
+// matched.
+TEST_F(CliUnitTests, MoxiPropSelectsTheCheckSystem)
 {
   const string counter = input_path("moxi/counter.moxi");
   EXPECT_TRUE(contains(run_pono({ "-e", "ind", "-p", "0", counter }).output,
@@ -455,10 +455,10 @@ TEST_F(CliUnitTests, MoxiChecksAConditionOverAStep)
                        "\nunsat\n"));
 }
 
-TEST_F(CliUnitTests, MoxiRejectsAQueryIndexOutOfRange)
+TEST_F(CliUnitTests, MoxiRejectsACheckSystemIndexOutOfRange)
 {
   expect_rejected(run_pono({ "-p", "4", input_path("moxi/counter.moxi") }),
-                  "Query index 4 is out of range");
+                  "Check-system index 4 is out of range");
 }
 
 // Bitwuzla, the default solver, has no integers, and the message says what

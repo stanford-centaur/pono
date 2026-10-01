@@ -37,8 +37,12 @@ struct System;
 class Reader;
 }  // namespace moxi
 
-/** Encodes a query of a MoXI file as a safety property of a relational
- *  transition system.
+/** Encodes the query of a check-system command of a MoXI file as a safety
+ *  property of a relational transition system.
+ *
+ *  A query brings its own assumptions and initiality condition into the
+ *  transition system, which therefore holds a single query: the command must
+ *  have exactly one.
  *
  *  The query's system is flattened into the transition system: each
  *  subsystem instance contributes its own copy of its local variables, named
@@ -56,24 +60,22 @@ class Reader;
  *  usual semantics of reachability, which e.g. MoXIchecker implements too.
  *  The two only differ if the transition relation deadlocks.
  *
- *  The queries of a :queries attribute are encoded one by one too, so the
- *  declared constants and functions need not have the same values for all
- *  of them, as MoXI asks of satisfiable ones. Queries with fairness
- *  conditions ask for infinite traces and are not supported yet.
+ *  Queries with fairness conditions ask for infinite traces and are not
+ *  supported yet.
  */
 class MoxiEncoder
 {
  public:
-  /** Parses a MoXI file and encodes one of its queries.
+  /** Parses a MoXI file and encodes the query of one of its check-system
+   *  commands.
    *  @param filename the file to read
    *  @param rts the transition system to encode the query into
-   *  @param query_idx the query to encode, counting the queries of all
-   *         check-system commands in the order of the file, including each
-   *         query of a :queries attribute
+   *  @param check_idx the check-system command, counting them in the order
+   *         of the file
    */
   MoxiEncoder(const std::string & filename,
               RelationalTransitionSystem & rts,
-              std::size_t query_idx = 0);
+              std::size_t check_idx = 0);
 
   ~MoxiEncoder();
 
@@ -82,12 +84,8 @@ class MoxiEncoder
    *  pono accounts for by monitoring it. */
   const smt::Term & prop() const { return prop_; }
 
-  /** @return the names of the queries of the file, in the order that
-   *  query_idx counts them */
-  const std::vector<std::string> & query_names() const { return query_names_; }
-
   /** @return the name of the encoded query */
-  const std::string & query_name() const { return query_names_[query_idx_]; }
+  const std::string & query_name() const { return query_name_; }
 
  private:
   /** A variable of the flattened system. */
@@ -140,8 +138,7 @@ class MoxiEncoder
 
   RelationalTransitionSystem & rts_;
   std::unique_ptr<moxi::Reader> reader_;
-  std::vector<std::string> query_names_;
-  std::size_t query_idx_;
+  std::string query_name_;
   smt::Term prop_;
 
   // the flattened system

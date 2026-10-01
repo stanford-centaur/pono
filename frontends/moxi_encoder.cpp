@@ -43,32 +43,32 @@ static Term conjunction(const SmtSolver & solver, const TermVec & terms)
 
 MoxiEncoder::MoxiEncoder(const string & filename,
                          RelationalTransitionSystem & rts,
-                         size_t query_idx)
-    : rts_(rts),
-      reader_(make_unique<moxi::Reader>(filename, rts.solver())),
-      query_idx_(query_idx)
+                         size_t check_idx)
+    : rts_(rts), reader_(make_unique<moxi::Reader>(filename, rts.solver()))
 {
-  const moxi::Check * check = nullptr;
-  const moxi::Query * query = nullptr;
-  for (const moxi::Check & c : reader_->checks()) {
-    for (const moxi::Query & q : c.queries) {
-      if (query_names_.size() == query_idx) {
-        check = &c;
-        query = &q;
-      }
-      query_names_.push_back(q.name);
-    }
-  }
-  if (query_names_.empty()) {
+  const vector<moxi::Check> & checks = reader_->checks();
+  if (checks.empty()) {
     throw PonoException("MoXI file " + filename
-                        + " has no check-system command with a query");
+                        + " has no check-system command");
   }
-  if (!query) {
-    throw PonoException("Query index " + to_string(query_idx)
+  if (check_idx >= checks.size()) {
+    throw PonoException("Check-system index " + to_string(check_idx)
                         + " is out of range: MoXI file " + filename + " has "
-                        + to_string(query_names_.size()) + " queries");
+                        + to_string(checks.size()) + " check-system commands");
   }
-  encode(*check, *query);
+  const moxi::Check & check = checks[check_idx];
+  if (check.queries.empty()) {
+    reader_->error(check.loc, "the check-system command has no query");
+  }
+  if (check.queries.size() > 1) {
+    reader_->error(check.loc,
+                   "the check-system command has "
+                       + to_string(check.queries.size())
+                       + " queries, but only one query per command is"
+                         " supported");
+  }
+  query_name_ = check.queries[0].name;
+  encode(check, check.queries[0]);
 }
 
 MoxiEncoder::~MoxiEncoder() = default;

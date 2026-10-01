@@ -6,13 +6,24 @@
   :init (= n 10)
   :trans (= n' (- n 1)))
 
+; an initiality condition that the query does not list leaves the initial
+; condition in place
 (check-system Down
   :output ((n Int))
   :current (low (< n 3))
   :reachable (big (> n 5))
+  :query (from_init (big)))
+
+(check-system Down
+  :output ((n Int))
+  :current (low (< n 3))
+  :reachable (big (> n 5))
+  :query (from_low (low big)))
+
+; conjoined with n = 10 instead, the initiality condition would leave no
+; initial state to start from
+(check-system Down
+  :output ((n Int))
+  :current (low (< n 3))
   :reachable (zero (= n 0))
-  :query (from_init (big))
-  :query (from_low (low big))
-  ; conjoined with n = 10 instead, the initiality condition would leave no
-  ; initial state to start from
   :query (from_low_to_zero (low zero)))

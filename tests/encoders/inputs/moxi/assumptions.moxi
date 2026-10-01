@@ -9,12 +9,19 @@
   :init (= s 0)
   :trans (= s' (+ s i)))
 
+; an assumption that the query does not list leaves it free
 (check-system Acc
   :input ((i Int))
   :output ((s Int))
   :assumption (nonneg (>= i 0))
   :reachable (negative (< s 0))
-  :query (free (negative))
+  :query (free (negative)))
+
+(check-system Acc
+  :input ((i Int))
+  :output ((s Int))
+  :assumption (nonneg (>= i 0))
+  :reachable (negative (< s 0))
   :query (assumed (nonneg negative)))
 
 ; remembers its input from the step before
@@ -27,8 +34,13 @@
 (check-system Pulse
   :input ((b Bool))
   :output ((q Bool))
+  :reachable (twice (and q b))
+  :query (any_input (twice)))
+
+(check-system Pulse
+  :input ((b Bool))
+  :output ((q Bool))
   ; the input is never true in two steps in a row
   :assumption (isolated (=> b (not b')))
   :reachable (twice (and q b))
-  :query (any_input (twice))
   :query (isolated_input (isolated twice)))
