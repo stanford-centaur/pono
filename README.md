@@ -173,7 +173,8 @@ open build/html/index.html
 ## Checking MoXI models
 
 Pono reads models in the [Model Exchange Interlingua (MoXI)](https://doi.org/10.1007/978-3-031-65627-9_10) from files ending in `.moxi`.
-It checks the query of one `check-system` command at a time: `--prop` selects the command, counting the `check-system` commands in the order of the file, and the command must have exactly one query.
+It checks the query of one `check-system` command at a time: `--prop` selects the command, counting the `check-system` commands in the order of the file, and the command must have exactly one `:query`.
+The `:queries` attribute is not supported, as its queries must share the values of the declared constants and functions.
 Pono answers `sat` if the query is satisfiable, i.e., if a trace reaches each of its reachability conditions while keeping its assumptions, and `unsat` if no trace does.
 
 The default solver, Bitwuzla, supports neither integers nor reals, so models using them need another one:

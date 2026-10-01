@@ -721,6 +721,15 @@ void Reader::add_query(const QueryExpr & query)
   query_exprs_.push_back(query);
 }
 
+void Reader::add_queries(const vector<QueryExpr> & queries,
+                         const Location & loc)
+{
+  check_.queries_attributes.push_back(loc);
+  for (const QueryExpr & query : queries) {
+    add_query(query);
+  }
+}
+
 // sorts
 
 Sort Reader::int_sort(const Location & loc)

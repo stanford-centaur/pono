@@ -42,7 +42,9 @@ class Reader;
  *
  *  A query brings its own assumptions and initiality condition into the
  *  transition system, which therefore holds a single query: the command must
- *  have exactly one.
+ *  have exactly one, from a :query attribute. The :queries attribute is not
+ *  supported, as its queries must share the values of the declared constants
+ *  and functions, which checking them one at a time cannot ensure.
  *
  *  The query's system is flattened into the transition system: each
  *  subsystem instance contributes its own copy of its local variables, named

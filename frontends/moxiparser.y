@@ -202,11 +202,7 @@ check_attribute:
 | ":query" query
     { reader.add_query($2); }
 | ":queries" "(" query_list1 ")"
-    {
-      for (const auto & q : $3) {
-        reader.add_query(q);
-      }
-    }
+    { reader.add_queries($3, @1); }
 ;
 
 query:

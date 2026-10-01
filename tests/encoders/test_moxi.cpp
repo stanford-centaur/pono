@@ -95,6 +95,23 @@ TEST_F(MoxiEncoderUnitTests, SelectsACheckSystemCommand)
   EXPECT_EQ(encoder.query_name(), "impossible");
 }
 
+// Only the command with the :queries attribute is rejected; moxi_queries
+// checks the others of the file.
+TEST_F(MoxiEncoderUnitTests, RejectsTheQueriesAttributeOfTheSelectedCommand)
+{
+  RelationalTransitionSystem rts(s);
+  try {
+    MoxiEncoder encoder(moxi_path("checks.moxi"), rts, 3);
+    FAIL() << "the :queries attribute was encoded";
+  }
+  catch (const PonoException & e) {
+    EXPECT_NE(string(e.what()).find(
+                  "checks.moxi:31:3: the :queries attribute is not supported"),
+              string::npos)
+        << e.what();
+  }
+}
+
 TEST_F(MoxiEncoderUnitTests, NamesTheVariablesOfSubsystemsAfterTheirInstance)
 {
   RelationalTransitionSystem rts(s);
@@ -313,6 +330,9 @@ const vector<MoxiError> moxi_errors({
     { "(define-system S :output ((o Bool)))"
       "(check-system S :fairness (f o) :reachable (r o) :query (q (f r)))",
       "only queries without fairness conditions are supported" },
+    { "(define-system S :output ((o Bool)))"
+      "(check-system S :reachable (r o) :queries ((q1 (r)) (q2 (r))))",
+      "the :queries attribute is not supported" },
     { "(define-system S :output ((o Bool)))", "has no check-system command" },
     { "(define-system S) (check-system S)",
       "the check-system command has no query" },

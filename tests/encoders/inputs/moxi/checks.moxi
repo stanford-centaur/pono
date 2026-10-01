@@ -1,5 +1,6 @@
-; Several check-system commands, which the index selects one of, and one that
-; leaves out the variables, keeping the system's names.
+; Several check-system commands, which the index selects one of: one leaves
+; out the variables, keeping the system's names, and the last has a :queries
+; attribute, which is not supported but leaves the others to be checked.
 (set-logic QF_BV)
 
 (define-system Toggle
@@ -23,3 +24,8 @@
 (check-system Toggle
   :reachable (stays_off (and (not q) en))
   :query (off_then_enabled (stays_off)))
+
+(check-system Toggle
+  :reachable (on q)
+  :reachable (off (not q))
+  :queries ((turns_on (on)) (turns_off (off))))

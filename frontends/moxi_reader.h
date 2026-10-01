@@ -228,6 +228,7 @@ struct Check
   std::vector<Variable> locals;
   std::vector<CheckFormula> formulas;
   std::vector<Query> queries;
+  std::vector<Location> queries_attributes;  ///< where its :queries are
   Location loc;
 };
 
@@ -325,6 +326,8 @@ class Reader
                          const smt::Term & formula,
                          const Location & loc);
   void add_query(const QueryExpr & query);
+  void add_queries(const std::vector<QueryExpr> & queries,
+                   const Location & loc);
 
   // terms
   smt::Term make_numeral(const std::string & digits, const Location & loc);

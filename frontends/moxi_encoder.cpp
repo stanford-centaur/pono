@@ -57,6 +57,15 @@ MoxiEncoder::MoxiEncoder(const string & filename,
                         + to_string(checks.size()) + " check-system commands");
   }
   const moxi::Check & check = checks[check_idx];
+  // MoXI asks the queries of a :queries attribute to be satisfiable with the
+  // same values of the declared constants and functions, which checking them
+  // one at a time cannot ensure.
+  if (!check.queries_attributes.empty()) {
+    reader_->error(check.queries_attributes.front(),
+                   "the :queries attribute is not supported, as its queries"
+                   " must share the values of the declared constants and"
+                   " functions");
+  }
   if (check.queries.empty()) {
     reader_->error(check.loc, "the check-system command has no query");
   }

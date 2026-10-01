@@ -207,7 +207,7 @@ const option::Descriptor usage[] = {
     "prop",
     Arg::Numeric,
     "  --prop, -p \tProperty index to check (default: 0). For MoXI input, the "
-    "index of the check-system command, which must have exactly one query." },
+    "index of the check-system command, which must have exactly one :query." },
   { VERBOSITY,
     0,
     "v",
