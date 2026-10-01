@@ -184,7 +184,7 @@ The default solver, Bitwuzla, supports neither integers nor reals, so models usi
 ```
 
 Pono flattens subsystems into a single transition system, whose variables take the names the `check-system` command gives them; the local variables of a subsystem are named after its instance, e.g. `inst.var`.
-Enumeration sorts become bit-vectors.
+Enumeration sorts become datatypes of the solver, which cvc5 supports, but neither Bitwuzla nor MathSAT does.
 Queries with fairness conditions, which ask for infinite traces, are not supported yet.
 
 ## Generating BTOR2 from Verilog

@@ -111,35 +111,12 @@ struct QueryExpr
   Location loc;
 };
 
-/** An enumeration sort. Its values are encoded as the bit-vectors 0, 1, ...
- *  of the least width that fits them all. */
-struct EnumSort
-{
-  std::string name;
-  std::vector<std::string> values;
-  smt::Sort sort;
-};
-
-/** A sort resolved against the declarations in scope. The solver sort alone
- *  cannot tell an enumeration from the bit-vectors encoding it. */
-struct SortInfo
-{
-  smt::Sort sort;
-  const EnumSort * enumeration = nullptr;  ///< set if the sort is an enum
-
-  bool operator==(const SortInfo & other) const
-  {
-    return sort == other.sort && enumeration == other.enumeration;
-  }
-  bool operator!=(const SortInfo & other) const { return !(*this == other); }
-};
-
 /** A variable of a system or check. Its current and next values are
  *  placeholder symbols in the terms of the command that declares it. */
 struct Variable
 {
   std::string name;
-  SortInfo sort;
+  smt::Sort sort;
   smt::Term curr;
   smt::Term next;
   Location loc;
@@ -151,7 +128,7 @@ struct Variable
 struct Constant
 {
   std::string name;
-  SortInfo sort;
+  smt::Sort sort;
   smt::Term placeholder;
   Location loc;
 };
@@ -364,17 +341,17 @@ class Reader
   struct Macro
   {
     smt::TermVec params;
-    std::vector<SortInfo> param_sorts;
+    smt::SortVec param_sorts;
     smt::Term body;
-    SortInfo result;
+    smt::Sort result;
   };
 
   /** An uninterpreted function from declare-fun. */
   struct Function
   {
     smt::Term symbol;
-    std::vector<SortInfo> arg_sorts;
-    SortInfo result;
+    smt::SortVec arg_sorts;
+    smt::Sort result;
   };
 
   /** A sort from define-sort, possibly with parameters. */
@@ -400,10 +377,10 @@ class Reader
     CHECK
   };
 
-  using SortParams = std::unordered_map<std::string, SortInfo>;
+  using SortParams = std::unordered_map<std::string, smt::Sort>;
 
-  SortInfo resolve_sort(const SortExpr & expr,
-                        const SortParams * params = nullptr);
+  smt::Sort resolve_sort(const SortExpr & expr,
+                         const SortParams * params = nullptr);
   smt::Sort int_sort(const Location & loc);
   smt::Sort real_sort(const Location & loc);
   /** @return the sort that numerals have in the logic */
@@ -474,8 +451,7 @@ class Reader
   // global declarations
   std::unordered_map<std::string, DeclaredSort> declared_sorts_;
   std::unordered_map<std::string, SortDefinition> defined_sorts_;
-  std::deque<EnumSort> enum_sorts_;  ///< a deque keeps pointers valid
-  std::unordered_map<std::string, const EnumSort *> enum_sort_names_;
+  std::unordered_map<std::string, smt::Sort> enum_sorts_;  ///< datatypes
   std::unordered_map<std::string, smt::Term> enum_values_;
   std::deque<Constant> constants_;
   std::unordered_map<std::string, const Constant *> constant_names_;

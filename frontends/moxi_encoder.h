@@ -32,7 +32,6 @@ namespace pono {
 namespace moxi {
 struct Check;
 struct Query;
-struct SortInfo;
 struct System;
 class Reader;
 }  // namespace moxi
@@ -94,7 +93,7 @@ class MoxiEncoder
   struct FlatVar
   {
     std::string name;
-    const moxi::SortInfo * sort;
+    smt::Sort sort;
     /** the placeholders of its current and next values in the formulas of
      *  the check-system, and of a constant in all formulas; null for the
      *  local variables of subsystems */
@@ -135,7 +134,7 @@ class MoxiEncoder
   /** Creates a variable of the transition system, under the given name
    *  unless a symbol of the solver has it already. */
   smt::Term make_variable(const std::string & name,
-                          const moxi::SortInfo & sort,
+                          const smt::Sort & sort,
                           bool is_state);
 
   RelationalTransitionSystem & rts_;

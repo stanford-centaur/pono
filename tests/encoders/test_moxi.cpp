@@ -260,6 +260,10 @@ const vector<MoxiError> moxi_errors({
       "symbol f is already declared" },
     { "(declare-enum-sort S (and))", "and is a predefined symbol" },
     { "(declare-enum-sort Bool (A B C))", "sort Bool is already defined" },
+    { "(declare-enum-sort Color (red green))"
+      "(define-system S :input ((c Color)) :output ((o Bool))"
+      " :inv (= o (= c #b0)))",
+      "cannot apply = to arguments of sort Color, (_ BitVec 1)" },
     { "(set-logic QF_LIA) (define-fun f ((x Int) (y Int)) Int (> x y))",
       "the definition of f has sort Bool, but Int is declared" },
     { "(declare-fun x (Bool Bool) Bool) (define-fun y () Bool (x false))",

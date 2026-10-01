@@ -478,6 +478,22 @@ TEST_F(CliUnitTests, MoxiNamesASolverForIntegers)
                        "\nunsat\n"));
 }
 
+// Enumeration sorts are datatypes, which Bitwuzla does not have either.
+TEST_F(CliUnitTests, MoxiNamesASolverForEnumerations)
+{
+  expect_rejected(run_pono({ input_path("moxi/enums.moxi") }),
+                  "does not support datatypes, which enumeration sorts are");
+  EXPECT_TRUE(contains(run_pono({ "--smt-solver",
+                                  "cvc5",
+                                  "-e",
+                                  "ind",
+                                  "-p",
+                                  "1",
+                                  input_path("moxi/enums.moxi") })
+                           .output,
+                       "\nunsat\n"));
+}
+
 // The trace names the variables of a subsystem after its instance, and
 // leaves out what pono generated.
 TEST_F(CliUnitTests, MoxiTraceNamesTheVariablesOfSubsystems)

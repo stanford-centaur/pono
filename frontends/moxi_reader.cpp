@@ -207,11 +207,6 @@ bool parse_logic(const string & logic, bool & has_int, bool & has_real)
   return true;
 }
 
-string describe(const SortInfo & sort)
-{
-  return sort.enumeration ? sort.enumeration->name : sort.sort->to_string();
-}
-
 /** @return whether a term of the actual sort can stand where the expected
  *  one is. An integer can stand for a real: some solvers, e.g. MathSAT, keep
  *  integral constants integers even when asked for reals, and mix the two. */
@@ -322,7 +317,7 @@ void Reader::define_sort(const string & name,
   // standing for an arbitrary sort.
   SortParams dummies;
   for (const string & param : params) {
-    if (!dummies.emplace(param, SortInfo{ bool_sort_ }).second) {
+    if (!dummies.emplace(param, bool_sort_).second) {
       error(loc, "sort parameter " + param + " is repeated");
     }
   }
@@ -342,16 +337,29 @@ void Reader::declare_enum_sort(const string & name,
       error(loc, "value " + value + " of enumeration " + name + " is repeated");
     }
   }
-  uint64_t width = 1;
-  while (width < 64 && (uint64_t{ 1 } << width) < values.size()) {
-    ++width;
+  const SolverEnum se = solver_->get_solver_enum();
+  if (!solver_has_attribute(se, THEORY_DATATYPE)) {
+    error(loc,
+          "solver " + to_string(se)
+              + " does not support datatypes, which enumeration sorts are;"
+                " choose one that does, e.g. with --smt-solver cvc5");
   }
-  enum_sorts_.push_back({ name, values, solver_->make_sort(BV, width) });
-  const EnumSort & enumeration = enum_sorts_.back();
-  enum_sort_names_[name] = &enumeration;
-  for (size_t i = 0; i < values.size(); ++i) {
-    enum_values_[values[i]] =
-        solver_->make_term(static_cast<int64_t>(i), enumeration.sort);
+  // An enumeration is a datatype whose constructors take no arguments.
+  try {
+    DatatypeDecl decl = solver_->make_datatype_decl(name);
+    for (const string & value : values) {
+      solver_->add_constructor(decl,
+                               solver_->make_datatype_constructor_decl(value));
+    }
+    const Sort sort = solver_->make_sort(decl);
+    enum_sorts_[name] = sort;
+    for (const string & value : values) {
+      enum_values_[value] = solver_->make_term(
+          Apply_Constructor, solver_->get_constructor(sort, value));
+    }
+  }
+  catch (const SmtException & e) {
+    error(loc, "cannot declare enumeration " + name + ": " + e.what());
   }
 }
 
@@ -361,20 +369,19 @@ void Reader::declare_fun(const string & name,
                          const Location & loc)
 {
   check_new_global_name(name, loc);
-  const SortInfo result_sort = resolve_sort(result);
+  const Sort result_sort = resolve_sort(result);
   if (args.empty()) {
     constants_.push_back(
-        { name, result_sort, make_placeholder(result_sort.sort), loc });
+        { name, result_sort, make_placeholder(result_sort), loc });
     constant_names_[name] = &constants_.back();
     return;
   }
   Function function;
-  SortVec sorts;
   for (const SortExpr & arg : args) {
     function.arg_sorts.push_back(resolve_sort(arg));
-    sorts.push_back(function.arg_sorts.back().sort);
   }
-  sorts.push_back(result_sort.sort);
+  SortVec sorts = function.arg_sorts;
+  sorts.push_back(result_sort);
   function.result = result_sort;
   try {
     function.symbol =
@@ -401,8 +408,8 @@ void Reader::begin_define_fun(const string & name,
     if (!seen.insert(param.name).second) {
       error(param.loc, "parameter " + param.name + " is repeated");
     }
-    const SortInfo sort = resolve_sort(*param.sort);
-    macro_.params.push_back(make_placeholder(sort.sort));
+    const Sort sort = resolve_sort(*param.sort);
+    macro_.params.push_back(make_placeholder(sort));
     macro_.param_sorts.push_back(sort);
     bind(param.name, macro_.params.back());
   }
@@ -414,12 +421,12 @@ void Reader::begin_define_fun(const string & name,
 void Reader::end_define_fun(const Term & body, const Location & loc)
 {
   pop_scope();
-  macro_.body = coerce(body, macro_.result.sort, loc);
-  if (!fits(macro_.body->get_sort(), macro_.result.sort)) {
+  macro_.body = coerce(body, macro_.result, loc);
+  if (!fits(macro_.body->get_sort(), macro_.result)) {
     error(loc,
           "the definition of " + macro_name_ + " has sort "
               + body->get_sort()->to_string() + ", but "
-              + describe(macro_.result) + " is declared");
+              + macro_.result->to_string() + " is declared");
   }
   macros_[macro_name_] = std::move(macro_);
 }
@@ -532,11 +539,11 @@ void Reader::declare_variables(const string & attribute,
     if (!command_names_.insert(var.name).second) {
       error(var.loc, "variable " + var.name + " is declared more than once");
     }
-    const SortInfo sort = resolve_sort(*var.sort);
+    const Sort sort = resolve_sort(*var.sort);
     group.push_back({ var.name,
                       sort,
-                      make_placeholder(sort.sort),
-                      make_placeholder(sort.sort),
+                      make_placeholder(sort),
+                      make_placeholder(sort),
                       var.loc });
   }
 }
@@ -557,8 +564,8 @@ void Reader::check_signature(const string & attribute,
       }
       declared.push_back({ var.name,
                            var.sort,
-                           make_placeholder(var.sort.sort),
-                           make_placeholder(var.sort.sort),
+                           make_placeholder(var.sort),
+                           make_placeholder(var.sort),
                            loc });
     }
     return;
@@ -573,9 +580,9 @@ void Reader::check_signature(const string & attribute,
     if (declared[i].sort != expected[i].sort) {
       error(declared[i].loc,
             "variable " + declared[i].name + " has sort "
-                + describe(declared[i].sort) + ", but the variable "
+                + declared[i].sort->to_string() + ", but the variable "
                 + expected[i].name + " of system " + system.name
-                + " it renames has sort " + describe(expected[i].sort));
+                + " it renames has sort " + expected[i].sort->to_string());
     }
   }
 }
@@ -679,8 +686,8 @@ void Reader::add_subsystem(const string & name,
     if (actual.sort != formal.sort) {
       error(loc,
             "subsystem " + name + " passes " + actual.name + " of sort "
-                + describe(actual.sort) + " for " + formal.name + " of sort "
-                + describe(formal.sort));
+                + actual.sort->to_string() + " for " + formal.name + " of sort "
+                + formal.sort->to_string());
     }
     subsystem.args.push_back(pos->second);
   }
@@ -779,7 +786,7 @@ uint64_t Reader::parse_index(const string & index, const Location & loc) const
   return stoull(index);
 }
 
-SortInfo Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
+Sort Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
 {
   const string & name = expr.name;
   const bool plain = expr.indices.empty() && expr.args.empty();
@@ -791,28 +798,28 @@ SortInfo Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
   }
   try {
     if (name == "Bool" && plain) {
-      return { bool_sort_ };
+      return bool_sort_;
     } else if (name == "Int" && plain) {
-      return { int_sort(expr.loc) };
+      return int_sort(expr.loc);
     } else if (name == "Real" && plain) {
-      return { real_sort(expr.loc) };
+      return real_sort(expr.loc);
     } else if (name == "BitVec" && expr.indices.size() == 1
                && expr.args.empty()) {
       const uint64_t width = parse_index(expr.indices[0], expr.loc);
       if (!width) {
         error(expr.loc, "bit-vectors need a positive width");
       }
-      return { solver_->make_sort(BV, width) };
+      return solver_->make_sort(BV, width);
     } else if (name == "Array" && expr.indices.empty()
                && expr.args.size() == 2) {
-      return { solver_->make_sort(ARRAY,
-                                  resolve_sort(expr.args[0], params).sort,
-                                  resolve_sort(expr.args[1], params).sort) };
+      return solver_->make_sort(ARRAY,
+                                resolve_sort(expr.args[0], params),
+                                resolve_sort(expr.args[1], params));
     }
 
-    auto enumeration = enum_sort_names_.find(name);
-    if (enumeration != enum_sort_names_.end() && plain) {
-      return { enumeration->second->sort, enumeration->second };
+    auto enumeration = enum_sorts_.find(name);
+    if (enumeration != enum_sorts_.end() && plain) {
+      return enumeration->second;
     }
 
     auto defined = defined_sorts_.find(name);
@@ -829,20 +836,20 @@ SortInfo Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
     if (declared != declared_sorts_.end() && expr.indices.empty()
         && expr.args.size() == declared->second.arity) {
       if (!declared->second.arity) {
-        return { declared->second.sort };
+        return declared->second.sort;
       }
       SortVec args;
       for (const SortExpr & arg : expr.args) {
-        args.push_back(resolve_sort(arg, params).sort);
+        args.push_back(resolve_sort(arg, params));
       }
-      return { solver_->make_sort(declared->second.sort, args) };
+      return solver_->make_sort(declared->second.sort, args);
     }
   }
   catch (const SmtException & e) {
     error(expr.loc, "cannot make sort " + name + ": " + e.what());
   }
 
-  const bool known = builtin_sorts.count(name) || enum_sort_names_.count(name)
+  const bool known = builtin_sorts.count(name) || enum_sorts_.count(name)
                      || defined_sorts_.count(name)
                      || declared_sorts_.count(name);
   error(expr.loc,
@@ -853,7 +860,7 @@ SortInfo Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
 void Reader::check_new_sort_name(const string & name,
                                  const Location & loc) const
 {
-  if (builtin_sorts.count(name) || enum_sort_names_.count(name)
+  if (builtin_sorts.count(name) || enum_sorts_.count(name)
       || defined_sorts_.count(name) || declared_sorts_.count(name)) {
     error(loc, "sort " + name + " is already defined");
   }
@@ -937,7 +944,7 @@ void Reader::push_quantifier(const vector<SortedVar> & vars)
     if (!seen.insert(var.name).second) {
       error(var.loc, "quantifier binds " + var.name + " more than once");
     }
-    const Sort sort = resolve_sort(*var.sort).sort;
+    const Sort sort = resolve_sort(*var.sort);
     params.push_back(solver_->make_param(placeholder_name(), sort));
     bind(var.name, params.back());
   }
@@ -1034,10 +1041,10 @@ Term Reader::make_identifier_term(const Identifier & id)
     }
     Identifier plain = id;
     plain.qualifier.reset();
-    const SortInfo sort = resolve_sort(*id.qualifier);
-    const Term term = coerce(make_identifier_term(plain), sort.sort, id.loc);
-    if (!fits(term->get_sort(), sort.sort)) {
-      error(id.loc, id.name + " does not have sort " + describe(sort));
+    const Sort sort = resolve_sort(*id.qualifier);
+    const Term term = coerce(make_identifier_term(plain), sort, id.loc);
+    if (!fits(term->get_sort(), sort)) {
+      error(id.loc, id.name + " does not have sort " + sort->to_string());
     }
     return term;
   }
@@ -1107,17 +1114,17 @@ Term Reader::make_application(const Identifier & id,
     error(id.loc, "the primed symbol " + id.name + "' is not a function");
   }
   if (id.qualifier) {
-    const SortInfo sort = resolve_sort(*id.qualifier);
+    const Sort sort = resolve_sort(*id.qualifier);
     if (id.name == "const" && id.indices.empty()) {
-      if (sort.sort->get_sort_kind() != ARRAY) {
+      if (sort->get_sort_kind() != ARRAY) {
         error(id.loc, "(as const S) needs an array sort S");
       }
       if (args.size() != 1) {
         error(loc, "a constant array takes a single value");
       }
-      const Term elem = coerce(args[0], sort.sort->get_elemsort(), loc);
+      const Term elem = coerce(args[0], sort->get_elemsort(), loc);
       try {
-        return solver_->make_term(elem, sort.sort);
+        return solver_->make_term(elem, sort);
       }
       catch (const SmtException & e) {
         error(loc, string("cannot make constant array: ") + e.what());
@@ -1126,12 +1133,11 @@ Term Reader::make_application(const Identifier & id,
     // Otherwise the sort only disambiguates, which the arguments do already.
     Identifier plain = id;
     plain.qualifier.reset();
-    const Term term =
-        coerce(make_application(plain, args, loc), sort.sort, loc);
-    if (!fits(term->get_sort(), sort.sort)) {
+    const Term term = coerce(make_application(plain, args, loc), sort, loc);
+    if (!fits(term->get_sort(), sort)) {
       error(loc,
             "the application of " + id.name + " does not have sort "
-                + describe(sort));
+                + sort->to_string());
     }
     return term;
   }
@@ -1154,7 +1160,7 @@ Term Reader::make_application(const Identifier & id,
     }
     TermVec children{ f.symbol };
     for (size_t i = 0; i < args.size(); ++i) {
-      children.push_back(coerce(args[i], f.arg_sorts[i].sort, loc));
+      children.push_back(coerce(args[i], f.arg_sorts[i], loc));
     }
     return make_term(Apply, children, loc);
   }
@@ -1173,12 +1179,12 @@ Term Reader::apply_macro(const string & name,
   }
   UnorderedTermMap substitution;
   for (size_t i = 0; i < args.size(); ++i) {
-    const Term arg = coerce(args[i], macro.param_sorts[i].sort, loc);
-    if (!fits(arg->get_sort(), macro.param_sorts[i].sort)) {
+    const Term arg = coerce(args[i], macro.param_sorts[i], loc);
+    if (!fits(arg->get_sort(), macro.param_sorts[i])) {
       error(loc,
             "argument " + to_string(i + 1) + " of " + name + " has sort "
                 + arg->get_sort()->to_string() + " instead of "
-                + describe(macro.param_sorts[i]));
+                + macro.param_sorts[i]->to_string());
     }
     substitution[macro.params[i]] = arg;
   }

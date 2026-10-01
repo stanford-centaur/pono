@@ -18,7 +18,6 @@
 #include "frontends/moxi_encoder.h"
 
 #include <cassert>
-#include <cstdint>
 #include <unordered_map>
 
 #include "frontends/moxi_reader.h"
@@ -112,14 +111,14 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
   vector<FlatVar *> actuals;
   for (const auto * group : { &check.inputs, &check.outputs, &check.locals }) {
     for (const moxi::Variable & var : *group) {
-      vars_.push_back({ var.name, &var.sort, var.curr, var.next, false });
+      vars_.push_back({ var.name, var.sort, var.curr, var.next, false });
       actuals.push_back(&vars_.back());
     }
   }
   vector<FlatVar *> constants;
   for (const moxi::Constant & constant : reader_->constants()) {
     vars_.push_back({ constant.name,
-                      &constant.sort,
+                      constant.sort,
                       constant.placeholder,
                       constant.placeholder,
                       true });
@@ -227,23 +226,11 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
       continue;
     }
     const bool is_state = var.frozen || var.in_state || var.next_in_step;
-    var.curr = make_variable(var.name, *var.sort, is_state);
+    var.curr = make_variable(var.name, var.sort, is_state);
     if (var.frozen) {
       rts_.assign_next(var.curr, var.curr);
     } else if (is_state) {
       var.next = rts_.next(var.curr);
-    }
-    if (const moxi::EnumSort * enumeration = var.sort->enumeration) {
-      // The bit-vectors encoding an enumeration can outnumber its values.
-      const uint64_t num_values = enumeration->values.size();
-      const uint64_t width = var.sort->sort->get_width();
-      if (width < 64 && num_values < (uint64_t{ 1 } << width)) {
-        rts_.add_constraint(
-            rts_.make_term(BVUle,
-                           var.curr,
-                           rts_.make_term(static_cast<int64_t>(num_values - 1),
-                                          var.sort->sort)));
-      }
     }
   }
 
@@ -357,7 +344,7 @@ void MoxiEncoder::flatten(const moxi::System & system,
     }
     for (const moxi::Variable & local : subsystem.system->locals) {
       vars_.push_back(
-          { name + local.name, &local.sort, nullptr, nullptr, false });
+          { name + local.name, local.sort, nullptr, nullptr, false });
       sub_actuals.push_back(&vars_.back());
     }
     flatten(*subsystem.system, sub_actuals, name);
@@ -365,7 +352,7 @@ void MoxiEncoder::flatten(const moxi::System & system,
 }
 
 Term MoxiEncoder::make_variable(const string & name,
-                                const moxi::SortInfo & sort,
+                                const Sort & sort,
                                 bool is_state)
 {
   // Names can clash, e.g. a check-system variable with a declared constant
@@ -379,8 +366,8 @@ Term MoxiEncoder::make_variable(const string & name,
     candidate = name + "#" + to_string(n);
   }
   taken_names_.insert(candidate);
-  return is_state ? rts_.make_statevar(candidate, sort.sort)
-                  : rts_.make_inputvar(candidate, sort.sort);
+  return is_state ? rts_.make_statevar(candidate, sort)
+                  : rts_.make_inputvar(candidate, sort);
 }
 
 }  // namespace pono
