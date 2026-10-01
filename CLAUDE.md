@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Pono is a SMT-based model checker for verifying properties of transition systems. It supports hardware verification via BTOR2, SMV, and VMT input formats, and implements algorithms including IC3, BMC, k-induction, and interpolant-based model checking. Written in C++17, it uses smt-switch for solver-agnostic SMT operations.
+Pono is a SMT-based model checker for verifying properties of transition systems. It supports hardware verification via BTOR2, SMV, VMT, and MoXI input formats, and implements algorithms including IC3, BMC, k-induction, and interpolant-based model checking. Written in C++17, it uses smt-switch for solver-agnostic SMT operations.
 
 ## Build Commands
 
@@ -56,7 +56,7 @@ Prover hierarchy rooted at `Prover` → `SafetyProver` / `LivenessProver`:
 - **SyGusPDR**: Synthesized predicates for IC3
 
 ### Frontends (`/frontends/`)
-Input parsers: BTOR2Encoder, SmvEncoder (Flex/Bison-generated), VmtEncoder, CoreIREncoder (optional).
+Input parsers: BTOR2Encoder, SmvEncoder (Flex/Bison-generated), VmtEncoder, MoxiEncoder (Flex/Bison-generated, see `moxi_script.h`), CoreIREncoder (optional).
 
 ### Modifiers (`/modifiers/`)
 TransitionSystem transformations: ArrayAbstractor (arrays→UFs), OpsAbstractor, StaticConeOfInfluence, ControlSignals (clock/reset), HistoryModifier, LivenessToSafetyTranslator.

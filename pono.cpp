@@ -34,6 +34,7 @@
 #include "engines/kliveness.h"
 #include "engines/prover.h"
 #include "frontends/btor2_encoder.h"
+#include "frontends/moxi_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
 #include "modifiers/control_signals.h"
@@ -403,32 +404,41 @@ int main(int argc, char ** argv)
         cout << prop_label << endl;
       }
 
-    } else if (file_ext == "smv" || file_ext == "vmt" || file_ext == "smt2") {
+    } else if (file_ext == "smv" || file_ext == "vmt" || file_ext == "smt2"
+               || file_ext == "moxi") {
       if (pono_options.justice_) {
         throw PonoException("--justice is not supported for " + file_ext
                             + " input; the encoder for this format parses "
                               "only invariant properties");
       }
-      logger.log(2, "Parsing SMV/VMT file: {}", pono_options.filename_);
+      logger.log(2, "Parsing SMV/VMT/MoXI file: {}", pono_options.filename_);
       RelationalTransitionSystem rts(s);
-      TermVec propvec;
-      if (file_ext == "smv") {
-        SMVEncoder smv_enc(pono_options.filename_, rts);
-        propvec = smv_enc.propvec();
+      Term prop;
+      if (file_ext == "moxi") {
+        // A MoXI query brings its own assumptions into the transition
+        // system, so the encoder selects the query rather than a property.
+        MoxiEncoder moxi_enc(
+            pono_options.filename_, rts, pono_options.prop_idx_);
+        prop = moxi_enc.prop();
       } else {
-        assert(file_ext == "vmt" || file_ext == "smt2");
-        VMTEncoder vmt_enc(pono_options.filename_, rts);
-        propvec = vmt_enc.propvec();
+        TermVec propvec;
+        if (file_ext == "smv") {
+          SMVEncoder smv_enc(pono_options.filename_, rts);
+          propvec = smv_enc.propvec();
+        } else {
+          assert(file_ext == "vmt" || file_ext == "smt2");
+          VMTEncoder vmt_enc(pono_options.filename_, rts);
+          propvec = vmt_enc.propvec();
+        }
+        size_t num_props = propvec.size();
+        if (pono_options.prop_idx_ >= num_props) {
+          throw PonoException(
+              "Property index " + to_string(pono_options.prop_idx_)
+              + " is greater than the number of properties in file "
+              + pono_options.filename_ + " (" + to_string(num_props) + ")");
+        }
+        prop = propvec[pono_options.prop_idx_];
       }
-      size_t num_props = propvec.size();
-      if (pono_options.prop_idx_ >= num_props) {
-        throw PonoException(
-            "Property index " + to_string(pono_options.prop_idx_)
-            + " is greater than the number of properties in file "
-            + pono_options.filename_ + " (" + to_string(num_props) + ")");
-      }
-
-      Term prop = propvec[pono_options.prop_idx_];
       // get property name before it is rewritten
 
       std::vector<UnorderedTermMap> cex;

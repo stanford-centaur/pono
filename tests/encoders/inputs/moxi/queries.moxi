@@ -1,0 +1,20 @@
+; Queries of several check-system commands, one using :queries, and a
+; check-system that leaves out the variables, keeping the system's names.
+(set-logic QF_BV)
+
+(define-system Toggle
+  :input ((en Bool))
+  :output ((q Bool))
+  :init (not q)
+  :trans (= q' (xor q en)))
+
+(check-system Toggle
+  :input ((e Bool))
+  :output ((o Bool))
+  :reachable (on o)
+  :reachable (on_without_enable (and o (not e) (not (= o true))))
+  :queries ((turns_on (on)) (impossible (on_without_enable))))
+
+(check-system Toggle
+  :reachable (stays_off (and (not q) en))
+  :query (off_then_enabled (stays_off)))

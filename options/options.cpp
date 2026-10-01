@@ -206,7 +206,8 @@ const option::Descriptor usage[] = {
     "p",
     "prop",
     Arg::Numeric,
-    "  --prop, -p \tProperty index to check (default: 0)." },
+    "  --prop, -p \tProperty index to check (default: 0). For MoXI input, the "
+    "index of the query, counting those of all check-system commands." },
   { VERBOSITY,
     0,
     "v",

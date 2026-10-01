@@ -1,0 +1,17 @@
+; Numerals are reals in a logic without integers, e.g. in the else branch of
+; the ite.
+(set-logic QF_LRA)
+
+(define-fun half ((x Real)) Real (/ x 2))
+
+(define-system Decay
+  :output ((v Real))
+  :init (= v 16)
+  :trans (= v' (ite (> v 1) (half v) 0)))
+
+(check-system Decay
+  :output ((v Real))
+  :reachable (one (= v 1))
+  :reachable (negative (< v 0.0))
+  :query (reach_one (one))
+  :query (reach_negative (negative)))

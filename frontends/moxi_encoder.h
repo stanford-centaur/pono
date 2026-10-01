@@ -1,0 +1,136 @@
+/*********************                                                        */
+/*! \file moxi_encoder.h
+** \verbatim
+** Top contributors (to current version):
+**   Po-Chun Chien
+** This file is part of the pono project.
+** Copyright (c) 2019 by the authors listed in the file AUTHORS
+** (in the top-level source directory) and their institutional affiliations.
+** All rights reserved.  See the file LICENSE in the top-level source
+** directory for licensing information.\endverbatim
+**
+** \brief Frontend for the Model Exchange Interlingua (MoXI).
+**        See https://doi.org/10.1007/978-3-031-65627-9_10 and
+**        https://github.com/ModelChecker/IL for more information.
+**
+**/
+
+#pragma once
+
+#include <cstddef>
+#include <deque>
+#include <memory>
+#include <string>
+#include <unordered_set>
+#include <vector>
+
+#include "core/rts.h"
+#include "smt-switch/smt.h"
+
+namespace pono {
+
+namespace moxi {
+struct Check;
+struct Query;
+struct SortInfo;
+struct System;
+class Script;
+}  // namespace moxi
+
+/** Encodes a query of a MoXI script as a safety property of a relational
+ *  transition system.
+ *
+ *  The query's system is flattened into the transition system: each
+ *  subsystem instance contributes its own copy of its local variables, named
+ *  after the instance, e.g. inst.var. The variables take the names that the
+ *  check-system command gives them.
+ *
+ *  The property holds exactly if the query is unsatisfiable, i.e., if no
+ *  finite trace starting in an initial state (or in a state satisfying the
+ *  query's :current formula, which replaces the initial condition) and
+ *  keeping the system's invariant and the query's assumptions reaches each
+ *  of its reachability conditions, possibly at different steps.
+ *
+ *  Unlike the n-satisfiability that the MoXI description defines, the trace
+ *  does not need to extend by another step past its last state; this is the
+ *  usual semantics of reachability, which e.g. MoXIchecker implements too.
+ *  The two only differ if the transition relation deadlocks.
+ *
+ *  The queries of a :queries attribute are encoded one by one too, so the
+ *  declared constants and functions need not have the same values for all
+ *  of them, as MoXI asks of satisfiable ones. Queries with fairness
+ *  conditions ask for infinite traces and are not supported yet.
+ */
+class MoxiEncoder
+{
+ public:
+  /** Parses a MoXI file and encodes one of its queries.
+   *  @param filename the file to read
+   *  @param rts the transition system to encode the query into
+   *  @param query_idx the query to encode, counting the queries of all
+   *         check-system commands in the order of the file, including each
+   *         query of a :queries attribute
+   */
+  MoxiEncoder(const std::string & filename,
+              RelationalTransitionSystem & rts,
+              std::size_t query_idx = 0);
+
+  ~MoxiEncoder();
+
+  /** @return the property, which fails exactly if the query is satisfiable.
+   *  It has next-state variables if a reachability condition does, which
+   *  pono accounts for by monitoring it. */
+  const smt::Term & prop() const { return prop_; }
+
+  /** @return the names of the queries of the file, in the order that
+   *  query_idx counts them */
+  const std::vector<std::string> & query_names() const { return query_names_; }
+
+  /** @return the name of the encoded query */
+  const std::string & query_name() const { return query_names_[query_idx_]; }
+
+ private:
+  /** A variable of the flattened system. Placeholders stand for its values
+   *  until it is known whether it must be a state or can be an input. */
+  struct FlatVar
+  {
+    std::string name;
+    const moxi::SortInfo * sort;
+    smt::Term curr;
+    smt::Term next;
+    bool frozen;  ///< whether it is a declared constant
+  };
+
+  void encode(const moxi::Check & check, const moxi::Query & query);
+
+  /** Instantiates a system and, recursively, its subsystems.
+   *  @param system the system to instantiate
+   *  @param actuals the variables that its variables stand for, in the order
+   *         System::variable counts them
+   *  @param prefix the name of the instance, including a trailing dot
+   */
+  void flatten(const moxi::System & system,
+               const std::vector<const FlatVar *> & actuals,
+               const std::string & prefix);
+
+  /** Creates a variable of the transition system, under the given name
+   *  unless a symbol of the solver has it already. */
+  smt::Term make_variable(const std::string & name,
+                          const moxi::SortInfo & sort,
+                          bool is_state);
+
+  RelationalTransitionSystem & rts_;
+  std::unique_ptr<moxi::Script> script_;
+  std::vector<std::string> query_names_;
+  std::size_t query_idx_;
+  smt::Term prop_;
+
+  // the flattened system
+  std::deque<FlatVar> vars_;  ///< a deque keeps pointers valid
+  smt::TermVec init_;
+  smt::TermVec trans_;
+  smt::TermVec inv_;
+  std::unordered_set<std::string> taken_names_;
+};
+
+}  // namespace pono

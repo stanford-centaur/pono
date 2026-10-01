@@ -1,0 +1,22 @@
+; Declared constants and functions keep their value over time.
+(set-logic QF_UFLIA)
+
+(declare-const k Int)
+(declare-fun f (Int) Int)
+
+(define-system Stride
+  :output ((x Int) (y Int))
+  :init (and (= x 0) (= y 0))
+  :trans (and (= x' (+ x k)) (= y' (f y))))
+
+(check-system Stride
+  :output ((x Int) (y Int))
+  :reachable (two (= x 2))
+  :reachable (four (= x 4))
+  :reachable (minus_one (= x (- 1)))
+  :reachable (y_back (and (= y 0) (distinct x 0)))
+  :query (two_then_four (two four))
+  ; only if k could change in between
+  :query (two_then_minus_one (two minus_one))
+  ; y can cycle back to 0, as f is any function
+  :query (y_cycles (y_back)))

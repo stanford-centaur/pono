@@ -1,0 +1,29 @@
+; A memory that counts the writes to each address, written with defined
+; sorts and functions, lets, a constant array, and quoted symbols.
+(set-logic QF_ABV)
+
+(define-sort Byte () (_ BitVec 8))
+(define-sort Memory (Index) (Array Index Byte))
+
+(define-fun inc ((b Byte)) Byte (bvadd b #x01))
+(define-fun is_zero ((b Byte)) Bool (= b (_ bv0 8)))
+
+(define-system Counts
+  :input ((addr Byte))
+  :output ((|last count| Byte))
+  :local ((mem (Memory Byte)) (prev Byte))
+  :init (and (= mem ((as const (Memory Byte)) #x00)) (is_zero |last count|))
+  :trans (let ((count (inc (select mem addr))))
+           (and (= mem' (store mem addr count))
+                (= prev' addr)
+                ; the prime can also go inside the bars
+                (= |last count'| count))))
+
+(check-system Counts
+  :input ((addr Byte))
+  :output ((|last count| Byte))
+  :local ((mem (Memory Byte)) (prev Byte))
+  :reachable (third_write (= |last count| #x03))
+  :reachable (stale (distinct (select mem prev) |last count|))
+  :query (three (third_write))
+  :query (consistent (stale)))

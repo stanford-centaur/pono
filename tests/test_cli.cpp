@@ -430,4 +430,68 @@ TEST_F(CliUnitTests, SmvJusticeIsRejected)
   expect_rejected(run_pono({ "--justice", input_path("smv/counter.smv") }),
                   "--justice is not supported for smv");
 }
+
+// A MoXI query brings its own assumptions, so --prop picks the query to
+// encode, counting the queries of all check-system commands. The two here
+// disagree, which is what makes the selection visible. "sat" occurs in
+// "unsat", so the line it is on is matched.
+TEST_F(CliUnitTests, MoxiPropSelectsTheQuery)
+{
+  const string counter = input_path("moxi/counter.moxi");
+  EXPECT_TRUE(contains(run_pono({ "-e", "ind", "-p", "0", counter }).output,
+                       "\nsat\n"));
+  EXPECT_TRUE(contains(run_pono({ "-e", "ind", "-p", "1", counter }).output,
+                       "\nunsat\n"));
+}
+
+// A reachability condition over a step has next-state variables, which the
+// driver monitors as for any property that has them.
+TEST_F(CliUnitTests, MoxiChecksAConditionOverAStep)
+{
+  const string counter = input_path("moxi/counter.moxi");
+  EXPECT_TRUE(contains(run_pono({ "-e", "ind", "-p", "2", counter }).output,
+                       "\nsat\n"));
+  EXPECT_TRUE(contains(run_pono({ "-e", "ind", "-p", "3", counter }).output,
+                       "\nunsat\n"));
+}
+
+TEST_F(CliUnitTests, MoxiRejectsAQueryIndexOutOfRange)
+{
+  expect_rejected(run_pono({ "-p", "4", input_path("moxi/counter.moxi") }),
+                  "Query index 4 is out of range");
+}
+
+// Bitwuzla, the default solver, has no integers, and the message says what
+// to do about it.
+TEST_F(CliUnitTests, MoxiNamesASolverForIntegers)
+{
+  expect_rejected(run_pono({ input_path("moxi/assumptions.moxi") }),
+                  "does not support integers; choose one that does");
+  EXPECT_TRUE(contains(run_pono({ "--smt-solver",
+                                  "cvc5",
+                                  "-e",
+                                  "ind",
+                                  "-p",
+                                  "1",
+                                  input_path("moxi/assumptions.moxi") })
+                           .output,
+                       "\nunsat\n"));
+}
+
+// The trace names the variables of a subsystem after its instance, and
+// leaves out what pono generated.
+TEST_F(CliUnitTests, MoxiTraceNamesTheVariablesOfSubsystems)
+{
+  const PonoRun run =
+      run_pono({ "--witness", "-k", "6", input_path("moxi/subsystems.moxi") });
+  EXPECT_TRUE(contains(run.output, "\tx : "));
+  EXPECT_TRUE(contains(run.output, "\td1.first.held : "));
+  EXPECT_TRUE(omits(run.output, pono::generated_prefix));
+}
+
+TEST_F(CliUnitTests, MoxiJusticeIsRejected)
+{
+  expect_rejected(run_pono({ "--justice", input_path("moxi/counter.moxi") }),
+                  "--justice is not supported for moxi");
+}
 }  // namespace pono_tests

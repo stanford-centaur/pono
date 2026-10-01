@@ -1,0 +1,37 @@
+; Delays its input by four steps through nested instances of Delay, each of
+; which has a local variable of its own.
+(set-logic QF_BV)
+
+(define-system Delay
+  :input ((i (_ BitVec 8)))
+  :output ((o (_ BitVec 8)))
+  :local ((held (_ BitVec 8)))
+  :inv (= held i)
+  :init (= o #x00)
+  :trans (= o' held))
+
+(define-system DoubleDelay
+  :input ((in (_ BitVec 8)))
+  :output ((out (_ BitVec 8)))
+  :local ((mid (_ BitVec 8)))
+  :subsys (first (Delay in mid))
+  :subsys (second (Delay mid out)))
+
+(define-system QuadDelay
+  :input ((in (_ BitVec 8)))
+  :output ((out (_ BitVec 8)))
+  :local ((mid (_ BitVec 8)) (t (_ BitVec 8)))
+  :subsys (d1 (DoubleDelay in mid))
+  :subsys (d2 (DoubleDelay mid out))
+  :init (= t #x00)
+  :trans (= t' (ite (= t #xff) t (bvadd t #x01))))
+
+; renames the variables of the system
+(check-system QuadDelay
+  :input ((x (_ BitVec 8)))
+  :output ((y (_ BitVec 8)))
+  :local ((m (_ BitVec 8)) (steps (_ BitVec 8)))
+  :reachable (answer (= y #x2a))
+  :reachable (early (and (bvult steps #x04) (distinct y #x00)))
+  :query (delayed (answer))
+  :query (too_early (early)))

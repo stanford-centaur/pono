@@ -1,0 +1,19 @@
+; An enumeration of three values takes two bits, whose fourth value is no
+; value of the enumeration and must not be taken, even by an input.
+(set-logic QF_LIA)
+
+(declare-enum-sort Color (red green blue))
+
+(define-system Light
+  :input ((c Color))
+  :output ((n Int))
+  :init (= n 0)
+  :trans (= n' (ite (= c red) 1 (ite (= c green) 2 (ite (= c blue) 3 4)))))
+
+(check-system Light
+  :input ((c Color))
+  :output ((n Int))
+  :reachable (saw_blue (= n 3))
+  :reachable (saw_none (= n 4))
+  :query (blue (saw_blue))
+  :query (none (saw_none)))

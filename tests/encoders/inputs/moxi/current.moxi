@@ -1,0 +1,18 @@
+; An initiality condition replaces the initial condition of the system.
+(set-logic QF_LIA)
+
+(define-system Down
+  :output ((n Int))
+  :init (= n 10)
+  :trans (= n' (- n 1)))
+
+(check-system Down
+  :output ((n Int))
+  :current (low (< n 3))
+  :reachable (big (> n 5))
+  :reachable (zero (= n 0))
+  :query (from_init (big))
+  :query (from_low (low big))
+  ; conjoined with n = 10 instead, the initiality condition would leave no
+  ; initial state to start from
+  :query (from_low_to_zero (low zero)))
