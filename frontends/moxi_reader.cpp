@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file moxi_script.cpp
+/*! \file moxi_reader.cpp
 ** \verbatim
 ** Top contributors (to current version):
 **   Po-Chun Chien
@@ -9,12 +9,12 @@
 ** All rights reserved.  See the file LICENSE in the top-level source
 ** directory for licensing information.\endverbatim
 **
-** \brief The definitions a MoXI script makes, and the driver that the
-**        Flex/Bison parser for MoXI fills them in through.
+** \brief Reads a MoXI file into the systems and checks it defines, as
+**        terms of a solver, for MoxiEncoder to encode.
 **
 **/
 
-#include "frontends/moxi_script.h"
+#include "frontends/moxi_reader.h"
 
 #include <algorithm>
 #include <atomic>
@@ -223,7 +223,7 @@ bool fits(const Sort & actual, const Sort & expected)
 }
 
 /** @return a name for a placeholder symbol. A solver refuses a second symbol
- *  of a name, and scripts may share one, so the count is shared too. */
+ *  of a name, and readers may share one, so the count is shared too. */
 string placeholder_name()
 {
   static atomic<uint64_t> count{ 0 };
@@ -272,13 +272,13 @@ const Variable & System::variable(size_t i) const
   return locals.at(i - outputs.size());
 }
 
-Script::Script(const string & filename, const SmtSolver & solver)
+Reader::Reader(const string & filename, const SmtSolver & solver)
     : filename_(filename), solver_(solver), bool_sort_(solver->make_sort(BOOL))
 {
   parse();
 }
 
-void Script::error(const Location & loc, const string & message) const
+void Reader::error(const Location & loc, const string & message) const
 {
   ostringstream text;
   text << filename_ << ":" << loc << ": " << message;
@@ -287,7 +287,7 @@ void Script::error(const Location & loc, const string & message) const
 
 // commands
 
-void Script::set_logic(const string & logic, const Location & loc)
+void Reader::set_logic(const string & logic, const Location & loc)
 {
   if (logic_set_) {
     error(loc, "the logic is already set");
@@ -298,7 +298,7 @@ void Script::set_logic(const string & logic, const Location & loc)
   logic_set_ = true;
 }
 
-void Script::declare_sort(const string & name,
+void Reader::declare_sort(const string & name,
                           const string & arity,
                           const Location & loc)
 {
@@ -312,7 +312,7 @@ void Script::declare_sort(const string & name,
   }
 }
 
-void Script::define_sort(const string & name,
+void Reader::define_sort(const string & name,
                          const vector<string> & params,
                          const SortExpr & body,
                          const Location & loc)
@@ -330,7 +330,7 @@ void Script::define_sort(const string & name,
   defined_sorts_[name] = { params, body };
 }
 
-void Script::declare_enum_sort(const string & name,
+void Reader::declare_enum_sort(const string & name,
                                const vector<string> & values,
                                const Location & loc)
 {
@@ -355,7 +355,7 @@ void Script::declare_enum_sort(const string & name,
   }
 }
 
-void Script::declare_fun(const string & name,
+void Reader::declare_fun(const string & name,
                          const vector<SortExpr> & args,
                          const SortExpr & result,
                          const Location & loc)
@@ -387,7 +387,7 @@ void Script::declare_fun(const string & name,
   function_names_.insert(name);
 }
 
-void Script::begin_define_fun(const string & name,
+void Reader::begin_define_fun(const string & name,
                               const vector<SortedVar> & params,
                               const SortExpr & result,
                               const Location & loc)
@@ -411,7 +411,7 @@ void Script::begin_define_fun(const string & name,
   formula_attribute_ = "define-fun";
 }
 
-void Script::end_define_fun(const Term & body, const Location & loc)
+void Reader::end_define_fun(const Term & body, const Location & loc)
 {
   pop_scope();
   macro_.body = coerce(body, macro_.result.sort, loc);
@@ -424,7 +424,7 @@ void Script::end_define_fun(const Term & body, const Location & loc)
   macros_[macro_name_] = std::move(macro_);
 }
 
-void Script::begin_system(const string & name, const Location & loc)
+void Reader::begin_system(const string & name, const Location & loc)
 {
   scope_ = Scope::SYSTEM;
   system_ = make_shared<System>();
@@ -435,7 +435,7 @@ void Script::begin_system(const string & name, const Location & loc)
   variables_in_scope_.clear();
 }
 
-void Script::end_system()
+void Reader::end_system()
 {
   // A later definition of the same name replaces this one, while the
   // systems defined in between keep instantiating this one.
@@ -445,7 +445,7 @@ void Script::end_system()
   scope_ = Scope::TOP;
 }
 
-void Script::begin_check(const string & system, const Location & loc)
+void Reader::begin_check(const string & system, const Location & loc)
 {
   auto it = systems_.find(system);
   if (it == systems_.end()) {
@@ -462,7 +462,7 @@ void Script::begin_check(const string & system, const Location & loc)
   query_exprs_.clear();
 }
 
-void Script::end_check()
+void Reader::end_check()
 {
   unordered_set<string> query_names;
   for (const QueryExpr & expr : query_exprs_) {
@@ -502,7 +502,7 @@ void Script::end_check()
   scope_ = Scope::TOP;
 }
 
-vector<Variable> & Script::variables(const string & attribute,
+vector<Variable> & Reader::variables(const string & attribute,
                                      const Location & loc)
 {
   if (scope_ == Scope::SYSTEM) {
@@ -517,7 +517,7 @@ vector<Variable> & Script::variables(const string & attribute,
   error(loc, "unexpected attribute " + attribute);
 }
 
-void Script::declare_variables(const string & attribute,
+void Reader::declare_variables(const string & attribute,
                                const vector<SortedVar> & vars,
                                const Location & loc)
 {
@@ -541,7 +541,7 @@ void Script::declare_variables(const string & attribute,
   }
 }
 
-void Script::check_signature(const string & attribute,
+void Reader::check_signature(const string & attribute,
                              vector<Variable> & declared,
                              const vector<Variable> & expected,
                              const Location & loc)
@@ -580,14 +580,14 @@ void Script::check_signature(const string & attribute,
   }
 }
 
-void Script::enter_variables(const vector<Variable> & vars)
+void Reader::enter_variables(const vector<Variable> & vars)
 {
   for (const Variable & var : vars) {
     variables_in_scope_[var.name] = &var;
   }
 }
 
-void Script::end_variables()
+void Reader::end_variables()
 {
   variables_in_scope_.clear();
   variable_positions_.clear();
@@ -610,14 +610,14 @@ void Script::end_variables()
   }
 }
 
-void Script::begin_formula(const string & attribute)
+void Reader::begin_formula(const string & attribute)
 {
   next_allowed_ = attribute == ":trans" || attribute == ":assumption"
                   || attribute == ":fairness" || attribute == ":reachable";
   formula_attribute_ = attribute;
 }
 
-void Script::set_system_formula(const string & attribute,
+void Reader::set_system_formula(const string & attribute,
                                 const Term & formula,
                                 const Location & loc)
 {
@@ -640,7 +640,7 @@ void Script::set_system_formula(const string & attribute,
   }
 }
 
-void Script::add_subsystem(const string & name,
+void Reader::add_subsystem(const string & name,
                            const string & system,
                            const vector<string> & args,
                            const Location & loc)
@@ -687,7 +687,7 @@ void Script::add_subsystem(const string & name,
   system_->subsystems.push_back(std::move(subsystem));
 }
 
-void Script::add_check_formula(const string & attribute,
+void Reader::add_check_formula(const string & attribute,
                                const string & name,
                                const Term & formula,
                                const Location & loc)
@@ -714,7 +714,7 @@ void Script::add_check_formula(const string & attribute,
   check_.formulas.push_back({ name, kind, formula, loc });
 }
 
-void Script::add_query(const QueryExpr & query)
+void Reader::add_query(const QueryExpr & query)
 {
   // Queries may name formulas that come later, so they are resolved at the
   // end of the command.
@@ -723,7 +723,7 @@ void Script::add_query(const QueryExpr & query)
 
 // sorts
 
-Sort Script::int_sort(const Location & loc)
+Sort Reader::int_sort(const Location & loc)
 {
   if (!int_sort_) {
     const SolverEnum se = solver_->get_solver_enum();
@@ -738,7 +738,7 @@ Sort Script::int_sort(const Location & loc)
   return int_sort_;
 }
 
-Sort Script::real_sort(const Location & loc)
+Sort Reader::real_sort(const Location & loc)
 {
   if (!real_sort_) {
     const SolverEnum se = solver_->get_solver_enum();
@@ -753,13 +753,13 @@ Sort Script::real_sort(const Location & loc)
   return real_sort_;
 }
 
-Sort Script::numeral_sort(const Location & loc)
+Sort Reader::numeral_sort(const Location & loc)
 {
   // In SMT-LIB, numerals are reals in the logics without integers.
   return logic_has_real_ && !logic_has_int_ ? real_sort(loc) : int_sort(loc);
 }
 
-uint64_t Script::parse_index(const string & index, const Location & loc) const
+uint64_t Reader::parse_index(const string & index, const Location & loc) const
 {
   if (index.empty() || index.size() > 19
       || !all_of(index.begin(), index.end(), [](char c) {
@@ -770,7 +770,7 @@ uint64_t Script::parse_index(const string & index, const Location & loc) const
   return stoull(index);
 }
 
-SortInfo Script::resolve_sort(const SortExpr & expr, const SortParams * params)
+SortInfo Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
 {
   const string & name = expr.name;
   const bool plain = expr.indices.empty() && expr.args.empty();
@@ -841,7 +841,7 @@ SortInfo Script::resolve_sort(const SortExpr & expr, const SortParams * params)
               : "unknown sort " + name);
 }
 
-void Script::check_new_sort_name(const string & name,
+void Reader::check_new_sort_name(const string & name,
                                  const Location & loc) const
 {
   if (builtin_sorts.count(name) || enum_sort_names_.count(name)
@@ -850,7 +850,7 @@ void Script::check_new_sort_name(const string & name,
   }
 }
 
-void Script::check_new_global_name(const string & name,
+void Reader::check_new_global_name(const string & name,
                                    const Location & loc) const
 {
   if (is_generated_name(name)) {
@@ -865,32 +865,32 @@ void Script::check_new_global_name(const string & name,
   }
 }
 
-Term Script::make_placeholder(const Sort & sort)
+Term Reader::make_placeholder(const Sort & sort)
 {
   return solver_->make_symbol(placeholder_name(), sort);
 }
 
 // terms
 
-const Variable * Script::lookup_variable(const string & name) const
+const Variable * Reader::lookup_variable(const string & name) const
 {
   auto it = variables_in_scope_.find(name);
   return it == variables_in_scope_.end() ? nullptr : it->second;
 }
 
-Term Script::lookup_bound(const string & name) const
+Term Reader::lookup_bound(const string & name) const
 {
   auto it = bound_.find(name);
   return it == bound_.end() ? Term() : it->second.back();
 }
 
-void Script::bind(const string & name, const Term & term)
+void Reader::bind(const string & name, const Term & term)
 {
   bound_[name].push_back(term);
   bound_scopes_.back().push_back(name);
 }
 
-void Script::push_let(const vector<VarBinding> & bindings)
+void Reader::push_let(const vector<VarBinding> & bindings)
 {
   // The bindings of a let are parallel: each term was built without the
   // others in scope, so they are all bound only now.
@@ -904,7 +904,7 @@ void Script::push_let(const vector<VarBinding> & bindings)
   }
 }
 
-void Script::pop_scope()
+void Reader::pop_scope()
 {
   for (const string & name : bound_scopes_.back()) {
     // bind() put the name in, so this does not insert it
@@ -919,7 +919,7 @@ void Script::pop_scope()
   bound_scopes_.pop_back();
 }
 
-void Script::push_quantifier(const vector<SortedVar> & vars)
+void Reader::push_quantifier(const vector<SortedVar> & vars)
 {
   bound_scopes_.emplace_back();
   TermVec params;
@@ -935,7 +935,7 @@ void Script::push_quantifier(const vector<SortedVar> & vars)
   quantifier_params_.push_back(std::move(params));
 }
 
-Term Script::pop_quantifier(bool forall,
+Term Reader::pop_quantifier(bool forall,
                             const Term & body,
                             const Location & loc)
 {
@@ -946,7 +946,7 @@ Term Script::pop_quantifier(bool forall,
   return make_term(forall ? Forall : Exists, args, loc);
 }
 
-Term Script::make_numeral(const string & digits, const Location & loc)
+Term Reader::make_numeral(const string & digits, const Location & loc)
 {
   try {
     return solver_->make_term(digits, numeral_sort(loc));
@@ -956,7 +956,7 @@ Term Script::make_numeral(const string & digits, const Location & loc)
   }
 }
 
-Term Script::make_decimal(const string & text, const Location & loc)
+Term Reader::make_decimal(const string & text, const Location & loc)
 {
   // Solvers take a decimal as a fraction more readily than as is.
   const size_t point = text.find('.');
@@ -972,7 +972,7 @@ Term Script::make_decimal(const string & text, const Location & loc)
   }
 }
 
-Term Script::make_binary(const string & bits, const Location & loc)
+Term Reader::make_binary(const string & bits, const Location & loc)
 {
   try {
     return solver_->make_term(bits, solver_->make_sort(BV, bits.size()), 2);
@@ -982,7 +982,7 @@ Term Script::make_binary(const string & bits, const Location & loc)
   }
 }
 
-Term Script::make_hexadecimal(const string & digits, const Location & loc)
+Term Reader::make_hexadecimal(const string & digits, const Location & loc)
 {
   try {
     return solver_->make_term(
@@ -993,7 +993,7 @@ Term Script::make_hexadecimal(const string & digits, const Location & loc)
   }
 }
 
-Term Script::make_next(const string & name, const Location & loc)
+Term Reader::make_next(const string & name, const Location & loc)
 {
   if (lookup_bound(name)) {
     error(loc, "the bound variable " + name + " cannot be primed");
@@ -1014,7 +1014,7 @@ Term Script::make_next(const string & name, const Location & loc)
   return var->next;
 }
 
-Term Script::make_identifier_term(const Identifier & id)
+Term Reader::make_identifier_term(const Identifier & id)
 {
   if (!id.indices.empty()) {
     return make_indexed_constant(id);
@@ -1072,7 +1072,7 @@ Term Script::make_identifier_term(const Identifier & id)
   error(id.loc, "unknown symbol " + name);
 }
 
-Term Script::make_indexed_constant(const Identifier & id)
+Term Reader::make_indexed_constant(const Identifier & id)
 {
   if (!is_bv_literal_name(id.name) || id.indices.size() != 1 || id.primed
       || id.qualifier) {
@@ -1090,7 +1090,7 @@ Term Script::make_indexed_constant(const Identifier & id)
   }
 }
 
-Term Script::make_application(const Identifier & id,
+Term Reader::make_application(const Identifier & id,
                               const TermVec & args,
                               const Location & loc)
 {
@@ -1152,7 +1152,7 @@ Term Script::make_application(const Identifier & id,
   return make_builtin(id.name, args, loc);
 }
 
-Term Script::apply_macro(const string & name,
+Term Reader::apply_macro(const string & name,
                          const Macro & macro,
                          TermVec args,
                          const Location & loc)
@@ -1181,7 +1181,7 @@ Term Script::apply_macro(const string & name,
   }
 }
 
-Term Script::make_indexed_application(const Identifier & id,
+Term Reader::make_indexed_application(const Identifier & id,
                                       const TermVec & args,
                                       const Location & loc)
 {
@@ -1218,7 +1218,7 @@ Term Script::make_indexed_application(const Identifier & id,
   return make_term(op, args, loc);
 }
 
-Term Script::make_builtin(const string & name,
+Term Reader::make_builtin(const string & name,
                           TermVec args,
                           const Location & loc)
 {
@@ -1304,7 +1304,7 @@ Term Script::make_builtin(const string & name,
   return Term();
 }
 
-void Script::unify_numeric(TermVec & args, const Location & loc) const
+void Reader::unify_numeric(TermVec & args, const Location & loc) const
 {
   bool has_real = false;
   for (const Term & arg : args) {
@@ -1320,7 +1320,7 @@ void Script::unify_numeric(TermVec & args, const Location & loc) const
   }
 }
 
-Term Script::coerce(const Term & term,
+Term Reader::coerce(const Term & term,
                     const Sort & sort,
                     const Location & loc) const
 {
@@ -1331,7 +1331,7 @@ Term Script::coerce(const Term & term,
   return term;
 }
 
-Term Script::make_term(const Op & op,
+Term Reader::make_term(const Op & op,
                        const TermVec & args,
                        const Location & loc) const
 {

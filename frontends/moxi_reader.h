@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file moxi_script.h
+/*! \file moxi_reader.h
 ** \verbatim
 ** Top contributors (to current version):
 **   Po-Chun Chien
@@ -9,12 +9,14 @@
 ** All rights reserved.  See the file LICENSE in the top-level source
 ** directory for licensing information.\endverbatim
 **
-** \brief The definitions a MoXI script makes, and the driver that the
-**        Flex/Bison parser for MoXI fills them in through.
+** \brief Reads a MoXI file into the systems and checks it defines, as
+**        terms of a solver, for MoxiEncoder to encode.
 **
-**        Terms are built in the solver while the script is parsed. The
-**        variables of a system stand in its terms as placeholder symbols,
-**        which MoxiEncoder substitutes when it instantiates the system.
+**        The Flex/Bison parser hands what it recognizes to a moxi::Reader,
+**        which resolves the names, checks the sorts and builds the terms in
+**        the solver right away. The variables of a system stand in its terms
+**        as placeholder symbols, which MoxiEncoder substitutes when it
+**        instantiates the system.
 **
 **/
 
@@ -226,23 +228,23 @@ struct Check
   Location loc;
 };
 
-/** A MoXI script: parses the file it is given and holds what it defines.
+/** Reads a MoXI file: parses it and holds what it defines.
  *
  *  Besides the results, it offers the operations that the parser and the
  *  lexer build them with. Errors are reported by throwing a PonoException
  *  that names the place in the file.
  */
-class Script
+class Reader
 {
  public:
   /** Parses a MoXI file.
    *  @param filename the file to read
    *  @param solver the solver to build the terms and sorts with
    */
-  Script(const std::string & filename, const smt::SmtSolver & solver);
+  Reader(const std::string & filename, const smt::SmtSolver & solver);
 
-  Script(const Script &) = delete;
-  Script & operator=(const Script &) = delete;
+  Reader(const Reader &) = delete;
+  Reader & operator=(const Reader &) = delete;
 
   const std::string & filename() const { return filename_; }
 
@@ -266,7 +268,7 @@ class Script
                           const std::string & message) const;
 
   /** @return a symbol of the solver to stand for a value in the terms of the
-   *  script, named apart from any other that any script makes */
+   *  file, named apart from any other that any reader makes */
   smt::Term make_placeholder(const smt::Sort & sort);
 
   // The rest is for the lexer and the parser.

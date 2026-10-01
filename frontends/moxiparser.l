@@ -19,13 +19,13 @@
 #include <cstdio>
 #include <string>
 
-#include "frontends/moxi_script.h"
+#include "frontends/moxi_reader.h"
 #include "moxiparser.h"
 #include "utils/exceptions.h"
 
 // The parser passes its parameters on to the lexer; see moxiparser.y.
 #define YY_DECL                                                  \
-  pono::moxi::Parser::symbol_type moxilex(pono::moxi::Script & drv, \
+  pono::moxi::Parser::symbol_type moxilex(pono::moxi::Reader & reader, \
                                           yyscan_t yyscanner)
 
 // Every token extends the location by what it matched.
@@ -75,7 +75,7 @@ numeral        0|[1-9][0-9]*
 %%
 
 %{
-  pono::moxi::Location & loc = drv.location();
+  pono::moxi::Location & loc = reader.location();
   loc.step();
 %}
 
@@ -88,8 +88,8 @@ numeral        0|[1-9][0-9]*
 
 {numeral}             { return Parser::make_NUMERAL(yytext, loc); }
 "0"[0-9]+             {
-                        drv.error(loc, std::string("numeral with a leading zero: ")
-                                           + yytext);
+                        reader.error(loc, std::string("numeral with a leading zero: ")
+                                          + yytext);
                       }
 {numeral}"."[0-9]+    { return Parser::make_DECIMAL(yytext, loc); }
 "#b"[01]+             { return Parser::make_BINARY(strip(yytext, yyleng, 2, 0), loc); }
@@ -146,19 +146,19 @@ numeral        0|[1-9][0-9]*
                         return Parser::make_SYMBOL(strip(yytext, yyleng, 1, 1), loc);
                       }
 "|"[^|\\]*            {
-                        drv.error(loc, "quoted symbol without a closing |"
+                        reader.error(loc, "quoted symbol without a closing |"
                                        " (a quoted symbol cannot contain \\)");
                       }
 
 .                     {
-                        drv.error(loc, std::string("unexpected character '")
+                        reader.error(loc, std::string("unexpected character '")
                                            + yytext + "'");
                       }
 <<EOF>>               { return Parser::make_END(loc); }
 
 %%
 
-void pono::moxi::Script::parse()
+void pono::moxi::Reader::parse()
 {
   // Releases the file and the lexer however parsing ends.
   struct Resources

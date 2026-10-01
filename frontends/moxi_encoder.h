@@ -34,10 +34,10 @@ struct Check;
 struct Query;
 struct SortInfo;
 struct System;
-class Script;
+class Reader;
 }  // namespace moxi
 
-/** Encodes a query of a MoXI script as a safety property of a relational
+/** Encodes a query of a MoXI file as a safety property of a relational
  *  transition system.
  *
  *  The query's system is flattened into the transition system: each
@@ -120,7 +120,7 @@ class MoxiEncoder
                           bool is_state);
 
   RelationalTransitionSystem & rts_;
-  std::unique_ptr<moxi::Script> script_;
+  std::unique_ptr<moxi::Reader> reader_;
   std::vector<std::string> query_names_;
   std::size_t query_idx_;
   smt::Term prop_;

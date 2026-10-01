@@ -266,7 +266,7 @@ set(
   "${PROJECT_SOURCE_DIR}/engines/syguspdr.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/moxi_encoder.cpp"
-  "${PROJECT_SOURCE_DIR}/frontends/moxi_script.cpp"
+  "${PROJECT_SOURCE_DIR}/frontends/moxi_reader.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_node.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/vmt_encoder.cpp"

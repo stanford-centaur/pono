@@ -20,7 +20,7 @@
 #include <cassert>
 #include <cstdint>
 
-#include "frontends/moxi_script.h"
+#include "frontends/moxi_reader.h"
 #include "smt-switch/utils.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
@@ -44,12 +44,12 @@ MoxiEncoder::MoxiEncoder(const string & filename,
                          RelationalTransitionSystem & rts,
                          size_t query_idx)
     : rts_(rts),
-      script_(make_unique<moxi::Script>(filename, rts.solver())),
+      reader_(make_unique<moxi::Reader>(filename, rts.solver())),
       query_idx_(query_idx)
 {
   const moxi::Check * check = nullptr;
   const moxi::Query * query = nullptr;
-  for (const moxi::Check & c : script_->checks()) {
+  for (const moxi::Check & c : reader_->checks()) {
     for (const moxi::Query & q : c.queries) {
       if (query_names_.size() == query_idx) {
         check = &c;
@@ -88,7 +88,7 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
       case moxi::FormulaKind::REACHABLE: reachables.push_back(&formula); break;
       case moxi::FormulaKind::CURRENT: current = &formula; break;
       case moxi::FormulaKind::FAIRNESS:
-        script_->error(formula.loc,
+        reader_->error(formula.loc,
                        "query " + query.name + " has the fairness condition "
                            + formula.name
                            + ", but only queries without fairness conditions"
@@ -106,7 +106,7 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
       actuals.push_back(&vars_.back());
     }
   }
-  for (const moxi::Constant & constant : script_->constants()) {
+  for (const moxi::Constant & constant : reader_->constants()) {
     vars_.push_back({ constant.name,
                       &constant.sort,
                       constant.placeholder,
@@ -265,8 +265,8 @@ void MoxiEncoder::flatten(const moxi::System & system,
       const Sort & sort = local.sort.sort;
       vars_.push_back({ name + local.name,
                         &local.sort,
-                        script_->make_placeholder(sort),
-                        script_->make_placeholder(sort),
+                        reader_->make_placeholder(sort),
+                        reader_->make_placeholder(sort),
                         false });
       sub_actuals.push_back(&vars_.back());
     }
@@ -283,7 +283,7 @@ Term MoxiEncoder::make_variable(const string & name,
   // symbols apart by their names.
   string candidate = name;
   for (size_t n = 1; taken_names_.count(candidate)
-                     || script_->function_names().count(candidate)
+                     || reader_->function_names().count(candidate)
                      || rts_.named_terms().count(candidate);
        ++n) {
     candidate = name + "#" + to_string(n);

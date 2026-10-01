@@ -12,7 +12,7 @@
 **
 ** \brief Bison grammar of the Model Exchange Interlingua (MoXI).
 **
-**        The actions hand what they recognize to a moxi::Script, which builds
+**        The actions hand what they recognize to a moxi::Reader, which builds
 **        the terms right away. Building them bottom-up, as the parser reduces,
 **        keeps the depth of a term from ever reaching the call stack.
 **
@@ -31,7 +31,7 @@
 %define api.value.type variant
 %define parse.error verbose
 
-%param {pono::moxi::Script & drv}
+%param {pono::moxi::Reader & reader}
 %param {void * scanner}
 
 %code requires {
@@ -39,12 +39,12 @@
   #include <utility>
   #include <vector>
 
-  #include "frontends/moxi_script.h"
+  #include "frontends/moxi_reader.h"
 }
 
 %code {
   // The lexer, generated from moxiparser.l.
-  pono::moxi::Parser::symbol_type moxilex(pono::moxi::Script & drv,
+  pono::moxi::Parser::symbol_type moxilex(pono::moxi::Reader & reader,
                                           void * scanner);
   #define yylex moxilex
 }
@@ -92,50 +92,50 @@
 
 %%
 
-script:
+commands:
   %empty
-| script command
+| commands command
 ;
 
 command:
   "(" "set-logic" SYMBOL ")"
-    { drv.set_logic($3, @3); }
+    { reader.set_logic($3, @3); }
 | "(" "set-info" attribute ")"
 | "(" "set-option" attribute ")"
 | "(" "declare-sort" SYMBOL NUMERAL ")"
-    { drv.declare_sort($3, $4, @3); }
+    { reader.declare_sort($3, $4, @3); }
 | "(" "define-sort" SYMBOL "(" symbol_list ")" sort ")"
-    { drv.define_sort($3, $5, $7, @3); }
+    { reader.define_sort($3, $5, $7, @3); }
 | "(" "declare-enum-sort" SYMBOL "(" symbol_list1 ")" ")"
-    { drv.declare_enum_sort($3, $5, @3); }
+    { reader.declare_enum_sort($3, $5, @3); }
 | "(" "declare-const" SYMBOL sort ")"
-    { drv.declare_fun($3, {}, $4, @3); }
+    { reader.declare_fun($3, {}, $4, @3); }
 | "(" "declare-fun" SYMBOL "(" sort_list ")" sort ")"
-    { drv.declare_fun($3, $5, $7, @3); }
+    { reader.declare_fun($3, $5, $7, @3); }
 | "(" "define-fun" SYMBOL "(" sorted_var_list ")" sort
-    { drv.begin_define_fun($3, $5, $7, @3); }
+    { reader.begin_define_fun($3, $5, $7, @3); }
   term ")"
-    { drv.end_define_fun($9, @9); }
+    { reader.end_define_fun($9, @9); }
 | "(" "define-const" SYMBOL sort
-    { drv.begin_define_fun($3, {}, $4, @3); }
+    { reader.begin_define_fun($3, {}, $4, @3); }
   term ")"
-    { drv.end_define_fun($6, @6); }
+    { reader.end_define_fun($6, @6); }
 | "(" "define-system" SYMBOL
-    { drv.begin_system($3, @3); }
+    { reader.begin_system($3, @3); }
   variable_declarations
-    { drv.end_variables(); }
+    { reader.end_variables(); }
   system_attributes ")"
-    { drv.end_system(); }
+    { reader.end_system(); }
 | "(" "check-system" SYMBOL
-    { drv.begin_check($3, @3); }
+    { reader.begin_check($3, @3); }
   variable_declarations
-    { drv.end_variables(); }
+    { reader.end_variables(); }
   check_attributes ")"
-    { drv.end_check(); }
+    { reader.end_check(); }
 | "(" "exit" ")"
     { YYACCEPT; }
 | "(" SYMBOL
-    { drv.error(@2, "unknown or unsupported command " + $2); }
+    { reader.error(@2, "unknown or unsupported command " + $2); }
   s_expr_list ")"
 ;
 
@@ -148,11 +148,11 @@ variable_declarations:
 
 variable_declaration:
   ":input" "(" sorted_var_list ")"
-    { drv.declare_variables(":input", $3, @1); }
+    { reader.declare_variables(":input", $3, @1); }
 | ":output" "(" sorted_var_list ")"
-    { drv.declare_variables(":output", $3, @1); }
+    { reader.declare_variables(":output", $3, @1); }
 | ":local" "(" sorted_var_list ")"
-    { drv.declare_variables(":local", $3, @1); }
+    { reader.declare_variables(":local", $3, @1); }
 ;
 
 system_attributes:
@@ -162,19 +162,19 @@ system_attributes:
 
 system_attribute:
   ":init"
-    { drv.begin_formula(":init"); }
+    { reader.begin_formula(":init"); }
   term
-    { drv.set_system_formula(":init", $3, @1); }
+    { reader.set_system_formula(":init", $3, @1); }
 | ":trans"
-    { drv.begin_formula(":trans"); }
+    { reader.begin_formula(":trans"); }
   term
-    { drv.set_system_formula(":trans", $3, @1); }
+    { reader.set_system_formula(":trans", $3, @1); }
 | ":inv"
-    { drv.begin_formula(":inv"); }
+    { reader.begin_formula(":inv"); }
   term
-    { drv.set_system_formula(":inv", $3, @1); }
+    { reader.set_system_formula(":inv", $3, @1); }
 | ":subsys" "(" SYMBOL "(" SYMBOL symbol_list ")" ")"
-    { drv.add_subsystem($3, $5, $6, @3); }
+    { reader.add_subsystem($3, $5, $6, @3); }
 ;
 
 check_attributes:
@@ -184,27 +184,27 @@ check_attributes:
 
 check_attribute:
   ":assumption" "(" SYMBOL
-    { drv.begin_formula(":assumption"); }
+    { reader.begin_formula(":assumption"); }
   term ")"
-    { drv.add_check_formula(":assumption", $3, $5, @3); }
+    { reader.add_check_formula(":assumption", $3, $5, @3); }
 | ":fairness" "(" SYMBOL
-    { drv.begin_formula(":fairness"); }
+    { reader.begin_formula(":fairness"); }
   term ")"
-    { drv.add_check_formula(":fairness", $3, $5, @3); }
+    { reader.add_check_formula(":fairness", $3, $5, @3); }
 | ":reachable" "(" SYMBOL
-    { drv.begin_formula(":reachable"); }
+    { reader.begin_formula(":reachable"); }
   term ")"
-    { drv.add_check_formula(":reachable", $3, $5, @3); }
+    { reader.add_check_formula(":reachable", $3, $5, @3); }
 | ":current" "(" SYMBOL
-    { drv.begin_formula(":current"); }
+    { reader.begin_formula(":current"); }
   term ")"
-    { drv.add_check_formula(":current", $3, $5, @3); }
+    { reader.add_check_formula(":current", $3, $5, @3); }
 | ":query" query
-    { drv.add_query($2); }
+    { reader.add_query($2); }
 | ":queries" "(" query_list1 ")"
     {
       for (const auto & q : $3) {
-        drv.add_query(q);
+        reader.add_query(q);
       }
     }
 ;
@@ -295,21 +295,21 @@ term:
   spec_constant
     { $$ = $1; }
 | qual_identifier
-    { $$ = drv.make_identifier_term($1); }
+    { $$ = reader.make_identifier_term($1); }
 | "(" qual_identifier term_list1 ")"
-    { $$ = drv.make_application($2, $3, @$); }
+    { $$ = reader.make_application($2, $3, @$); }
 | "(" "let" "(" var_binding_list1 ")"
-    { drv.push_let($4); }
+    { reader.push_let($4); }
   term ")"
-    { drv.pop_scope(); $$ = $7; }
+    { reader.pop_scope(); $$ = $7; }
 | "(" "forall" "(" sorted_var_list1 ")"
-    { drv.push_quantifier($4); }
+    { reader.push_quantifier($4); }
   term ")"
-    { $$ = drv.pop_quantifier(true, $7, @$); }
+    { $$ = reader.pop_quantifier(true, $7, @$); }
 | "(" "exists" "(" sorted_var_list1 ")"
-    { drv.push_quantifier($4); }
+    { reader.push_quantifier($4); }
   term ")"
-    { $$ = drv.pop_quantifier(false, $7, @$); }
+    { $$ = reader.pop_quantifier(false, $7, @$); }
 | "(" "!" term attribute_list1 ")"
     { $$ = $3; }
 /* Not SMT-LIB, but files in the wild wrap terms in extra parentheses, which
@@ -327,13 +327,13 @@ term_list1:
 
 spec_constant:
   NUMERAL
-    { $$ = drv.make_numeral($1, @1); }
+    { $$ = reader.make_numeral($1, @1); }
 | DECIMAL
-    { $$ = drv.make_decimal($1, @1); }
+    { $$ = reader.make_decimal($1, @1); }
 | BINARY
-    { $$ = drv.make_binary($1, @1); }
+    { $$ = reader.make_binary($1, @1); }
 | HEXADECIMAL
-    { $$ = drv.make_hexadecimal($1, @1); }
+    { $$ = reader.make_hexadecimal($1, @1); }
 ;
 
 identifier:
@@ -410,5 +410,5 @@ s_expr_list:
 void pono::moxi::Parser::error(const location_type & loc,
                                const std::string & message)
 {
-  drv.error(loc, message);
+  reader.error(loc, message);
 }

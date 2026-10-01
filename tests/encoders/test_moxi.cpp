@@ -139,9 +139,9 @@ TEST_F(MoxiEncoderUnitTests, KeepsDeclaredConstants)
   EXPECT_EQ(rts.state_updates().at(k), k);
 }
 
-// The symbols standing for variables while a script is parsed are apart
-// from those of any other script.
-TEST_F(MoxiEncoderUnitTests, SharesASolverBetweenScripts)
+// The symbols standing for variables while a file is read are apart from
+// those of any other file.
+TEST_F(MoxiEncoderUnitTests, SharesASolverBetweenFiles)
 {
   RelationalTransitionSystem counter_rts(s);
   MoxiEncoder counter(moxi_path("counter.moxi"), counter_rts);
@@ -161,10 +161,10 @@ TEST_F(MoxiEncoderUnitTests, RejectsAQueryIndexOutOfRange)
   }
 }
 
-/** A malformed script, with part of the message rejecting it. */
+/** A malformed MoXI file, with part of the message rejecting it. */
 struct MoxiError
 {
-  string script;
+  string text;
   string message;
 };
 
@@ -173,7 +173,7 @@ ostream & operator<<(ostream & os, const MoxiError & error)
   return os << error.message;
 }
 
-// Each script is well-formed apart from one mistake, mostly the one that the
+// Each file is well-formed apart from one mistake, mostly the one that the
 // reference sort checker in the MoXI tool suite tests with the same name.
 const vector<MoxiError> moxi_errors({
     // lexical rules
@@ -274,13 +274,13 @@ TEST_P(MoxiErrorUnitTests, Rejects)
   const string path = testing::TempDir() + "pono_test.moxi";
   {
     ofstream file(path);
-    file << GetParam().script << "\n";
+    file << GetParam().text << "\n";
   }
   SmtSolver s = create_solver(CVC5);
   RelationalTransitionSystem rts(s);
   try {
     MoxiEncoder encoder(path, rts);
-    ADD_FAILURE() << "the script was encoded:\n" << GetParam().script;
+    ADD_FAILURE() << "the file was encoded:\n" << GetParam().text;
   }
   catch (const PonoException & e) {
     EXPECT_NE(string(e.what()).find(GetParam().message), string::npos)
@@ -309,7 +309,7 @@ TEST(MoxiLocationUnitTests, LocatesTheError)
   RelationalTransitionSystem rts(s);
   try {
     MoxiEncoder encoder(path, rts);
-    FAIL() << "the script was encoded";
+    FAIL() << "the file was encoded";
   }
   catch (const PonoException & e) {
     EXPECT_EQ(string(e.what()), path + ":5:16: unknown symbol p");

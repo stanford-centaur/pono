@@ -56,7 +56,7 @@ Prover hierarchy rooted at `Prover` → `SafetyProver` / `LivenessProver`:
 - **SyGusPDR**: Synthesized predicates for IC3
 
 ### Frontends (`/frontends/`)
-Input parsers: BTOR2Encoder, SmvEncoder (Flex/Bison-generated), VmtEncoder, MoxiEncoder (Flex/Bison-generated, see `moxi_script.h`), CoreIREncoder (optional).
+Input parsers: BTOR2Encoder, SmvEncoder (Flex/Bison-generated), VmtEncoder, MoxiEncoder (Flex/Bison-generated, see `moxi_reader.h`), CoreIREncoder (optional).
 
 ### Modifiers (`/modifiers/`)
 TransitionSystem transformations: ArrayAbstractor (arrays→UFs), OpsAbstractor, StaticConeOfInfluence, ControlSignals (clock/reset), HistoryModifier, LivenessToSafetyTranslator.
