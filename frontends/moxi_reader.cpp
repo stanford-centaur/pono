@@ -401,7 +401,7 @@ void Reader::begin_define_fun(const string & name,
     if (!seen.insert(param.name).second) {
       error(param.loc, "parameter " + param.name + " is repeated");
     }
-    const SortInfo sort = resolve_sort(param.sort);
+    const SortInfo sort = resolve_sort(*param.sort);
     macro_.params.push_back(make_placeholder(sort.sort));
     macro_.param_sorts.push_back(sort);
     bind(param.name, macro_.params.back());
@@ -532,7 +532,7 @@ void Reader::declare_variables(const string & attribute,
     if (!command_names_.insert(var.name).second) {
       error(var.loc, "variable " + var.name + " is declared more than once");
     }
-    const SortInfo sort = resolve_sort(var.sort);
+    const SortInfo sort = resolve_sort(*var.sort);
     group.push_back({ var.name,
                       sort,
                       make_placeholder(sort.sort),
@@ -928,7 +928,7 @@ void Reader::push_quantifier(const vector<SortedVar> & vars)
     if (!seen.insert(var.name).second) {
       error(var.loc, "quantifier binds " + var.name + " more than once");
     }
-    const Sort sort = resolve_sort(var.sort).sort;
+    const Sort sort = resolve_sort(*var.sort).sort;
     params.push_back(solver_->make_param(placeholder_name(), sort));
     bind(var.name, params.back());
   }

@@ -27,7 +27,6 @@
 #include <deque>
 #include <iosfwd>
 #include <memory>
-#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -73,6 +72,10 @@ struct SortExpr
   Location loc;
 };
 
+// The parser holds its values in slots as large as the largest of their
+// types, clears each slot it makes, and moves the values between slots.
+// Hence the sorts nested in the values below are kept behind pointers.
+
 /** An identifier as written: a symbol, possibly indexed, primed, or
  *  qualified with a sort as in (as const (Array Int Int)). */
 struct Identifier
@@ -80,7 +83,7 @@ struct Identifier
   std::string name;
   std::vector<std::string> indices;
   bool primed = false;
-  std::optional<SortExpr> qualifier;
+  std::shared_ptr<const SortExpr> qualifier;  ///< null if unqualified
   Location loc;
 };
 
@@ -88,7 +91,7 @@ struct Identifier
 struct SortedVar
 {
   std::string name;
-  SortExpr sort;
+  std::shared_ptr<const SortExpr> sort;  ///< never null
   Location loc;
 };
 

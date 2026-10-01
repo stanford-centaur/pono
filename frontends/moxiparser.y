@@ -246,7 +246,11 @@ sort_list1:
 
 sorted_var:
   "(" SYMBOL sort ")"
-    { $$ = pono::moxi::SortedVar{ $2, $3, @2 }; }
+    {
+      $$ = pono::moxi::SortedVar{
+        $2, std::make_shared<const pono::moxi::SortExpr>(std::move($3)), @2
+      };
+    }
 ;
 
 sorted_var_list:
@@ -338,11 +342,11 @@ spec_constant:
 
 identifier:
   SYMBOL
-    { $$ = pono::moxi::Identifier{ $1, {}, false, std::nullopt, @1 }; }
+    { $$ = pono::moxi::Identifier{ $1, {}, false, nullptr, @1 }; }
 | PRIMED_SYMBOL
-    { $$ = pono::moxi::Identifier{ $1, {}, true, std::nullopt, @1 }; }
+    { $$ = pono::moxi::Identifier{ $1, {}, true, nullptr, @1 }; }
 | "(" "_" SYMBOL index_list1 ")"
-    { $$ = pono::moxi::Identifier{ $3, $4, false, std::nullopt, @$ }; }
+    { $$ = pono::moxi::Identifier{ $3, $4, false, nullptr, @$ }; }
 ;
 
 qual_identifier:
@@ -351,7 +355,8 @@ qual_identifier:
 | "(" "as" identifier sort ")"
     {
       $$ = std::move($3);
-      $$.qualifier = std::move($4);
+      $$.qualifier =
+          std::make_shared<const pono::moxi::SortExpr>(std::move($4));
       $$.loc = @$;
     }
 ;
