@@ -435,7 +435,7 @@ TEST_F(CliUnitTests, SmvJusticeIsRejected)
 // command whose query to encode. The two here disagree, which is what makes
 // the selection visible. "sat" occurs in "unsat", so the line it is on is
 // matched.
-TEST_F(CliUnitTests, MoxiPropSelectsTheCheckSystem)
+TEST_F(CliUnitTests, MoxiPropSelectsCheckSystem)
 {
   const string counter = input_path("moxi/counter.moxi");
   EXPECT_TRUE(contains(run_pono({ "-e", "ind", "-p", "0", counter }).output,
@@ -446,7 +446,7 @@ TEST_F(CliUnitTests, MoxiPropSelectsTheCheckSystem)
 
 // A reachability condition over a step has next-state variables, which the
 // driver monitors as for any property that has them.
-TEST_F(CliUnitTests, MoxiChecksAConditionOverAStep)
+TEST_F(CliUnitTests, MoxiChecksConditionOverStep)
 {
   const string counter = input_path("moxi/counter.moxi");
   EXPECT_TRUE(contains(run_pono({ "-e", "ind", "-p", "2", counter }).output,
@@ -455,7 +455,7 @@ TEST_F(CliUnitTests, MoxiChecksAConditionOverAStep)
                        "\nunsat\n"));
 }
 
-TEST_F(CliUnitTests, MoxiRejectsACheckSystemIndexOutOfRange)
+TEST_F(CliUnitTests, MoxiRejectsIndexOutOfRange)
 {
   expect_rejected(run_pono({ "-p", "4", input_path("moxi/counter.moxi") }),
                   "Check-system index 4 is out of range");
@@ -463,7 +463,7 @@ TEST_F(CliUnitTests, MoxiRejectsACheckSystemIndexOutOfRange)
 
 // Bitwuzla, the default solver, has no integers, and the message says what
 // to do about it.
-TEST_F(CliUnitTests, MoxiNamesASolverForIntegers)
+TEST_F(CliUnitTests, MoxiNamesSolverForInts)
 {
   expect_rejected(run_pono({ input_path("moxi/assumptions.moxi") }),
                   "does not support integers; choose one that does");
@@ -479,7 +479,7 @@ TEST_F(CliUnitTests, MoxiNamesASolverForIntegers)
 }
 
 // Enumeration sorts are datatypes, which Bitwuzla does not have either.
-TEST_F(CliUnitTests, MoxiNamesASolverForEnumerations)
+TEST_F(CliUnitTests, MoxiNamesSolverForEnums)
 {
   expect_rejected(run_pono({ input_path("moxi/enums.moxi") }),
                   "does not support datatypes, which enumeration sorts are");
@@ -496,7 +496,7 @@ TEST_F(CliUnitTests, MoxiNamesASolverForEnumerations)
 
 // The trace names the variables of a subsystem after its instance, and
 // leaves out what pono generated.
-TEST_F(CliUnitTests, MoxiTraceNamesTheVariablesOfSubsystems)
+TEST_F(CliUnitTests, MoxiTraceNamesSubsystemVars)
 {
   const PonoRun run =
       run_pono({ "--witness", "-k", "6", input_path("moxi/subsystems.moxi") });

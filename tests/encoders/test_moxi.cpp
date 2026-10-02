@@ -88,7 +88,7 @@ class MoxiEncoderUnitTests : public ::testing::Test
   SmtSolver s;
 };
 
-TEST_F(MoxiEncoderUnitTests, SelectsACheckSystemCommand)
+TEST_F(MoxiEncoderUnitTests, SelectsCheckSystem)
 {
   RelationalTransitionSystem rts(s);
   MoxiEncoder encoder(moxi_path("checks.moxi"), rts, 1);
@@ -97,7 +97,7 @@ TEST_F(MoxiEncoderUnitTests, SelectsACheckSystemCommand)
 
 // Only the command with the :queries attribute is rejected; moxi_queries
 // checks the others of the file.
-TEST_F(MoxiEncoderUnitTests, RejectsTheQueriesAttributeOfTheSelectedCommand)
+TEST_F(MoxiEncoderUnitTests, RejectsQueriesAttribute)
 {
   RelationalTransitionSystem rts(s);
   try {
@@ -112,7 +112,7 @@ TEST_F(MoxiEncoderUnitTests, RejectsTheQueriesAttributeOfTheSelectedCommand)
   }
 }
 
-TEST_F(MoxiEncoderUnitTests, NamesTheVariablesOfSubsystemsAfterTheirInstance)
+TEST_F(MoxiEncoderUnitTests, NamesSubsystemVarsAfterInstance)
 {
   RelationalTransitionSystem rts(s);
   MoxiEncoder encoder(moxi_path("subsystems.moxi"), rts);
@@ -134,7 +134,7 @@ TEST_F(MoxiEncoderUnitTests, NamesTheVariablesOfSubsystemsAfterTheirInstance)
 
 // A variable that only the transitions refer to, unprimed, need not be a
 // state, which depends on the query as its assumptions refer to variables too.
-TEST_F(MoxiEncoderUnitTests, MakesInputsOfVariablesOnlyTransitionsReferTo)
+TEST_F(MoxiEncoderUnitTests, MakesInputsOfTransOnlyVars)
 {
   RelationalTransitionSystem free_rts(s);
   MoxiEncoder free(moxi_path("assumptions.moxi"), free_rts, 0);
@@ -166,7 +166,7 @@ TEST_F(MoxiEncoderUnitTests, KeepsDeclaredConstants)
 
 // A :current formula that the query lists replaces the initial conditions of
 // the system and of its subsystems, rather than joining them.
-TEST_F(MoxiEncoderUnitTests, ReplacesTheInitialConditionsWithTheCurrentFormula)
+TEST_F(MoxiEncoderUnitTests, CurrentReplacesInit)
 {
   const string path = testing::TempDir() + "pono_current.moxi";
   {
@@ -210,7 +210,7 @@ TEST_F(MoxiEncoderUnitTests, ReplacesTheInitialConditionsWithTheCurrentFormula)
 
 // The symbols standing for variables while a file is read are apart from
 // those of any other file.
-TEST_F(MoxiEncoderUnitTests, SharesASolverBetweenFiles)
+TEST_F(MoxiEncoderUnitTests, SharesSolverBetweenFiles)
 {
   RelationalTransitionSystem counter_rts(s);
   MoxiEncoder counter(moxi_path("counter.moxi"), counter_rts);
@@ -218,7 +218,7 @@ TEST_F(MoxiEncoderUnitTests, SharesASolverBetweenFiles)
   EXPECT_NO_THROW(MoxiEncoder(moxi_path("current.moxi"), current_rts));
 }
 
-TEST_F(MoxiEncoderUnitTests, RejectsACheckSystemIndexOutOfRange)
+TEST_F(MoxiEncoderUnitTests, RejectsIndexOutOfRange)
 {
   RelationalTransitionSystem rts(s);
   try {
@@ -375,7 +375,7 @@ INSTANTIATE_TEST_SUITE_P(MoxiErrorUnitTests,
                          testing::ValuesIn(moxi_errors));
 
 // An error names the file and the line and column where it occurs.
-TEST(MoxiLocationUnitTests, LocatesTheError)
+TEST(MoxiLocationUnitTests, LocatesError)
 {
   const string path = testing::TempDir() + "pono_test.moxi";
   {
