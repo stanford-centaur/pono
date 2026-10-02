@@ -168,44 +168,27 @@ TEST_F(MoxiEncoderUnitTests, KeepsDeclaredConstants)
 // the system and of its subsystems, rather than joining them.
 TEST_F(MoxiEncoderUnitTests, CurrentReplacesInit)
 {
-  const string path = testing::TempDir() + "pono_current.moxi";
-  {
-    ofstream file(path);
-    file << "(set-logic QF_LIA)\n"
-         << "(define-system Inner :output ((y Int)) :init (= y 1)"
-         << " :trans (= y' y))\n"
-         << "(define-system Outer :output ((x Int)) :local ((y Int))"
-         << " :init (= x 0) :trans (= x' (+ x y)) :subsys (sub (Inner y)))\n";
-    // the same formulas twice, of which only the first query lists :current
-    for (const string formulas : { "(high seven)", "(seven)" }) {
-      file << "(check-system Outer :output ((x Int)) :local ((y Int))"
-           << " :current (high (> x 5)) :reachable (seven (= x 7))"
-           << " :query (q " << formulas << "))\n";
-    }
-  }
-  RelationalTransitionSystem current_rts(s);
-  MoxiEncoder current(path, current_rts, 0);
-  // a solver of its own, as it cannot have two variables of the same name
-  SmtSolver s2 = create_solver(CVC5);
-  RelationalTransitionSystem init_rts(s2);
-  MoxiEncoder init(path, init_rts, 1);
-  remove(path.c_str());
-
+  RelationalTransitionSystem init_rts(s);
+  MoxiEncoder init(moxi_path("current.moxi"), init_rts, 0);
+  const Sort int_sort = s->make_sort(INT);
   EXPECT_TRUE(equivalent(
       s,
-      current_rts.init(),
+      init_rts.init(),
       s->make_term(
-          Gt, current_rts.lookup("x"), s->make_term(5, s->make_sort(INT)))));
-  const Sort int_sort = s2->make_sort(INT);
+          And,
+          s->make_term(Equal, init_rts.lookup("n"), s->make_term(10, int_sort)),
+          s->make_term(
+              Equal, init_rts.lookup("t"), s->make_term(0, int_sort)))));
+
+  // a solver of its own, as it cannot have two variables of the same name
+  SmtSolver s2 = create_solver(CVC5);
+  RelationalTransitionSystem current_rts(s2);
+  MoxiEncoder current(moxi_path("current.moxi"), current_rts, 1);
   EXPECT_TRUE(equivalent(
       s2,
-      init_rts.init(),
+      current_rts.init(),
       s2->make_term(
-          And,
-          s2->make_term(
-              Equal, init_rts.lookup("x"), s2->make_term(0, int_sort)),
-          s2->make_term(
-              Equal, init_rts.lookup("y"), s2->make_term(1, int_sort)))));
+          Lt, current_rts.lookup("n"), s2->make_term(3, s2->make_sort(INT)))));
 }
 
 // The symbols standing for variables while a file is read are apart from
