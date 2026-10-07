@@ -632,7 +632,7 @@ void Reader::set_system_formula(const string & attribute,
   if (!declared_attributes_.insert(attribute).second) {
     error(loc, "attribute " + attribute + " appears more than once");
   }
-  if (formula->get_sort()->get_sort_kind() != BOOL) {
+  if (formula->get_sort() != bool_sort_) {
     error(loc,
           "the formula of " + attribute + " has sort "
               + formula->get_sort()->to_string() + " instead of Bool");
@@ -700,7 +700,7 @@ void Reader::add_check_formula(const string & attribute,
                                const Location & loc)
 {
   next_allowed_ = false;
-  if (formula->get_sort()->get_sort_kind() != BOOL) {
+  if (formula->get_sort() != bool_sort_) {
     error(loc,
           "the formula " + name + " has sort "
               + formula->get_sort()->to_string() + " instead of Bool");

@@ -444,6 +444,8 @@ class Reader
   bool logic_set_ = false;
   bool logic_has_int_ = true;
   bool logic_has_real_ = true;
+  /** the sort of formulas, of kind BV for solvers that alias Bool and
+   *  (_ BitVec 1), e.g. Boolector */
   smt::Sort bool_sort_;
   smt::Sort int_sort_;
   smt::Sort real_sort_;
