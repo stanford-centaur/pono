@@ -369,6 +369,13 @@ class Reader
     std::uint64_t arity;
   };
 
+  /** A number, as the text and the sort that the solver makes it from. */
+  struct Number
+  {
+    std::string text;
+    smt::Sort sort;
+  };
+
   /** What the command being parsed is, for the attributes it may take. */
   enum class Scope
   {
@@ -419,6 +426,16 @@ class Reader
   smt::Term coerce(const smt::Term & term,
                    const smt::Sort & sort,
                    const Location & loc) const;
+  /** Converts an integer term to the real sort: a number to a value, as
+   *  some solvers, e.g. cvc5, take only values as the elements of constant
+   *  arrays, and other terms with to_real. */
+  smt::Term to_real(const smt::Term & term,
+                    const smt::Sort & real,
+                    const Location & loc) const;
+  /** Makes a number from its text, which numbers_ keeps. */
+  smt::Term make_number(const std::string & text,
+                        const smt::Sort & sort,
+                        const Location & loc);
   /** Builds a term, reporting the solver's objections at the location. */
   smt::Term make_term(const smt::Op & op,
                       const smt::TermVec & args,
@@ -449,6 +466,9 @@ class Reader
   smt::Sort bool_sort_;
   smt::Sort int_sort_;
   smt::Sort real_sort_;
+  /** the numbers made so far, i.e. the values of numerals, decimals and
+   *  their negations */
+  std::unordered_map<smt::Term, Number> numbers_;
 
   // global declarations
   std::unordered_map<std::string, DeclaredSort> declared_sorts_;

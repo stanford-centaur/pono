@@ -51,6 +51,7 @@ enum class Numeric
   NONE,   ///< it does not take numbers, or takes them as they are
   UNIFY,  ///< integers become reals if any argument is a real
   REAL,   ///< integers always become reals, as for real division
+  ARRAY,  ///< integers become reals as real indices or elements of arrays
 };
 
 /** A predefined function that maps to an operator of the solver. */
@@ -128,8 +129,8 @@ const unordered_map<string, Builtin> & builtins()
     { "sbv_to_int", { SBV_To_Int, 1, 1, Fold::NONE, Numeric::NONE } },
     { "bv2nat", { UBV_To_Int, 1, 1, Fold::NONE, Numeric::NONE } },
     // arrays
-    { "select", { Select, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "store", { Store, 3, 3, Fold::NONE, Numeric::NONE } },
+    { "select", { Select, 2, 2, Fold::NONE, Numeric::ARRAY } },
+    { "store", { Store, 3, 3, Fold::NONE, Numeric::ARRAY } },
   };
   return table;
 }
@@ -964,12 +965,7 @@ Term Reader::pop_quantifier(bool forall,
 
 Term Reader::make_numeral(const string & digits, const Location & loc)
 {
-  try {
-    return solver_->make_term(digits, numeral_sort(loc));
-  }
-  catch (const SmtException & e) {
-    error(loc, "cannot make numeral " + digits + ": " + e.what());
-  }
+  return make_number(digits, numeral_sort(loc), loc);
 }
 
 Term Reader::make_decimal(const string & text, const Location & loc)
@@ -980,12 +976,7 @@ Term Reader::make_decimal(const string & text, const Location & loc)
   string numerator = text.substr(0, point) + text.substr(point + 1);
   numerator.erase(0,
                   min(numerator.find_first_not_of('0'), numerator.size() - 1));
-  try {
-    return solver_->make_term(numerator + "/" + denominator, real_sort(loc));
-  }
-  catch (const SmtException & e) {
-    error(loc, "cannot make decimal " + text + ": " + e.what());
-  }
+  return make_number(numerator + "/" + denominator, real_sort(loc), loc);
 }
 
 Term Reader::make_binary(const string & bits, const Location & loc)
@@ -1274,9 +1265,26 @@ Term Reader::make_builtin(const string & name,
     }
   } else if (builtin.numeric == Numeric::UNIFY) {
     unify_numeric(args, loc);
+  } else if (builtin.numeric == Numeric::ARRAY
+             && args[0]->get_sort()->get_sort_kind() == ARRAY) {
+    const Sort array = args[0]->get_sort();
+    args[1] = coerce(args[1], array->get_indexsort(), loc);
+    if (args.size() == 3) {
+      args[2] = coerce(args[2], array->get_elemsort(), loc);
+    }
   }
 
   if (builtin.op == Minus && args.size() == 1) {
+    // The negation of a number stays a value, see to_real. It takes the
+    // sort of the number, which a solver may not report, e.g. MathSAT makes
+    // 1.0 an integer.
+    auto number = numbers_.find(args[0]);
+    if (number != numbers_.end()) {
+      const string & text = number->second.text;
+      return make_number(text[0] == '-' ? text.substr(1) : "-" + text,
+                         number->second.sort,
+                         loc);
+    }
     return make_term(Negate, args, loc);
   }
   if (args.size() == 1 && builtin.fold == Fold::LEFT) {
@@ -1321,16 +1329,16 @@ Term Reader::make_builtin(const string & name,
 
 void Reader::unify_numeric(TermVec & args, const Location & loc) const
 {
-  bool has_real = false;
-  for (const Term & arg : args) {
-    has_real |= arg->get_sort()->get_sort_kind() == REAL;
-  }
-  if (!has_real) {
+  auto real = find_if(args.begin(), args.end(), [](const Term & arg) {
+    return arg->get_sort()->get_sort_kind() == REAL;
+  });
+  if (real == args.end()) {
     return;
   }
+  const Sort real_sort = (*real)->get_sort();
   for (Term & arg : args) {
     if (arg->get_sort()->get_sort_kind() == INT) {
-      arg = make_term(To_Real, { arg }, loc);
+      arg = to_real(arg, real_sort, loc);
     }
   }
 }
@@ -1341,9 +1349,40 @@ Term Reader::coerce(const Term & term,
 {
   if (sort->get_sort_kind() == REAL
       && term->get_sort()->get_sort_kind() == INT) {
-    return make_term(To_Real, { term }, loc);
+    return to_real(term, sort, loc);
   }
   return term;
+}
+
+Term Reader::to_real(const Term & term,
+                     const Sort & real,
+                     const Location & loc) const
+{
+  auto number = numbers_.find(term);
+  if (number == numbers_.end()) {
+    return make_term(To_Real, { term }, loc);
+  }
+  const string & text = number->second.text;
+  try {
+    return solver_->make_term(text, real);
+  }
+  catch (const SmtException & e) {
+    error(loc, "cannot make real " + text + ": " + e.what());
+  }
+}
+
+Term Reader::make_number(const string & text,
+                         const Sort & sort,
+                         const Location & loc)
+{
+  try {
+    const Term term = solver_->make_term(text, sort);
+    numbers_.emplace(term, Number{ text, sort });
+    return term;
+  }
+  catch (const SmtException & e) {
+    error(loc, "cannot make number " + text + ": " + e.what());
+  }
 }
 
 Term Reader::make_term(const Op & op,

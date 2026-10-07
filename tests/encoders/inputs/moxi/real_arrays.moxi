@@ -1,0 +1,25 @@
+; Integers stand for reals where a logic has both and numerals are integers:
+; as the indices and elements of arrays, negated, and as the elements of
+; constant arrays, which some solvers, e.g. cvc5, take only as values.
+(set-logic ALL)
+
+(define-system Table
+  :input ((i Int) (v Int))
+  :local ((a (Array Int Real)) (b (Array Real Real)))
+  :init (and (= a ((as const (Array Int Real)) (- 1)))
+             (= b ((as const (Array Real Real)) 0)))
+  :trans (and (= a' (store a i v))
+              (= b' (store b i (select a 2)))))
+
+(check-system Table
+  :input ((i Int) (v Int))
+  :local ((a (Array Int Real)) (b (Array Real Real)))
+  :reachable (copied (and (= (select a 0) 3.0) (= (select b 0) (- 1))))
+  :query (reach_copied (copied)))
+
+; b changes only at integer indices
+(check-system Table
+  :input ((i Int) (v Int))
+  :local ((a (Array Int Real)) (b (Array Real Real)))
+  :reachable (changed (distinct (select b 1.5) 0))
+  :query (reach_changed (changed)))
