@@ -9,10 +9,10 @@
 #include "engines/kinduction.h"
 #include "frontends/moxi_encoder.h"
 #include "gtest/gtest.h"
-#include "modifiers/prop_monitor.h"
 #include "smt/available_solvers.h"
 #include "test_encoder_inputs.h"
 #include "utils/exceptions.h"
+#include "utils/str_util.h"
 
 using namespace pono;
 using namespace smt;
@@ -64,13 +64,9 @@ TEST_P(MoxiQueryUnitTests, Encode)
   RelationalTransitionSystem rts(s);
   MoxiEncoder encoder(moxi_path(query.file), rts, query.index);
 
-  Term prop = encoder.prop();
-  // A reachability condition with next-state variables is monitored, as
-  // pono does it too.
-  if (!rts.only_curr(prop)) {
-    prop = add_prop_monitor(rts, prop);
-  }
-  SafetyProperty p(s, prop);
+  // flags remember the reachability conditions, which pono need not monitor
+  ASSERT_TRUE(rts.only_curr(encoder.prop()));
+  SafetyProperty p(s, encoder.prop());
   KInduction kind(p, rts, s);
   EXPECT_EQ(kind.check_until(20), query.result);
 }
@@ -165,7 +161,8 @@ TEST_F(MoxiEncoderUnitTests, KeepsDeclaredConstants)
 }
 
 // A :current formula that the query lists replaces the initial conditions of
-// the system and of its subsystems, rather than joining them.
+// the system and of its subsystems, rather than joining them. Initially, the
+// reachability condition has not held yet.
 TEST_F(MoxiEncoderUnitTests, CurrentReplacesInit)
 {
   RelationalTransitionSystem init_rts(s);
@@ -176,9 +173,12 @@ TEST_F(MoxiEncoderUnitTests, CurrentReplacesInit)
       init_rts.init(),
       s->make_term(
           And,
-          s->make_term(Equal, init_rts.lookup("n"), s->make_term(10, int_sort)),
-          s->make_term(
-              Equal, init_rts.lookup("t"), s->make_term(0, int_sort)))));
+          { s->make_term(
+                Equal, init_rts.lookup("n"), s->make_term(10, int_sort)),
+            s->make_term(
+                Equal, init_rts.lookup("t"), s->make_term(0, int_sort)),
+            s->make_term(Not,
+                         init_rts.lookup(generated_name("reached_0"))) })));
 
   // a solver of its own, as it cannot have two variables of the same name
   SmtSolver s2 = create_solver(CVC5);
@@ -188,7 +188,12 @@ TEST_F(MoxiEncoderUnitTests, CurrentReplacesInit)
       s2,
       current_rts.init(),
       s2->make_term(
-          Lt, current_rts.lookup("n"), s2->make_term(3, s2->make_sort(INT)))));
+          And,
+          s2->make_term(Lt,
+                        current_rts.lookup("n"),
+                        s2->make_term(3, s2->make_sort(INT))),
+          s2->make_term(Not,
+                        current_rts.lookup(generated_name("reached_0"))))));
 }
 
 // The symbols standing for variables while a file is read are apart from

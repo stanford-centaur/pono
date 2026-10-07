@@ -132,6 +132,12 @@ const vector<MoxiQuery> moxi_queries({
     { "repeated_args.moxi", 2, { smt::THEORY_INT }, pono::ProverResult::TRUE },
     { "subsystems.moxi", 0, { smt::THEORY_BV }, pono::ProverResult::FALSE },
     { "subsystems.moxi", 1, { smt::THEORY_BV }, pono::ProverResult::TRUE },
+    { "successor.moxi", 0, { smt::THEORY_INT }, pono::ProverResult::TRUE },
+    { "successor.moxi", 1, { smt::THEORY_INT }, pono::ProverResult::TRUE },
+    { "successor.moxi", 2, { smt::THEORY_INT }, pono::ProverResult::TRUE },
+    { "successor.moxi", 3, { smt::THEORY_INT }, pono::ProverResult::FALSE },
+    { "successor.moxi", 4, { smt::THEORY_INT }, pono::ProverResult::TRUE },
+    { "successor.moxi", 5, { smt::THEORY_INT }, pono::ProverResult::FALSE },
 });
 
 }  // namespace pono_tests

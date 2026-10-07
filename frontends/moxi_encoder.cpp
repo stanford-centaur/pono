@@ -194,7 +194,6 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
   if (current) {
     get_free_symbolic_consts(current->term, state_refs);
   }
-  vector<bool> is_step_assumption;
   for (const moxi::CheckFormula * assumption : assumptions) {
     UnorderedTermSet refs;
     get_free_symbolic_consts(assumption->term, refs);
@@ -202,7 +201,6 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
     for (const Term & ref : refs) {
       is_step |= next_values.count(ref) > 0;
     }
-    is_step_assumption.push_back(is_step);
     (is_step ? step_refs : state_refs).insert(refs.begin(), refs.end());
   }
   for (const moxi::CheckFormula * reachable : reachables) {
@@ -288,33 +286,34 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
   if (!trans.empty()) {
     rts_.constrain_trans(conjunction(solver, trans));
   }
+  // As in n-satisfiability, the invariant and the assumptions hold in each
+  // state that a step leaves, but not in the last state of a trace, which
+  // only completes the step to it.
   if (!inv.empty()) {
-    rts_.add_constraint(conjunction(solver, inv));
+    rts_.constrain_trans(conjunction(solver, inv));
   }
-  for (size_t i = 0; i < assumptions.size(); ++i) {
-    const Term assumption = encoded(assumptions[i]->term);
-    if (is_step_assumption[i]) {
-      rts_.constrain_trans(assumption);
-    } else {
-      rts_.add_constraint(assumption);
-    }
+  for (const moxi::CheckFormula * assumption : assumptions) {
+    rts_.constrain_trans(encoded(assumption->term));
   }
 
-  // With several reachability conditions, each may hold at a different step,
-  // so a flag remembers for each one that it held before.
+  // A flag remembers for each reachability condition that it held at a step
+  // before, so the property fails only once that step is complete. A query
+  // without one still asks for a step.
+  TermVec conditions;
+  for (const moxi::CheckFormula * reachable : reachables) {
+    conditions.push_back(encoded(reachable->term));
+  }
+  if (conditions.empty()) {
+    conditions.push_back(solver->make_term(true));
+  }
   TermVec reached;
-  for (size_t i = 0; i < reachables.size(); ++i) {
-    const Term condition = encoded(reachables[i]->term);
-    if (reachables.size() == 1) {
-      reached.push_back(condition);
-      break;
-    }
+  for (size_t i = 0; i < conditions.size(); ++i) {
     const Term flag = rts_.make_generated_statevar("reached_" + to_string(i),
                                                    solver->make_sort(BOOL));
     rts_.constrain_init(solver->make_term(Not, flag));
-    const Term held = solver->make_term(Or, flag, condition);
+    const Term held = solver->make_term(Or, flag, conditions[i]);
     rts_.constrain_trans(solver->make_term(Equal, rts_.next(flag), held));
-    reached.push_back(held);
+    reached.push_back(flag);
   }
   prop_ = solver->make_term(Not, conjunction(solver, reached));
 

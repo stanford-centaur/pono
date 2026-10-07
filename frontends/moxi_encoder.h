@@ -50,16 +50,30 @@ class Reader;
  *  after the instance, e.g. inst.var. The variables take the names that the
  *  check-system command gives them.
  *
- *  The property holds exactly if the query is unsatisfiable, i.e., if no
- *  finite trace starting in an initial state (or in a state satisfying the
- *  query's :current formula, which replaces the initial condition) and
- *  keeping the system's invariant and the query's assumptions reaches each
- *  of its reachability conditions, possibly at different steps.
+ *  The property holds exactly if the query is unsatisfiable, i.e., not
+ *  n-satisfiable for any n, as the MoXI description defines it: no trace
+ *  starting in an initial state (or in a state satisfying the query's
+ *  :current formula, which replaces the initial condition) takes n + 1
+ *  steps that keep the system's transition relation and invariant and the
+ *  query's assumptions, and meets each of its reachability conditions at one
+ *  of these steps, possibly at different ones.
  *
- *  Unlike the n-satisfiability that the MoXI description defines, the trace
- *  does not need to extend by another step past its last state; this is the
- *  usual semantics of reachability, which e.g. MoXIchecker implements too.
- *  The two only differ if the transition relation deadlocks.
+ *  This differs from the usual semantics of reachability at the last state
+ *  of the trace, the one that the last step leads to:
+ *  - It must exist, so even after the conditions hold, the trace needs a
+ *    successor by the transition relation and the assumptions over
+ *    next-state inputs. The description requires systems to be
+ *    deadlock-free, but the assumptions may still allow no next input, and
+ *    a state that only the query's :current formula makes reachable may have
+ *    no successor.
+ *  - It need not satisfy the invariant or the one-state assumptions,
+ *    although a reachability condition over next-state variables refers to
+ *    it.
+ *  The encoding therefore imposes the invariant and the assumptions only on
+ *  the state that a step leaves, and a flag remembers for each reachability
+ *  condition that it held at a step. The property fails once all flags are
+ *  set, so a counterexample ends in that last state, which may violate the
+ *  invariant.
  *
  *  Queries with fairness conditions ask for infinite traces and are not
  *  supported yet.
@@ -81,8 +95,7 @@ class MoxiEncoder
   ~MoxiEncoder();
 
   /** @return the property, which fails exactly if the query is satisfiable.
-   *  It has next-state variables if a reachability condition does, which
-   *  pono accounts for by monitoring it. */
+   *  It refers only to the flags of the reachability conditions. */
   const smt::Term & prop() const { return prop_; }
 
   /** @return the name of the encoded query */
