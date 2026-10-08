@@ -21,6 +21,7 @@
 #include "engines/ic3.h"
 #include "options/options.h"
 #include "smt-switch/smt.h"
+#include "utils/partial_model.h"
 
 namespace pono {
 
@@ -43,6 +44,13 @@ class IC3Bits : public IC3
   smt::TermVec state_bits_;  ///< boolean variables + bit-vector variables
                              ///< split into individual bits
 
+  PartialModelGen partial_model_getter_;
+  bool has_assumptions_;
+  smt::UnorderedTermMap nxt_state_updates_;
+  smt::UnorderedTermSet no_next_vars_;
+  std::unordered_map<smt::Term, std::vector<std::pair<int, int>>>
+      constraints_curr_var_;
+
   // virtual method overrides
 
   IC3Formula get_model_ic3formula() const override;
@@ -50,6 +58,21 @@ class IC3Bits : public IC3
   bool ic3formula_check_valid(const IC3Formula & u) const override;
 
   void check_ts() const override;
+
+  bool keep_var_in_partial_model(const smt::Term & v) const;
+
+  void build_ts_related_info();
+
+  smt::Term next_curr_replace(const smt::Term & in) const
+  {
+    return ts_.solver()->substitute(in, nxt_state_updates_);
+  }
+
+  void predecessor_generalization(size_t i,
+                                  const smt::Term & c,
+                                  IC3Formula & pred) override;
+
+  IC3Formula ExtractPartialModel(const smt::Term & p);
 };
 
 }  // namespace pono
