@@ -1,0 +1,643 @@
+/*!
+ * \file symbol_table.cpp
+ * \brief Symbol classification, term binding, and on-demand wire lookup.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * See symbol_table.h for what this class covers and why the classification
+ * maps are exposed as direct accessors.
+ */
+#include "frontends/systemverilog/symbol_table.h"
+
+#include <algorithm>
+#include <unordered_set>
+
+#include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/bit_utils.h"
+#include "slang/ast/Expression.h"
+#include "slang/ast/SemanticFacts.h"
+#include "slang/ast/Statement.h"
+#include "slang/ast/Symbol.h"
+#include "slang/ast/expressions/AssignmentExpressions.h"
+#include "slang/ast/expressions/MiscExpressions.h"
+#include "slang/ast/expressions/OperatorExpressions.h"
+#include "slang/ast/statements/ConditionalStatements.h"
+#include "slang/ast/statements/LoopStatements.h"
+#include "slang/ast/statements/MiscStatements.h"
+#include "slang/ast/symbols/BlockSymbols.h"
+#include "slang/ast/symbols/CheckerSymbols.h"
+#include "slang/ast/symbols/InstanceSymbols.h"
+#include "slang/ast/symbols/MemberSymbols.h"
+#include "slang/ast/symbols/ParameterSymbols.h"
+#include "slang/ast/symbols/PortSymbols.h"
+#include "slang/ast/symbols/ValueSymbol.h"
+#include "slang/ast/symbols/VariableSymbols.h"
+#include "slang/ast/types/AllTypes.h"
+#include "smt-switch/smt.h"
+#include "utils/exceptions.h"
+#include "utils/logger.h"
+
+using namespace smt;
+using namespace std;
+
+namespace pono {
+
+SymbolTable::SymbolTable(FunctionalTransitionSystem & fts,
+                         const smt::SmtSolver & solver)
+    : fts_(fts), solver_(solver)
+{
+}
+
+// ============================================================================
+// Classification (formerly prescan.cpp)
+// ============================================================================
+
+namespace {
+
+// Recurses into a concatenation-target LHS (`{carry, sum} = ...`) so
+// every operand's own base symbol is classified, mirroring
+// insert_nonblocking_lhs_targets() in ast_helpers.cpp -- a concat
+// operand that's a plain NamedValue/HierarchicalValue is a full-width
+// write of that operand, exactly like the top-level case below.
+void insert_blocking_lhs_targets(
+    const slang::ast::Expression & lhs,
+    std::unordered_set<const slang::ast::Symbol *> & full,
+    std::unordered_set<const slang::ast::Symbol *> & partial)
+{
+  using namespace slang::ast;
+  if (lhs.kind == ExpressionKind::Concatenation) {
+    for (auto * operand : lhs.as<ConcatenationExpression>().operands()) {
+      insert_blocking_lhs_targets(*operand, full, partial);
+    }
+    return;
+  }
+  if (lhs.kind == ExpressionKind::NamedValue) {
+    full.insert(
+        &canonicalize_signal_alias(lhs.as<NamedValueExpression>().symbol));
+  } else if (lhs.kind == ExpressionKind::HierarchicalValue) {
+    full.insert(&canonicalize_signal_alias(
+        lhs.as<HierarchicalValueExpression>().symbol));
+  } else if (auto * base = find_lhs_base(lhs)) {
+    partial.insert(base);
+  }
+}
+
+// Collect blocking-assignment targets, separating full-width LHSes
+// (wire candidates) from partial LHSes (which must be state vars so
+// the assignment handler's add_constraint slice constraints are valid).
+void collect_blocking_targets(
+    const slang::ast::Statement & stmt,
+    std::unordered_set<const slang::ast::Symbol *> & full,
+    std::unordered_set<const slang::ast::Symbol *> & partial)
+{
+  using namespace slang::ast;
+
+  switch (stmt.kind) {
+    case StatementKind::ExpressionStatement: {
+      auto & es = stmt.as<ExpressionStatement>();
+      auto & expr = es.expr;
+      if (expr.kind == ExpressionKind::Assignment) {
+        insert_blocking_lhs_targets(
+            expr.as<AssignmentExpression>().left(), full, partial);
+      }
+      break;
+    }
+    case StatementKind::Block: {
+      auto & block = stmt.as<BlockStatement>();
+      auto & body = block.body;
+      if (body.kind == StatementKind::List) {
+        auto & list = body.as<StatementList>();
+        for (auto * s : list.list) collect_blocking_targets(*s, full, partial);
+      } else {
+        collect_blocking_targets(body, full, partial);
+      }
+      break;
+    }
+    case StatementKind::Conditional: {
+      auto & cond = stmt.as<ConditionalStatement>();
+      collect_blocking_targets(cond.ifTrue, full, partial);
+      if (cond.ifFalse) collect_blocking_targets(*cond.ifFalse, full, partial);
+      break;
+    }
+    case StatementKind::Case: {
+      auto & cs = stmt.as<CaseStatement>();
+      for (auto & item : cs.items)
+        collect_blocking_targets(*item.stmt, full, partial);
+      if (cs.defaultCase)
+        collect_blocking_targets(*cs.defaultCase, full, partial);
+      break;
+    }
+    case StatementKind::PatternCase: {
+      auto & pcs = stmt.as<PatternCaseStatement>();
+      for (auto & item : pcs.items)
+        collect_blocking_targets(*item.stmt, full, partial);
+      if (pcs.defaultCase)
+        collect_blocking_targets(*pcs.defaultCase, full, partial);
+      break;
+    }
+    case StatementKind::Timed: {
+      auto & ts = stmt.as<TimedStatement>();
+      collect_blocking_targets(ts.stmt, full, partial);
+      break;
+    }
+    case StatementKind::ForLoop: {
+      // Recurse into the body so writes inside the
+      // (compile-time-unrolled) loop are seen during pre-scan.
+      auto & loop = stmt.as<ForLoopStatement>();
+      collect_blocking_targets(loop.body, full, partial);
+      break;
+    }
+    case StatementKind::WhileLoop:
+      collect_blocking_targets(
+          stmt.as<WhileLoopStatement>().body, full, partial);
+      break;
+    case StatementKind::DoWhileLoop:
+      collect_blocking_targets(
+          stmt.as<DoWhileLoopStatement>().body, full, partial);
+      break;
+    case StatementKind::RepeatLoop:
+      collect_blocking_targets(
+          stmt.as<RepeatLoopStatement>().body, full, partial);
+      break;
+    case StatementKind::ForeachLoop:
+      collect_blocking_targets(
+          stmt.as<ForeachLoopStatement>().body, full, partial);
+      break;
+    default: break;
+  }
+}
+
+}  // namespace
+
+Term SymbolTable::make_unknown_value(const smt::Sort & sort,
+                                     const std::string & tag)
+{
+  return fts_.make_inputvar(
+      "__" + tag + "_" + std::to_string(unknown_counter_++), sort);
+}
+
+Term SymbolTable::make_out_of_range_value(const smt::Sort & sort)
+{
+  return make_unknown_value(sort, "oob_read");
+}
+
+void SymbolTable::declare_hold_locals(const slang::ast::Statement & body,
+                                      const string & prefix)
+{
+  using namespace slang::ast;
+  std::unordered_set<const Symbol *> holds;
+  collect_hold_locals(body, holds);
+  for (auto * sym : holds) {
+    if (symbol_to_term_.count(sym)) continue;
+    auto * vsym = sym->as_if<ValueSymbol>();
+    if (!vsym) continue;
+    string name = make_name(prefix, string(sym->name));
+    Term term =
+        fts_.make_statevar(name, type_to_sort(solver_, vsym->getType()));
+    symbol_to_term_[sym] = term;
+    state_var_symbols_.insert(sym);
+    logger.log(1,
+               "SystemVerilogEncoder: inferred storage for local {}, which is "
+               "read on a path that does not write it",
+               name);
+  }
+}
+
+void SymbolTable::pre_scan_always_ff(const slang::ast::Statement & body,
+                                     bool clocked,
+                                     const string & prefix)
+{
+  using namespace slang::ast;
+  collect_nonblocking_targets(body, state_var_symbols_);
+  if (!clocked) return;
+  // A local read on a path that never wrote it keeps its previous
+  // value, which is a flop rather than a temporary.
+  declare_hold_locals(body, prefix);
+  // A blocking write in a clocked block infers a register just as a
+  // non-blocking one does; the operator decides only when the new
+  // value becomes visible to later reads *within* the block, which
+  // lookup_symbol() handles. Skipped for a level-sensitive `always`,
+  // whose blocking writes are combinational and belong to
+  // pre_scan_always_comb().
+  std::unordered_set<const Symbol *> full, partial;
+  collect_blocking_targets(body, full, partial);
+  for (auto * sym : full) {
+    if (!is_block_local(*sym)) state_var_symbols_.insert(sym);
+  }
+  for (auto * sym : partial) {
+    if (!is_block_local(*sym)) state_var_symbols_.insert(sym);
+  }
+}
+
+void SymbolTable::pre_scan_state_vars(const slang::ast::Scope & body,
+                                      std::string & prefix)
+{
+  using namespace slang::ast;
+  walk_members(body, prefix, [&](const Symbol & member) {
+    if (member.kind == SymbolKind::ProceduralBlock) {
+      auto & proc = member.as<ProceduralBlockSymbol>();
+      if (proc.procedureKind == ProceduralBlockKind::AlwaysFF) {
+        pre_scan_always_ff(proc.getBody(), /*clocked=*/true, prefix);
+      } else if (proc.procedureKind == ProceduralBlockKind::Always) {
+        pre_scan_always_ff(
+            proc.getBody(), is_edge_triggered(proc.getBody()), prefix);
+      } else if (proc.procedureKind == ProceduralBlockKind::AlwaysLatch) {
+        pre_scan_always_latch(proc.getBody());
+        declare_hold_locals(proc.getBody(), prefix);
+      } else if (proc.procedureKind == ProceduralBlockKind::Initial) {
+        if (auto * forever_body = as_forever_event_body(proc.getBody())) {
+          pre_scan_always_ff(*forever_body, /*clocked=*/true, prefix);
+        } else {
+          // A variable an initial block writes is storage: it holds
+          // that value from time 0. Classifying it here is what lets
+          // constrain_init() name it -- left as an input var, the
+          // initial assignment reaches the core as a constraint over
+          // something that is not a state variable, and the error
+          // that comes back says nothing about the initial block it
+          // came from.
+          std::unordered_set<const Symbol *> full, partial;
+          collect_blocking_targets(proc.getBody(), full, partial);
+          for (auto * sym : full) {
+            if (is_block_local(*sym)) continue;
+            state_var_symbols_.insert(sym);
+            initial_written_.insert(sym);
+          }
+          for (auto * sym : partial) {
+            if (is_block_local(*sym)) continue;
+            state_var_symbols_.insert(sym);
+            initial_written_.insert(sym);
+          }
+        }
+      }
+    } else if (member.kind == SymbolKind::Instance) {
+      pre_scan_state_vars(member.as<InstanceSymbol>().body, prefix);
+    } else if (member.kind == SymbolKind::CheckerInstance) {
+      pre_scan_state_vars(member.as<CheckerInstanceSymbol>().body, prefix);
+    }
+  });
+}
+
+void SymbolTable::pre_scan_always_comb(
+    const slang::ast::Statement & body,
+    const slang::ast::ProceduralBlockSymbol & proc,
+    const string & prefix,
+    const string & parent_prefix)
+{
+  // Collect blocking-assign LHS targets.  Bases written full-width
+  // become wires (macro-substituted); bases written through bit /
+  // range selects become state vars instead so the assignment
+  // handler can use slice-equality add_constraint constraints (which
+  // requires the term to be a state var, not an input var).  Mixed
+  // full+partial writes also go to state vars to keep the splice
+  // semantics correct.
+  std::unordered_set<const slang::ast::Symbol *> full, partial;
+  collect_blocking_targets(body, full, partial);
+  // What the block assigns on every path. A full-width target
+  // missing from this keeps its old value on some path, which is a
+  // latch rather than a wire -- a wire has no old value to keep.
+  std::unordered_set<const slang::ast::Symbol *> definite;
+  collect_definitely_assigned(body, definite);
+  for (auto * sym : full) {
+    if (state_var_symbols_.count(sym)) continue;
+    // An unpacked array is a state var wherever it is written: a wire
+    // is macro-substituted, and the array paths compose onto a term
+    // the symbol already has.
+    auto * vsym = sym->as_if<slang::ast::ValueSymbol>();
+    bool is_array =
+        vsym
+        && vsym->getType().getCanonicalType().kind
+               == slang::ast::SymbolKind::FixedSizeUnpackedArrayType;
+    if (partial.count(sym) || is_array) {
+      state_var_symbols_.insert(sym);
+    } else if (!definite.count(sym)) {
+      state_var_symbols_.insert(sym);
+      latch_symbols_.insert(sym);
+    } else {
+      wire_symbols_.insert(sym);
+      wire_drivers_[sym] = { nullptr, &proc, prefix, parent_prefix };
+    }
+  }
+  for (auto * sym : partial) {
+    if (!wire_symbols_.count(sym)) {
+      state_var_symbols_.insert(sym);
+    }
+  }
+}
+
+void SymbolTable::pre_scan_always_latch(const slang::ast::Statement & body)
+{
+  std::unordered_set<const slang::ast::Symbol *> full, partial;
+  collect_blocking_targets(body, full, partial);
+  for (auto * sym : full) {
+    if (!is_block_local(*sym)) state_var_symbols_.insert(sym);
+  }
+  for (auto * sym : partial) {
+    if (!is_block_local(*sym)) state_var_symbols_.insert(sym);
+  }
+}
+
+void SymbolTable::pre_scan_instance(const slang::ast::InstanceSymbol & inst,
+                                    string & prefix)
+{
+  using namespace slang::ast;
+
+  // Each output (or inout) port of the child is driven by the child's
+  // logic.  In the parent's view the connected expression is usually a
+  // simple NamedValue (e.g. `child c (.sum(y))`), but for an instance-
+  // array element it's a constant-index slice of a parent-side bus
+  // (e.g. `fifo_data_out[i]`, already resolved by slang), or a
+  // concatenation of several parent-side signals (`.sum({hi, lo})`,
+  // splitting the port's bits across each) -- either way, every
+  // underlying base symbol becomes a wire, unless it's already known
+  // to be a register (state var), which takes priority. Non-constant
+  // indices are not yet supported.
+  for (auto * pc : inst.getPortConnections()) {
+    if (!pc) continue;
+    if (pc->port.kind != SymbolKind::Port) continue;
+    auto & port = pc->port.as<PortSymbol>();
+    if (port.direction != ArgumentDirection::Out
+        && port.direction != ArgumentDirection::InOut)
+      continue;
+    auto * conn_expr = pc->getExpression();
+    if (!conn_expr) continue;
+    // Slang wraps an output-port connection as an Assignment whose
+    // left-hand side is the parent-side expression being driven.
+    // Unwrap it; the child's logic effectively writes through to the
+    // LHS.
+    if (conn_expr->kind == ExpressionKind::Assignment) {
+      conn_expr = &conn_expr->as<AssignmentExpression>().left();
+    }
+    auto mark_wire = [&](const Expression & target) {
+      auto * parent_sym = find_lhs_base(target);
+      if (!parent_sym) return;
+      if (!state_var_symbols_.count(parent_sym)) {
+        wire_symbols_.insert(parent_sym);
+      }
+    };
+    if (conn_expr->kind == ExpressionKind::Concatenation) {
+      for (auto * operand :
+           conn_expr->as<ConcatenationExpression>().operands()) {
+        mark_wire(*operand);
+      }
+    } else if (conn_expr->kind == ExpressionKind::Streaming) {
+      for (auto & stream :
+           conn_expr->as<StreamingConcatenationExpression>().streams()) {
+        mark_wire(*stream.operand);
+      }
+    } else {
+      mark_wire(*conn_expr);
+    }
+  }
+
+  // Recurse into nested instances (and checker instances, in case a
+  // module is ever legally instantiated inside one -- the LRM's
+  // checker-body item list doesn't appear to allow it today, but this
+  // keeps the recursion consistent with pre_scan_state_vars(), which
+  // does recurse into checker instances) so any wires further down the
+  // hierarchy are visible to declare_variables.
+  walk_members(inst.body, prefix, [&](const Symbol & m) {
+    if (m.kind == SymbolKind::Instance) {
+      pre_scan_instance(m.as<InstanceSymbol>(), prefix);
+    } else if (m.kind == SymbolKind::CheckerInstance) {
+      walk_members(
+          m.as<CheckerInstanceSymbol>().body, prefix, [&](const Symbol & cm) {
+            if (cm.kind == SymbolKind::Instance) {
+              pre_scan_instance(cm.as<InstanceSymbol>(), prefix);
+            }
+          });
+    }
+  });
+}
+
+// ============================================================================
+// Lookup / binding (formerly terms.cpp's stateful half)
+// ============================================================================
+
+string SymbolTable::make_name(const string & prefix, const string & name) const
+{
+  if (prefix.empty()) return name;
+  return prefix + "." + name;
+}
+
+vector<ResolvedAliasPiece> SymbolTable::resolve_output_alias_pieces(
+    const slang::ast::Symbol * sym,
+    uint64_t lo,
+    uint64_t hi,
+    uint64_t rhs_base) const
+{
+  auto alias_it = port_output_aliases_.find(sym);
+  if (alias_it == port_output_aliases_.end()) {
+    return { { sym, lo, hi, rhs_base, rhs_base + (hi - lo) } };
+  }
+  std::vector<ResolvedAliasPiece> result;
+  // Every bit of the requested window has to land on some segment.
+  // A concatenation-target connection is checked to cover its port
+  // exactly, so a hole here means the window reaches past what was
+  // registered -- and a write to a bit that resolves nowhere is a
+  // constraint dropped, leaving the target free to be anything.
+  uint64_t covered = 0;
+  for (auto & seg : alias_it->second) {
+    // Intersect the caller's [lo, hi] window (in sym's own numbering)
+    // with this segment's own [port_lo, port_hi] coverage.
+    uint64_t ilo = std::max(lo, seg.port_lo);
+    uint64_t ihi = std::min(hi, seg.port_hi);
+    if (ilo > ihi) continue;
+    uint64_t offset = ilo - seg.port_lo;
+    uint64_t span = ihi - ilo;
+    uint64_t tlo = seg.target_lo + offset;
+    uint64_t thi = tlo + span;
+    // Recurse in case `seg.target` is itself an output-port alias
+    // (e.g. a nested/chained instantiation); rhs_base advances by
+    // however far into the caller's own window this segment starts.
+    auto sub = resolve_output_alias_pieces(
+        seg.target, tlo, thi, rhs_base + (ilo - lo));
+    result.insert(result.end(), sub.begin(), sub.end());
+    covered += span + 1;
+  }
+  if (covered != hi - lo + 1) {
+    throw PonoException(
+        "SystemVerilogEncoder: bits [" + std::to_string(lo) + ":"
+        + std::to_string(hi) + "] of output-port-aliased '"
+        + string(sym->name)
+        + "' are not all covered by its registered alias segments, so a "
+          "write to them would resolve nowhere");
+  }
+  return result;
+}
+
+bool SymbolTable::resolve_wire_on_demand(const slang::ast::Symbol * sym)
+{
+  auto it = wire_drivers_.find(sym);
+  if (it == wire_drivers_.end()) return false;
+  const WireDriver & drv = it->second;
+  const void * stmt_key = drv.ca ? static_cast<const void *>(drv.ca)
+                                 : static_cast<const void *>(drv.comb);
+  if (processed_drivers_.count(stmt_key)) return true;
+
+  if (!resolving_wires_.insert(sym).second) {
+    throw PonoException(
+        "SystemVerilogEncoder: combinational loop detected involving '"
+        + std::string(sym->name) + "'");
+  }
+
+  if (drv.ca) {
+    driver_resolver_->resolve_continuous_assign(
+        *drv.ca, drv.prefix, drv.parent_prefix);
+  } else {
+    driver_resolver_->resolve_always_comb(
+        *drv.comb, drv.prefix, drv.parent_prefix);
+  }
+
+  resolving_wires_.erase(sym);
+  return true;
+}
+
+Term SymbolTable::lookup_symbol(const slang::ast::Symbol * sym)
+{
+  using namespace slang::ast;
+
+  // Procedural for-loop counter: bound to a per-iteration BV
+  // constant for the duration of the unrolling.
+  auto lvt = loop_var_terms_.find(sym);
+  if (lvt != loop_var_terms_.end()) {
+    return lvt->second;
+  }
+
+  // `cb.d` reaches here as the clocking block's own variable rather
+  // than the signal it samples, since a member access does not go
+  // through the alias canonicalization an ordinary name does.
+  if (sym->kind == SymbolKind::ClockVar) {
+    return lookup_symbol(&canonicalize_signal_alias(*sym));
+  }
+
+  // If `sym` is a child instance's output-port internal, reconstruct
+  // its value from the (one, in the common case; more than one for a
+  // concatenation-target connection) segment(s) it was split across.
+  // This may chase through multiple levels of instantiation (e.g. a
+  // grandchild's output port connected straight through an
+  // intermediate module's own output port, or one element of an
+  // instance array wired to a slice of a parent-side bus), each
+  // segment resolved all the way to its own non-aliased root.
+  if (port_output_aliases_.count(sym)) {
+    uint64_t width = value_width(sym->as<ValueSymbol>().getType());
+    auto pieces = resolve_output_alias_pieces(sym, 0, width - 1);
+    std::sort(pieces.begin(),
+              pieces.end(),
+              [](const ResolvedAliasPiece & a, const ResolvedAliasPiece & b) {
+                return a.rhs_lo > b.rhs_lo;
+              });
+    Term result;
+    for (auto & piece : pieces) {
+      Term t = lookup_symbol(piece.sym);
+      Term piece_term =
+          slice_bits(solver_, t, piece.target_lo, piece.target_hi);
+      result =
+          result ? solver_->make_term(Concat, result, piece_term) : piece_term;
+    }
+    return result;
+  }
+
+  // Wire being defined in the enclosing always_comb block: return
+  // the partial accumulated term so that read-modify-write patterns
+  // (e.g. `popcount = popcount + din[i];` inside an unrolled for
+  // loop) see the previously-written value.
+  auto pending_it = pending_comb_updates_.find(sym);
+  if (pending_it != pending_comb_updates_.end()) {
+    return pending_it->second;
+  }
+
+  auto it = symbol_to_term_.find(sym);
+  if (it != symbol_to_term_.end()) {
+    // Register already written with a blocking `=` earlier in the
+    // clocked block being walked: the LRM makes that value visible
+    // immediately, so a read here means the pending next-state value
+    // rather than the register's current one. A non-blocking write
+    // records no entry here, and so still reads as the old value.
+    if (blocking_next_written_.count(sym)) {
+      auto nit = pending_next_updates_.find(it->second);
+      if (nit != pending_next_updates_.end()) return nit->second;
+    }
+    return it->second;
+  }
+
+  // Not resolved yet -- if `sym` is a wire whose driving continuous
+  // assign / always_comb block simply hasn't been walked yet (e.g. it
+  // appears later in program order than this read), process it now,
+  // out of order, and retry.
+  if (resolve_wire_on_demand(sym)) {
+    auto pit = pending_comb_updates_.find(sym);
+    if (pit != pending_comb_updates_.end()) return pit->second;
+    auto sit = symbol_to_term_.find(sym);
+    if (sit != symbol_to_term_.end()) return sit->second;
+  }
+
+  // Parameter / localparam: slang has already evaluated the value at
+  // elaboration time.  Materialize a fresh BV constant from it so
+  // references to `REQUESTERS`, `MAX_COUNT`, etc. fold to literals.
+  if (sym->kind == SymbolKind::Parameter) {
+    auto & param = sym->as<ParameterSymbol>();
+    const auto & cv = param.getValue();
+    if (!cv.isInteger()) {
+      throw PonoException("SystemVerilogEncoder: non-integer parameter '"
+                          + string(sym->name) + "'");
+    }
+    auto val = cv.integer();
+    uint64_t width = param.getType().getBitWidth();
+    if (width == 0) width = val.getBitWidth();
+    if (width == 0) width = 32;
+    Sort sort = solver_->make_sort(BV, width);
+    val.setSigned(false);
+    string val_str =
+        val.toString(slang::LiteralBase::Decimal, /*includeBase=*/false);
+    return solver_->make_term(val_str, sort, 10);
+  }
+
+  // Enum literal (`IDLE`, `REQ`, ...): slang has already evaluated its
+  // value at elaboration time, exactly like a parameter.  Declaring an
+  // enum-typed *variable* already worked (its type is integral, so
+  // type_to_sort() succeeds); only referencing one of the enum's own
+  // named values -- ordinary once the enum is declared -- was missing.
+  if (sym->kind == SymbolKind::EnumValue) {
+    auto & enum_val = sym->as<EnumValueSymbol>();
+    const auto & cv = enum_val.getValue();
+    if (!cv.isInteger()) {
+      throw PonoException("SystemVerilogEncoder: non-integer enum value '"
+                          + string(sym->name) + "'");
+    }
+    auto val = cv.integer();
+    uint64_t width = enum_val.getType().getBitWidth();
+    if (width == 0) width = val.getBitWidth();
+    if (width == 0) width = 32;
+    Sort sort = solver_->make_sort(BV, width);
+    val.setSigned(false);
+    string val_str =
+        val.toString(slang::LiteralBase::Decimal, /*includeBase=*/false);
+    return solver_->make_term(val_str, sort, 10);
+  }
+
+  if (is_block_local(*sym)) {
+    // A procedural temporary is bound by the write that gives it a
+    // value; reaching here means it is read first, which in the LRM
+    // reads as X and has no counterpart in this 2-valued model.
+    throw PonoException("SystemVerilogEncoder: the local variable '"
+                        + string(sym->name) + "' is read before it is written");
+  }
+  throw PonoException("SystemVerilogEncoder: unknown symbol '"
+                      + string(sym->name) + "'");
+}
+
+Term SymbolTable::wire_seed_term(const slang::ast::Symbol * sym,
+                                 const string & prefix)
+{
+  auto it = symbol_to_term_.find(sym);
+  if (it != symbol_to_term_.end()) return it->second;
+  uint64_t width = value_width(sym->as<slang::ast::ValueSymbol>().getType());
+  if (width == 0) width = 1;
+  Term iv = fts_.make_inputvar(make_name(prefix, string(sym->name)),
+                               solver_->make_sort(BV, width));
+  symbol_to_term_[sym] = iv;
+  return iv;
+}
+
+}  // namespace pono
