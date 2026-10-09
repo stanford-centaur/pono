@@ -1,0 +1,41 @@
+; An initiality condition replaces the initial condition of the system, and
+; that of its subsystems.
+(set-logic QF_LIA)
+
+; counts the steps, which none of the queries depends on
+(define-system Clock
+  :output ((t Int))
+  :init (= t 0)
+  :trans (= t' (+ t 1)))
+
+(define-system Down
+  :output ((n Int))
+  :local ((t Int))
+  :init (= n 10)
+  :trans (= n' (- n 1))
+  :subsys (clock (Clock t)))
+
+; an initiality condition that the query does not list leaves the initial
+; condition in place
+(check-system Down
+  :output ((n Int))
+  :local ((t Int))
+  :current (low (< n 3))
+  :reachable (big (> n 5))
+  :query (from_init (big)))
+
+(check-system Down
+  :output ((n Int))
+  :local ((t Int))
+  :current (low (< n 3))
+  :reachable (big (> n 5))
+  :query (from_low (low big)))
+
+; conjoined with n = 10 instead, the initiality condition would leave no
+; initial state to start from
+(check-system Down
+  :output ((n Int))
+  :local ((t Int))
+  :current (low (< n 3))
+  :reachable (zero (= n 0))
+  :query (from_low_to_zero (low zero)))

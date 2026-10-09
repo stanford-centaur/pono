@@ -1,0 +1,30 @@
+; A query with several reachability conditions asks for a trace that
+; satisfies each of them, possibly in different states.
+(set-logic QF_BV)
+
+(define-system Cycle
+  :output ((c (_ BitVec 2)))
+  :local ((z Bool))
+  :init (and (= c #b00) (not z))
+  :trans (and (= c' (bvadd c #b01)) (= z' z)))
+
+(check-system Cycle
+  :output ((c (_ BitVec 2)))
+  :local ((z Bool))
+  :reachable (one (= c #b01))
+  :reachable (three (= c #b11))
+  :query (one_then_three (one three)))
+
+; never in the same state
+(check-system Cycle
+  :output ((c (_ BitVec 2)))
+  :local ((z Bool))
+  :reachable (one_and_three (and (= c #b01) (= c #b11)))
+  :query (at_once (one_and_three)))
+
+(check-system Cycle
+  :output ((c (_ BitVec 2)))
+  :local ((z Bool))
+  :reachable (one (= c #b01))
+  :reachable (never z)
+  :query (one_then_never (one never)))

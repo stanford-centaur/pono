@@ -1,0 +1,54 @@
+; An enumeration has only its own values, also as an input, as the result of
+; a function and as an element of an array.
+(set-logic QF_AUFLIA)
+
+(declare-enum-sort Color (red green blue))
+(declare-fun pick (Int) Color)
+
+(define-system Light
+  :input ((c Color))
+  :output ((n Int))
+  :init (= n 0)
+  :trans (= n' (ite (= c red) 1 (ite (= c green) 2 (ite (= c blue) 3 4)))))
+
+(check-system Light
+  :input ((c Color))
+  :output ((n Int))
+  :reachable (saw_blue (= n 3))
+  :query (blue (saw_blue)))
+
+(check-system Light
+  :input ((c Color))
+  :output ((n Int))
+  :reachable (saw_none (= n 4))
+  :query (none (saw_none)))
+
+; compares a picked and a stored color with each value
+(define-system Lookup
+  :input ((i Int))
+  :output ((picked_none Bool) (stored_none Bool))
+  :local ((m (Array Int Color)))
+  :init (and (not picked_none) (not stored_none))
+  :trans (and (= m' m)
+              (= picked_none'
+                 (and (distinct (pick i) red)
+                      (distinct (pick i) green)
+                      (distinct (pick i) blue)))
+              (= stored_none'
+                 (and (distinct (select m i) red)
+                      (distinct (select m i) green)
+                      (distinct (select m i) blue)))))
+
+(check-system Lookup
+  :input ((i Int))
+  :output ((picked_none Bool) (stored_none Bool))
+  :local ((m (Array Int Color)))
+  :reachable (picked picked_none)
+  :query (pick_none (picked)))
+
+(check-system Lookup
+  :input ((i Int))
+  :output ((picked_none Bool) (stored_none Bool))
+  :local ((m (Array Int Color)))
+  :reachable (stored stored_none)
+  :query (store_none (stored)))
