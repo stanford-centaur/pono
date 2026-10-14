@@ -258,6 +258,8 @@ const vector<MoxiError> moxi_errors({
       "function x takes 2 arguments, not 1" },
     { "(set-logic QF_BV) (define-fun f () (_ BitVec 8) (bvadd #x01 #b1))",
       "cannot apply bvadd" },
+    { "(set-logic QF_BV) (define-fun f () (_ BitVec 3) (concat #b1 #b0 #b1))",
+      "concat cannot take 3 arguments" },
     { "(define-fun f () Bool (to_bv3 true))", "unknown function to_bv3" },
     { "(define-fun f () Bool g)", "unknown symbol g" },
     { "(define-fun f () Bool (let ((y true)) y'))",

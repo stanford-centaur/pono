@@ -96,7 +96,7 @@ const unordered_map<string, Builtin> & builtins()
     { "to_int", { To_Int, 1, 1, Fold::NONE, Numeric::NONE } },
     { "is_int", { Is_Int, 1, 1, Fold::NONE, Numeric::NONE } },
     // bit-vectors
-    { "concat", { Concat, 2, ANY, Fold::LEFT, Numeric::NONE } },
+    { "concat", { Concat, 2, 2, Fold::NONE, Numeric::NONE } },
     { "bvnot", { BVNot, 1, 1, Fold::NONE, Numeric::NONE } },
     { "bvneg", { BVNeg, 1, 1, Fold::NONE, Numeric::NONE } },
     { "bvand", { BVAnd, 2, ANY, Fold::LEFT, Numeric::NONE } },
