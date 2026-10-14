@@ -712,6 +712,7 @@ void BTOR2Encoder::parse(const std::string filename)
       uint64_t width = t0->get_sort()->get_width();
       Sort sort = solver_->make_sort(BV, width + 1);
       t0 = solver_->make_term(Op(Zero_Extend, 1), t0);
+      t1 = solver_->make_term(BVNot, t1);
       t1 = solver_->make_term(Op(Zero_Extend, 1), t1);
       Term one = solver_->make_term(1, sort);
       Term add1 = solver_->make_term(BVAdd, t1, one);

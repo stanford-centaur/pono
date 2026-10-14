@@ -192,6 +192,19 @@ TEST_P(Btor2UnitTests, InputProp)
   EXPECT_EQ(check<Bmc>(prop, input.fts, 0), ProverResult::FALSE);
 }
 
+TEST_P(Btor2UnitTests, UnsignedSubtractionOverflow)
+{
+  // A borrow occurs exactly when the minuend is less than the subtrahend.
+  Encoded input(GetParam(), "usubo");
+  ASSERT_EQ(input.be.propvec().size(), 2);
+  for (const Term & prop : input.be.propvec()) {
+    input.solver->push();
+    input.solver->assert_formula(input.solver->make_term(Not, prop));
+    EXPECT_TRUE(input.solver->check_sat().is_unsat());
+    input.solver->pop();
+  }
+}
+
 TEST_P(Btor2UnitTests, InvalidSmtlibSymbol)
 {
   // test BTOR2 file with invalid SMT-LIB symbol
