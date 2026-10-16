@@ -71,8 +71,8 @@ const unordered_map<string, Builtin> & builtins()
   static const unordered_map<string, Builtin> table{
     // core
     { "not", { Not, 1, 1, Fold::NONE, Numeric::NONE } },
-    { "and", { And, 1, ANY, Fold::LEFT, Numeric::NONE } },
-    { "or", { Or, 1, ANY, Fold::LEFT, Numeric::NONE } },
+    { "and", { And, 2, ANY, Fold::LEFT, Numeric::NONE } },
+    { "or", { Or, 2, ANY, Fold::LEFT, Numeric::NONE } },
     { "xor", { Xor, 2, ANY, Fold::LEFT, Numeric::NONE } },
     { "=>", { Implies, 2, ANY, Fold::RIGHT, Numeric::NONE } },
     { "=", { Equal, 2, ANY, Fold::CHAIN, Numeric::UNIFY } },
@@ -81,7 +81,7 @@ const unordered_map<string, Builtin> & builtins()
     { "!=", { Distinct, 2, 2, Fold::NONE, Numeric::UNIFY } },
     { "ite", { Ite, 3, 3, Fold::NONE, Numeric::UNIFY } },
     // integers and reals
-    { "+", { Plus, 1, ANY, Fold::LEFT, Numeric::UNIFY } },
+    { "+", { Plus, 2, ANY, Fold::LEFT, Numeric::UNIFY } },
     { "-", { Minus, 1, ANY, Fold::LEFT, Numeric::UNIFY } },
     { "*", { Mult, 2, ANY, Fold::LEFT, Numeric::UNIFY } },
     { "/", { Div, 2, ANY, Fold::LEFT, Numeric::REAL } },
@@ -1286,9 +1286,6 @@ Term Reader::make_builtin(const string & name,
                          loc);
     }
     return make_term(Negate, args, loc);
-  }
-  if (args.size() == 1 && builtin.fold == Fold::LEFT) {
-    return args[0];
   }
   switch (builtin.fold) {
     case Fold::NONE: return make_term(builtin.op, args, loc);
