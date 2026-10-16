@@ -35,16 +35,6 @@ namespace moxi {
 
 namespace {
 
-/** How an operator that SMT-LIB defines as binary takes more arguments. */
-enum class Fold
-{
-  NONE,      ///< it does not
-  LEFT,      ///< :left-assoc, e.g. (- a b c) is (- (- a b) c)
-  RIGHT,     ///< :right-assoc, e.g. (=> a b c) is (=> a (=> b c))
-  CHAIN,     ///< :chainable, e.g. (< a b c) is (and (< a b) (< b c))
-  PAIRWISE,  ///< :pairwise, e.g. (distinct a b c) holds if no two are equal
-};
-
 /** How an operator reconciles integer and real arguments. */
 enum class Numeric
 {
@@ -60,7 +50,6 @@ struct Builtin
   PrimOp op;
   size_t min_args;
   size_t max_args;
-  Fold fold;
   Numeric numeric;
 };
 
@@ -70,66 +59,66 @@ const unordered_map<string, Builtin> & builtins()
 {
   static const unordered_map<string, Builtin> table{
     // core
-    { "not", { Not, 1, 1, Fold::NONE, Numeric::NONE } },
-    { "and", { And, 2, ANY, Fold::LEFT, Numeric::NONE } },
-    { "or", { Or, 2, ANY, Fold::LEFT, Numeric::NONE } },
-    { "xor", { Xor, 2, ANY, Fold::LEFT, Numeric::NONE } },
-    { "=>", { Implies, 2, ANY, Fold::RIGHT, Numeric::NONE } },
-    { "=", { Equal, 2, ANY, Fold::CHAIN, Numeric::UNIFY } },
-    { "distinct", { Distinct, 2, ANY, Fold::PAIRWISE, Numeric::UNIFY } },
+    { "not", { Not, 1, 1, Numeric::NONE } },
+    { "and", { And, 2, ANY, Numeric::NONE } },
+    { "or", { Or, 2, ANY, Numeric::NONE } },
+    { "xor", { Xor, 2, ANY, Numeric::NONE } },
+    { "=>", { Implies, 2, ANY, Numeric::NONE } },
+    { "=", { Equal, 2, ANY, Numeric::UNIFY } },
+    { "distinct", { Distinct, 2, ANY, Numeric::UNIFY } },
     // MoXI adds a binary disequality
-    { "!=", { Distinct, 2, 2, Fold::NONE, Numeric::UNIFY } },
-    { "ite", { Ite, 3, 3, Fold::NONE, Numeric::UNIFY } },
+    { "!=", { Distinct, 2, 2, Numeric::UNIFY } },
+    { "ite", { Ite, 3, 3, Numeric::UNIFY } },
     // integers and reals
-    { "+", { Plus, 2, ANY, Fold::LEFT, Numeric::UNIFY } },
-    { "-", { Minus, 1, ANY, Fold::LEFT, Numeric::UNIFY } },
-    { "*", { Mult, 2, ANY, Fold::LEFT, Numeric::UNIFY } },
-    { "/", { Div, 2, ANY, Fold::LEFT, Numeric::REAL } },
-    { "div", { IntDiv, 2, ANY, Fold::LEFT, Numeric::NONE } },
-    { "mod", { Mod, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "abs", { Abs, 1, 1, Fold::NONE, Numeric::NONE } },
-    { "<", { Lt, 2, ANY, Fold::CHAIN, Numeric::UNIFY } },
-    { "<=", { Le, 2, ANY, Fold::CHAIN, Numeric::UNIFY } },
-    { ">", { Gt, 2, ANY, Fold::CHAIN, Numeric::UNIFY } },
-    { ">=", { Ge, 2, ANY, Fold::CHAIN, Numeric::UNIFY } },
-    { "to_real", { To_Real, 1, 1, Fold::NONE, Numeric::NONE } },
-    { "to_int", { To_Int, 1, 1, Fold::NONE, Numeric::NONE } },
-    { "is_int", { Is_Int, 1, 1, Fold::NONE, Numeric::NONE } },
+    { "+", { Plus, 2, ANY, Numeric::UNIFY } },
+    { "-", { Minus, 1, ANY, Numeric::UNIFY } },
+    { "*", { Mult, 2, ANY, Numeric::UNIFY } },
+    { "/", { Div, 2, ANY, Numeric::REAL } },
+    { "div", { IntDiv, 2, ANY, Numeric::NONE } },
+    { "mod", { Mod, 2, 2, Numeric::NONE } },
+    { "abs", { Abs, 1, 1, Numeric::NONE } },
+    { "<", { Lt, 2, ANY, Numeric::UNIFY } },
+    { "<=", { Le, 2, ANY, Numeric::UNIFY } },
+    { ">", { Gt, 2, ANY, Numeric::UNIFY } },
+    { ">=", { Ge, 2, ANY, Numeric::UNIFY } },
+    { "to_real", { To_Real, 1, 1, Numeric::NONE } },
+    { "to_int", { To_Int, 1, 1, Numeric::NONE } },
+    { "is_int", { Is_Int, 1, 1, Numeric::NONE } },
     // bit-vectors
-    { "concat", { Concat, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvnot", { BVNot, 1, 1, Fold::NONE, Numeric::NONE } },
-    { "bvneg", { BVNeg, 1, 1, Fold::NONE, Numeric::NONE } },
-    { "bvand", { BVAnd, 2, ANY, Fold::LEFT, Numeric::NONE } },
-    { "bvor", { BVOr, 2, ANY, Fold::LEFT, Numeric::NONE } },
-    { "bvxor", { BVXor, 2, ANY, Fold::LEFT, Numeric::NONE } },
-    { "bvadd", { BVAdd, 2, ANY, Fold::LEFT, Numeric::NONE } },
-    { "bvmul", { BVMul, 2, ANY, Fold::LEFT, Numeric::NONE } },
-    { "bvnand", { BVNand, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvnor", { BVNor, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvxnor", { BVXnor, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvsub", { BVSub, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvudiv", { BVUdiv, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvsdiv", { BVSdiv, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvurem", { BVUrem, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvsrem", { BVSrem, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvsmod", { BVSmod, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvshl", { BVShl, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvlshr", { BVLshr, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvashr", { BVAshr, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvcomp", { BVComp, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvult", { BVUlt, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvule", { BVUle, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvugt", { BVUgt, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvuge", { BVUge, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvslt", { BVSlt, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvsle", { BVSle, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvsgt", { BVSgt, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "bvsge", { BVSge, 2, 2, Fold::NONE, Numeric::NONE } },
-    { "ubv_to_int", { UBV_To_Int, 1, 1, Fold::NONE, Numeric::NONE } },
-    { "sbv_to_int", { SBV_To_Int, 1, 1, Fold::NONE, Numeric::NONE } },
+    { "concat", { Concat, 2, 2, Numeric::NONE } },
+    { "bvnot", { BVNot, 1, 1, Numeric::NONE } },
+    { "bvneg", { BVNeg, 1, 1, Numeric::NONE } },
+    { "bvand", { BVAnd, 2, ANY, Numeric::NONE } },
+    { "bvor", { BVOr, 2, ANY, Numeric::NONE } },
+    { "bvxor", { BVXor, 2, ANY, Numeric::NONE } },
+    { "bvadd", { BVAdd, 2, ANY, Numeric::NONE } },
+    { "bvmul", { BVMul, 2, ANY, Numeric::NONE } },
+    { "bvnand", { BVNand, 2, 2, Numeric::NONE } },
+    { "bvnor", { BVNor, 2, 2, Numeric::NONE } },
+    { "bvxnor", { BVXnor, 2, 2, Numeric::NONE } },
+    { "bvsub", { BVSub, 2, 2, Numeric::NONE } },
+    { "bvudiv", { BVUdiv, 2, 2, Numeric::NONE } },
+    { "bvsdiv", { BVSdiv, 2, 2, Numeric::NONE } },
+    { "bvurem", { BVUrem, 2, 2, Numeric::NONE } },
+    { "bvsrem", { BVSrem, 2, 2, Numeric::NONE } },
+    { "bvsmod", { BVSmod, 2, 2, Numeric::NONE } },
+    { "bvshl", { BVShl, 2, 2, Numeric::NONE } },
+    { "bvlshr", { BVLshr, 2, 2, Numeric::NONE } },
+    { "bvashr", { BVAshr, 2, 2, Numeric::NONE } },
+    { "bvcomp", { BVComp, 2, 2, Numeric::NONE } },
+    { "bvult", { BVUlt, 2, 2, Numeric::NONE } },
+    { "bvule", { BVUle, 2, 2, Numeric::NONE } },
+    { "bvugt", { BVUgt, 2, 2, Numeric::NONE } },
+    { "bvuge", { BVUge, 2, 2, Numeric::NONE } },
+    { "bvslt", { BVSlt, 2, 2, Numeric::NONE } },
+    { "bvsle", { BVSle, 2, 2, Numeric::NONE } },
+    { "bvsgt", { BVSgt, 2, 2, Numeric::NONE } },
+    { "bvsge", { BVSge, 2, 2, Numeric::NONE } },
+    { "ubv_to_int", { UBV_To_Int, 1, 1, Numeric::NONE } },
+    { "sbv_to_int", { SBV_To_Int, 1, 1, Numeric::NONE } },
     // arrays
-    { "select", { Select, 2, 2, Fold::NONE, Numeric::ARRAY } },
-    { "store", { Store, 3, 3, Fold::NONE, Numeric::ARRAY } },
+    { "select", { Select, 2, 2, Numeric::ARRAY } },
+    { "store", { Store, 3, 3, Numeric::ARRAY } },
   };
   return table;
 }
@@ -1262,41 +1251,10 @@ Term Reader::make_builtin(const string & name,
     }
     return make_term(Negate, args, loc);
   }
-  switch (builtin.fold) {
-    case Fold::NONE: return make_term(builtin.op, args, loc);
-    case Fold::LEFT: {
-      if (is_variadic(builtin.op)) {
-        return make_term(builtin.op, args, loc);
-      }
-      Term result = args[0];
-      for (size_t i = 1; i < args.size(); ++i) {
-        result = make_term(builtin.op, { result, args[i] }, loc);
-      }
-      return result;
-    }
-    case Fold::RIGHT: {
-      Term result = args.back();
-      for (size_t i = args.size() - 1; i-- > 0;) {
-        result = make_term(builtin.op, { args[i], result }, loc);
-      }
-      return result;
-    }
-    case Fold::CHAIN:
-    case Fold::PAIRWISE: {
-      TermVec conjuncts;
-      for (size_t i = 0; i + 1 < args.size(); ++i) {
-        const size_t last =
-            builtin.fold == Fold::CHAIN ? i + 1 : args.size() - 1;
-        for (size_t j = i + 1; j <= last; ++j) {
-          conjuncts.push_back(make_term(builtin.op, { args[i], args[j] }, loc));
-        }
-      }
-      return conjuncts.size() == 1 ? conjuncts[0]
-                                   : make_term(And, conjuncts, loc);
-    }
-  }
-  assert(false);
-  return Term();
+  // smt-switch applies an operator that SMT-LIB defines as :left-assoc,
+  // :right-assoc, :chainable or :pairwise to any number of arguments, as
+  // SMT-LIB defines it.
+  return make_term(builtin.op, args, loc);
 }
 
 void Reader::unify_numeric(TermVec & args, const Location & loc) const
