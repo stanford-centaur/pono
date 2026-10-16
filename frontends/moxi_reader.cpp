@@ -44,81 +44,81 @@ enum class Numeric
   ARRAY,  ///< integers become reals as real indices or elements of arrays
 };
 
-/** A predefined function that maps to an operator of the solver. */
+/** A predefined function that maps to an operator of the solver. It takes
+ *  as many arguments as smt-switch's get_arity says the operator takes. */
 struct Builtin
 {
   PrimOp op;
-  size_t min_args;
-  size_t max_args;
   Numeric numeric;
+  /** a bound on the number of arguments, for a function that takes fewer
+   *  than the operator */
+  size_t max_args = numeric_limits<size_t>::max();
 };
-
-constexpr size_t ANY = numeric_limits<size_t>::max();
 
 const unordered_map<string, Builtin> & builtins()
 {
   static const unordered_map<string, Builtin> table{
     // core
-    { "not", { Not, 1, 1, Numeric::NONE } },
-    { "and", { And, 2, ANY, Numeric::NONE } },
-    { "or", { Or, 2, ANY, Numeric::NONE } },
-    { "xor", { Xor, 2, ANY, Numeric::NONE } },
-    { "=>", { Implies, 2, ANY, Numeric::NONE } },
-    { "=", { Equal, 2, ANY, Numeric::UNIFY } },
-    { "distinct", { Distinct, 2, ANY, Numeric::UNIFY } },
+    { "not", { Not, Numeric::NONE } },
+    { "and", { And, Numeric::NONE } },
+    { "or", { Or, Numeric::NONE } },
+    { "xor", { Xor, Numeric::NONE } },
+    { "=>", { Implies, Numeric::NONE } },
+    { "=", { Equal, Numeric::UNIFY } },
+    { "distinct", { Distinct, Numeric::UNIFY } },
     // MoXI adds a binary disequality
-    { "!=", { Distinct, 2, 2, Numeric::UNIFY } },
-    { "ite", { Ite, 3, 3, Numeric::UNIFY } },
+    { "!=", { Distinct, Numeric::UNIFY, 2 } },
+    { "ite", { Ite, Numeric::UNIFY } },
     // integers and reals
-    { "+", { Plus, 2, ANY, Numeric::UNIFY } },
-    { "-", { Minus, 1, ANY, Numeric::UNIFY } },
-    { "*", { Mult, 2, ANY, Numeric::UNIFY } },
-    { "/", { Div, 2, ANY, Numeric::REAL } },
-    { "div", { IntDiv, 2, ANY, Numeric::NONE } },
-    { "mod", { Mod, 2, 2, Numeric::NONE } },
-    { "abs", { Abs, 1, 1, Numeric::NONE } },
-    { "<", { Lt, 2, ANY, Numeric::UNIFY } },
-    { "<=", { Le, 2, ANY, Numeric::UNIFY } },
-    { ">", { Gt, 2, ANY, Numeric::UNIFY } },
-    { ">=", { Ge, 2, ANY, Numeric::UNIFY } },
-    { "to_real", { To_Real, 1, 1, Numeric::NONE } },
-    { "to_int", { To_Int, 1, 1, Numeric::NONE } },
-    { "is_int", { Is_Int, 1, 1, Numeric::NONE } },
+    { "+", { Plus, Numeric::UNIFY } },
+    { "-", { Minus, Numeric::UNIFY } },
+    { "*", { Mult, Numeric::UNIFY } },
+    { "/", { Div, Numeric::REAL } },
+    { "div", { IntDiv, Numeric::NONE } },
+    { "mod", { Mod, Numeric::NONE } },
+    { "abs", { Abs, Numeric::NONE } },
+    { "<", { Lt, Numeric::UNIFY } },
+    { "<=", { Le, Numeric::UNIFY } },
+    { ">", { Gt, Numeric::UNIFY } },
+    { ">=", { Ge, Numeric::UNIFY } },
+    { "to_real", { To_Real, Numeric::NONE } },
+    { "to_int", { To_Int, Numeric::NONE } },
+    { "is_int", { Is_Int, Numeric::NONE } },
     // bit-vectors
-    { "concat", { Concat, 2, 2, Numeric::NONE } },
-    { "bvnot", { BVNot, 1, 1, Numeric::NONE } },
-    { "bvneg", { BVNeg, 1, 1, Numeric::NONE } },
-    { "bvand", { BVAnd, 2, ANY, Numeric::NONE } },
-    { "bvor", { BVOr, 2, ANY, Numeric::NONE } },
-    { "bvxor", { BVXor, 2, ANY, Numeric::NONE } },
-    { "bvadd", { BVAdd, 2, ANY, Numeric::NONE } },
-    { "bvmul", { BVMul, 2, ANY, Numeric::NONE } },
-    { "bvnand", { BVNand, 2, 2, Numeric::NONE } },
-    { "bvnor", { BVNor, 2, 2, Numeric::NONE } },
-    { "bvxnor", { BVXnor, 2, 2, Numeric::NONE } },
-    { "bvsub", { BVSub, 2, 2, Numeric::NONE } },
-    { "bvudiv", { BVUdiv, 2, 2, Numeric::NONE } },
-    { "bvsdiv", { BVSdiv, 2, 2, Numeric::NONE } },
-    { "bvurem", { BVUrem, 2, 2, Numeric::NONE } },
-    { "bvsrem", { BVSrem, 2, 2, Numeric::NONE } },
-    { "bvsmod", { BVSmod, 2, 2, Numeric::NONE } },
-    { "bvshl", { BVShl, 2, 2, Numeric::NONE } },
-    { "bvlshr", { BVLshr, 2, 2, Numeric::NONE } },
-    { "bvashr", { BVAshr, 2, 2, Numeric::NONE } },
-    { "bvcomp", { BVComp, 2, 2, Numeric::NONE } },
-    { "bvult", { BVUlt, 2, 2, Numeric::NONE } },
-    { "bvule", { BVUle, 2, 2, Numeric::NONE } },
-    { "bvugt", { BVUgt, 2, 2, Numeric::NONE } },
-    { "bvuge", { BVUge, 2, 2, Numeric::NONE } },
-    { "bvslt", { BVSlt, 2, 2, Numeric::NONE } },
-    { "bvsle", { BVSle, 2, 2, Numeric::NONE } },
-    { "bvsgt", { BVSgt, 2, 2, Numeric::NONE } },
-    { "bvsge", { BVSge, 2, 2, Numeric::NONE } },
-    { "ubv_to_int", { UBV_To_Int, 1, 1, Numeric::NONE } },
-    { "sbv_to_int", { SBV_To_Int, 1, 1, Numeric::NONE } },
+    { "concat", { Concat, Numeric::NONE } },
+    { "bvnot", { BVNot, Numeric::NONE } },
+    { "bvneg", { BVNeg, Numeric::NONE } },
+    { "bvand", { BVAnd, Numeric::NONE } },
+    { "bvor", { BVOr, Numeric::NONE } },
+    { "bvxor", { BVXor, Numeric::NONE } },
+    { "bvadd", { BVAdd, Numeric::NONE } },
+    { "bvmul", { BVMul, Numeric::NONE } },
+    { "bvnand", { BVNand, Numeric::NONE } },
+    { "bvnor", { BVNor, Numeric::NONE } },
+    { "bvxnor", { BVXnor, Numeric::NONE } },
+    { "bvsub", { BVSub, Numeric::NONE } },
+    { "bvudiv", { BVUdiv, Numeric::NONE } },
+    { "bvsdiv", { BVSdiv, Numeric::NONE } },
+    { "bvurem", { BVUrem, Numeric::NONE } },
+    { "bvsrem", { BVSrem, Numeric::NONE } },
+    { "bvsmod", { BVSmod, Numeric::NONE } },
+    { "bvshl", { BVShl, Numeric::NONE } },
+    { "bvlshr", { BVLshr, Numeric::NONE } },
+    { "bvashr", { BVAshr, Numeric::NONE } },
+    { "bvcomp", { BVComp, Numeric::NONE } },
+    { "bvult", { BVUlt, Numeric::NONE } },
+    { "bvule", { BVUle, Numeric::NONE } },
+    { "bvugt", { BVUgt, Numeric::NONE } },
+    { "bvuge", { BVUge, Numeric::NONE } },
+    { "bvslt", { BVSlt, Numeric::NONE } },
+    { "bvsle", { BVSle, Numeric::NONE } },
+    { "bvsgt", { BVSgt, Numeric::NONE } },
+    { "bvsge", { BVSge, Numeric::NONE } },
+    { "ubv_to_int", { UBV_To_Int, Numeric::NONE } },
+    { "sbv_to_int", { SBV_To_Int, Numeric::NONE } },
     // arrays
-    { "select", { Select, 2, 2, Numeric::ARRAY } },
-    { "store", { Store, 3, 3, Numeric::ARRAY } },
+    { "select", { Select, Numeric::ARRAY } },
+    { "store", { Store, Numeric::ARRAY } },
   };
   return table;
 }
@@ -1217,7 +1217,12 @@ Term Reader::make_builtin(const string & name,
     error(loc, "unknown function " + name);
   }
   const Builtin & builtin = it->second;
-  if (args.size() < builtin.min_args || args.size() > builtin.max_args) {
+  // SMT-LIB declares - also as negation, which smt-switch calls Negate
+  const PrimOp op =
+      builtin.op == Minus && args.size() == 1 ? Negate : builtin.op;
+  const pair<size_t, size_t> arity = get_arity(op);
+  if (args.size() < arity.first
+      || args.size() > min(arity.second, builtin.max_args)) {
     error(loc,
           name + " cannot take " + to_string(args.size()) + " argument"
               + (args.size() == 1 ? "" : "s"));
@@ -1238,7 +1243,7 @@ Term Reader::make_builtin(const string & name,
     }
   }
 
-  if (builtin.op == Minus && args.size() == 1) {
+  if (op == Negate) {
     // The negation of a number stays a value, see to_real. It takes the
     // sort of the number, which a solver may not report, e.g. MathSAT makes
     // 1.0 an integer.
@@ -1249,12 +1254,11 @@ Term Reader::make_builtin(const string & name,
                          number->second.sort,
                          loc);
     }
-    return make_term(Negate, args, loc);
   }
   // smt-switch applies an operator that SMT-LIB defines as :left-assoc,
   // :right-assoc, :chainable or :pairwise to any number of arguments, as
   // SMT-LIB defines it.
-  return make_term(builtin.op, args, loc);
+  return make_term(op, args, loc);
 }
 
 void Reader::unify_numeric(TermVec & args, const Location & loc) const
