@@ -107,17 +107,21 @@ find_package(FLEX 2.6.4 REQUIRED)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-# Install prefixes of the dependencies pono locates itself, one per Find
-# module in cmake/. Declared with an empty default so that configure.sh stays
-# the one place defaults live, and so that leaving a backend disabled does not
-# warn about an unused -D setting. IC3IA_ROOT is a source tree rather than an
-# install prefix, since ic3ia has no install step.
+# Install prefixes of the dependencies, both those pono locates itself and the
+# solvers smt-switch's package looks for on pono's behalf. Declared with an
+# empty default so that configure.sh stays the one place defaults live, and so
+# that leaving a backend disabled does not warn about an unused -D setting.
+# IC3IA_ROOT is a source tree rather than an install prefix, since ic3ia has
+# no install step.
 set(Bitwuzla_ROOT "" CACHE PATH "bitwuzla install prefix")
+set(Boolector_ROOT "" CACHE PATH "Boolector install prefix")
 set(Btor2Tools_ROOT "" CACHE PATH "Btor2Tools install prefix")
 set(CoreIR_ROOT "" CACHE PATH "CoreIR install prefix")
+set(cvc5_ROOT "" CACHE PATH "cvc5 install prefix")
 set(IC3IA_ROOT "" CACHE PATH "ic3ia source tree")
 set(MathSAT_ROOT "" CACHE PATH "MathSAT install prefix")
 set(SmtSwitch_ROOT "" CACHE PATH "smt-switch install prefix")
+set(Yices2_ROOT "" CACHE PATH "Yices2 install prefix")
 set(Z3_ROOT "" CACHE PATH "Z3 install prefix")
 
 find_package(GMPXX REQUIRED)
@@ -156,7 +160,9 @@ endif()
 if(WITH_Z3)
   list(APPEND SmtSwitch_FIND_COMPONENTS z3)
 endif()
-find_package(SmtSwitch REQUIRED COMPONENTS ${SmtSwitch_FIND_COMPONENTS})
+# smt-switch's package config, which also looks for the solvers each backend
+# links, under the *_ROOT above.
+find_package(SmtSwitch CONFIG REQUIRED COMPONENTS ${SmtSwitch_FIND_COMPONENTS})
 
 # Generate the SMV parser using Flex/Bison
 bison_target(
@@ -312,27 +318,26 @@ if(BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)
 endif()
 
-target_link_libraries(pono-lib PUBLIC smt-switch-bitwuzla)
-target_link_libraries(pono-lib PUBLIC smt-switch-cvc5)
+target_link_libraries(pono-lib PUBLIC SmtSwitch::smt-switch-bitwuzla)
+target_link_libraries(pono-lib PUBLIC SmtSwitch::smt-switch-cvc5)
 
 if(WITH_BOOLECTOR)
-  target_link_libraries(pono-lib PUBLIC smt-switch-btor)
+  target_link_libraries(pono-lib PUBLIC SmtSwitch::smt-switch-btor)
 endif()
 
 if(WITH_MSAT)
-  target_link_libraries(pono-lib PUBLIC smt-switch-msat)
+  target_link_libraries(pono-lib PUBLIC SmtSwitch::smt-switch-msat)
 endif()
 
 if(WITH_YICES2)
-  target_link_libraries(pono-lib PUBLIC smt-switch-yices2)
+  target_link_libraries(pono-lib PUBLIC SmtSwitch::smt-switch-yices2)
 endif()
 
 if(WITH_Z3)
-  target_link_libraries(pono-lib PRIVATE smt-switch-z3)
+  target_link_libraries(pono-lib PRIVATE SmtSwitch::smt-switch-z3)
 endif()
 
-# MathSAT::mathsat carries only an include directory; pono links MathSAT
-# itself through smt-switch. Both backends need those headers.
+# pono sets MathSAT options through its C API, as does IC3IA.
 if(WITH_MSAT OR WITH_MSAT_IC3IA)
   target_link_libraries(pono-lib PUBLIC MathSAT::mathsat)
 endif()
@@ -345,7 +350,7 @@ if(WITH_COREIR)
   target_link_libraries(pono-lib PUBLIC CoreIR::coreir CoreIR::verilogAST)
 endif()
 
-target_link_libraries(pono-lib PUBLIC smt-switch)
+target_link_libraries(pono-lib PUBLIC SmtSwitch::smt-switch)
 target_link_libraries(pono-lib PUBLIC Btor2Tools::btor2parser)
 target_link_libraries(pono-lib PUBLIC GMPXX::gmpxx)
 # PUBLIC because the installed utils/logger.h includes <fmt/format.h>. The

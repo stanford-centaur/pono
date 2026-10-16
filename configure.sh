@@ -20,20 +20,19 @@ cm_CMAKE_INSTALL_PREFIX=/usr/local
 
 # Dependency locations, each named <Package>_ROOT after CMake's standard
 # install prefix input, using the package name the dependency would most
-# likely get as a CMake module. Z3Config.cmake and cmake/FindSmtSwitch.cmake
-# let find_package() honor Z3_ROOT and SmtSwitch_ROOT automatically; bitwuzla
-# (pkg-config) and MathSAT (a bare include path) have no module yet, so their
-# roots are applied by hand until one exists.
-# bitwuzla.pc names cadical in Requires:, which smt-switch installs under
-# a prefix of its own, so this *_ROOT holds the list of both.
+# likely get as a CMake module. find_package() honors each of them, also when
+# smt-switch's package config looks for the solvers its backends link. Those
+# default to where smt-switch builds the solvers it does not find.
 cm_Bitwuzla_ROOT="$root_dir/deps/smt-switch/deps/bitwuzla"
-cm_Bitwuzla_ROOT+=";$root_dir/deps/smt-switch/deps/cadical"
+cm_Boolector_ROOT="$root_dir/deps/smt-switch/deps/boolector"
 cm_Btor2Tools_ROOT="$root_dir/deps/install"
 cm_CoreIR_ROOT="$root_dir/deps/coreir/local"
+cm_cvc5_ROOT="$root_dir/deps/smt-switch/deps/cvc5"
 # ic3ia has no install step, so this is a built source tree, not a prefix.
 cm_IC3IA_ROOT="$root_dir/deps/ic3ia"
 cm_MathSAT_ROOT="$root_dir/deps/mathsat"
 cm_SmtSwitch_ROOT="$root_dir/deps/smt-switch/local"
+cm_Yices2_ROOT="$root_dir/deps/smt-switch/deps/yices2"
 cm_Z3_ROOT="$root_dir/deps/smt-switch/deps/z3"
 
 # Build flags
@@ -72,11 +71,14 @@ Build and install directories:
 
 Dependency locations:
 --bitwuzla-dir=STR      Bitwuzla install prefix (default: $cm_Bitwuzla_ROOT)
+--btor-dir=STR          Boolector install prefix (default: $cm_Boolector_ROOT)
 --btor2tools-dir=STR    Btor2Tools install prefix (default: $cm_Btor2Tools_ROOT)
 --coreir-dir=STR        CoreIR install prefix (default: $cm_CoreIR_ROOT)
+--cvc5-dir=STR          cvc5 install prefix (default: $cm_cvc5_ROOT)
 --ic3ia-dir=STR         built ic3ia source tree (default: $cm_IC3IA_ROOT)
 --msat-dir=STR          MathSAT install prefix (default: $cm_MathSAT_ROOT)
 --smt-switch-dir=STR    smt-switch install prefix (default: $cm_SmtSwitch_ROOT)
+--yices2-dir=STR        Yices2 install prefix (default: $cm_Yices2_ROOT)
 --z3-dir=STR            Z3 install prefix (default: $cm_Z3_ROOT)
 
 Build flags:
@@ -114,16 +116,22 @@ while [[ $# -gt 0 ]]; do
     # Dependency locations
     --bitwuzla-dir) die "missing argument to $1 (see -h)" ;;
     --bitwuzla-dir=*) cm_Bitwuzla_ROOT=${1#*=} ;;
+    --btor-dir) die "missing argument to $1 (see -h)" ;;
+    --btor-dir=*) cm_Boolector_ROOT=${1#*=} ;;
     --btor2tools-dir) die "missing argument to $1 (see -h)" ;;
     --btor2tools-dir=*) cm_Btor2Tools_ROOT=${1#*=} ;;
     --coreir-dir) die "missing argument to $1 (see -h)" ;;
     --coreir-dir=*) cm_CoreIR_ROOT=${1#*=} ;;
+    --cvc5-dir) die "missing argument to $1 (see -h)" ;;
+    --cvc5-dir=*) cm_cvc5_ROOT=${1#*=} ;;
     --ic3ia-dir) die "missing argument to $1 (see -h)" ;;
     --ic3ia-dir=*) cm_IC3IA_ROOT=${1#*=} ;;
     --msat-dir) die "missing argument to $1 (see -h)" ;;
     --msat-dir=*) cm_MathSAT_ROOT=${1#*=} ;;
     --smt-switch-dir) die "missing argument to $1 (see -h)" ;;
     --smt-switch-dir=*) cm_SmtSwitch_ROOT=${1#*=} ;;
+    --yices2-dir) die "missing argument to $1 (see -h)" ;;
+    --yices2-dir=*) cm_Yices2_ROOT=${1#*=} ;;
     --z3-dir) die "missing argument to $1 (see -h)" ;;
     --z3-dir=*) cm_Z3_ROOT=${1#*=} ;;
 
