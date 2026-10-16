@@ -127,16 +127,12 @@ const unordered_map<string, Builtin> & builtins()
     { "bvsge", { BVSge, 2, 2, Fold::NONE, Numeric::NONE } },
     { "ubv_to_int", { UBV_To_Int, 1, 1, Fold::NONE, Numeric::NONE } },
     { "sbv_to_int", { SBV_To_Int, 1, 1, Fold::NONE, Numeric::NONE } },
-    { "bv2nat", { UBV_To_Int, 1, 1, Fold::NONE, Numeric::NONE } },
     // arrays
     { "select", { Select, 2, 2, Fold::NONE, Numeric::ARRAY } },
     { "store", { Store, 3, 3, Fold::NONE, Numeric::ARRAY } },
   };
   return table;
 }
-
-/** Predefined functions that the solver has no operator for. */
-const unordered_set<string> derived_builtins{ "bvredand", "bvredor" };
 
 /** Predefined functions that take indices, as in ((_ extract 7 0) x). */
 const unordered_map<string, PrimOp> indexed_builtins{
@@ -146,7 +142,6 @@ const unordered_map<string, PrimOp> indexed_builtins{
   { "rotate_left", Rotate_Left },
   { "rotate_right", Rotate_Right },
   { "repeat", Repeat },
-  { "int2bv", Int_To_BV },
   { "int_to_bv", Int_To_BV },
   // not an operator of the solver, see make_indexed_application
   { "divisible", NUM_OPS_AND_NULL },
@@ -159,7 +154,7 @@ const unordered_set<string> builtin_sorts{
 bool is_predefined_function(const string & name)
 {
   return name == "true" || name == "false" || builtins().count(name)
-         || derived_builtins.count(name) || indexed_builtins.count(name);
+         || indexed_builtins.count(name);
 }
 
 /** @return whether the name is bv followed by a numeral, as in (_ bv5 8) */
@@ -1228,26 +1223,6 @@ Term Reader::make_builtin(const string & name,
                           TermVec args,
                           const Location & loc)
 {
-  if (derived_builtins.count(name)) {
-    if (args.size() != 1 || args[0]->get_sort()->get_sort_kind() != BV) {
-      error(loc, name + " takes a single bit-vector");
-    }
-    const Sort sort = args[0]->get_sort();
-    const Sort bit = solver_->make_sort(BV, 1);
-    // bvredand: all bits are set; bvredor: some bit is set
-    const Term zero = solver_->make_term(int64_t{ 0 }, sort);
-    const Term holds =
-        name == "bvredand"
-            ? make_term(
-                  Equal, { args[0], make_term(BVNot, { zero }, loc) }, loc)
-            : make_term(Distinct, { args[0], zero }, loc);
-    return make_term(Ite,
-                     { holds,
-                       solver_->make_term(int64_t{ 1 }, bit),
-                       solver_->make_term(int64_t{ 0 }, bit) },
-                     loc);
-  }
-
   auto it = builtins().find(name);
   if (it == builtins().end()) {
     error(loc, "unknown function " + name);
