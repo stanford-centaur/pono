@@ -73,7 +73,7 @@ class IC3SA : public IC3
 
   smt::UnorderedTermSet projection_set_;  ///< variables always in projection
 
-  smt::SmtSolver interpolator_;
+  smt::SmtInterpolator interpolator_;
   std::unique_ptr<smt::TermTranslator> to_interpolator_;
   std::unique_ptr<smt::TermTranslator> from_interpolator_;
 
