@@ -45,14 +45,14 @@ class MsatIC3IA : public SafetyProver
   /** Recover a witness from an IC3IA object
    *  populates the witness_ member variable with terms from this engine's
    * solver
-   *  @param env the msat_env used by the IC3IA backend
+   *  @param env the msat_env used by the IC3IA backend, as MsatTerm shares it
    *  @param ic3 the backend ic3ia engine that was used -- should have returned
    * false
    *  @param to_ts_solver a TermTranslator that moves terms from the fresh
    * solver for ic3ia to terms of solver_
    *  @return true on success
    */
-  bool compute_witness(msat_env env,
+  bool compute_witness(const std::shared_ptr<msat_env> & env,
                        ic3ia::IC3 & ic3,
                        smt::TermTranslator & to_ts_solver);
 };
