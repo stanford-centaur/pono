@@ -59,10 +59,12 @@ unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre,
         varset_info.state.stage = PerVarsetInfo::state_t::WALL;
         if (nterm_walked != 0) return nterm_walked;
       }  // else will continue to WALL (same as from cex)
+      [[fallthrough]];
     case PerVarsetInfo::state_t::WALL:
       // increase to FROMCEX
       varset_info.state.stage = PerVarsetInfo::state_t::FROMCEX;
       // and do the same as FROMCEX, so continue
+      [[fallthrough]];
     case PerVarsetInfo::state_t::FROMCEX:
       // stay FROMCEX, just try if we can do anything more
       {
@@ -76,6 +78,7 @@ unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre,
         varset_info.state.stage = PerVarsetInfo::state_t::EXTRACTBITS;
         // and will continue to the next stage
       }
+      [[fallthrough]];
     case PerVarsetInfo::state_t::EXTRACTBITS:
       return term_learner.vars_extract_bit_level(post, varset_info);
     case PerVarsetInfo::state_t::EMPTY:

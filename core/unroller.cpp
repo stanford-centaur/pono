@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 
 #include "smt-switch/utils.h"
 #include "utils/exceptions.h"
@@ -66,13 +67,18 @@ size_t Unroller::get_curr_time(const smt::Term & t) const
 {
   UnorderedTermSet free_vars;
   get_free_symbolic_consts(t, free_vars);
-  unordered_set<size_t> times;
-  for (auto fv : free_vars) {
-    assert(fv->is_symbolic_const());
-    times.insert(get_var_time(fv));
+  if (free_vars.empty()) {
+    throw PonoException("Cannot get current time of a term with no variables.");
   }
-  size_t max = *std::max_element(times.begin(), times.end());
-  size_t min = *std::min_element(times.begin(), times.end());
+
+  size_t min = SIZE_MAX;
+  size_t max = 0;
+  for (const auto & fv : free_vars) {
+    assert(fv->is_symbolic_const());
+    size_t time = get_var_time(fv);
+    min = std::min(min, time);
+    max = std::max(max, time);
+  }
   if (max - min > 1) {
     throw PonoException("Cannot get current time of non-unrolled term.");
   }

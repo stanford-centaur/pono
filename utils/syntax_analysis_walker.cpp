@@ -115,7 +115,7 @@ void OpExtractor::PreChild(const smt::Term & ast)
     try {
       op = ast->get_op();
     }
-    catch (NotImplementedException) {
+    catch (const NotImplementedException &) {
       // op will be initialized correctly
       // so do nothing here
     }
@@ -424,7 +424,7 @@ void SliceExtractor::PostChild(const smt::Term & ast)
   try {
     op = ast->get_op();
   }
-  catch (NotImplementedException) {
+  catch (const NotImplementedException &) {
     // op will be initialized correctly
     // so do nothing here
     return;
@@ -555,7 +555,7 @@ static smt::Op get_op(const smt::Term & ast)
   try {
     op = ast->get_op();
   }
-  catch (NotImplementedException) {
+  catch (const NotImplementedException &) {
     // op will be initialized correctly
     // so do nothing here
   }

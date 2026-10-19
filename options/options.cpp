@@ -16,6 +16,7 @@
 
 #include "options/options.h"
 
+#include <algorithm>
 #include <climits>
 #include <cstring>
 #include <iostream>
@@ -137,7 +138,7 @@ struct Arg : public option::Arg
   {
     char * endptr = nullptr;
     if (option.arg != nullptr && strtol(option.arg, &endptr, 10)) {
-    };
+    }
     if (endptr != option.arg && *endptr == '\0') return option::ARG_OK;
 
     if (msg) printError("Option '", option, "' requires a numeric argument\n");
@@ -849,9 +850,12 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
   argc -= (argc > 0);
   argv += (argc > 0);  // skip program name argv[0] if present
   option::Stats stats(usage, argc, argv);
-  std::vector<option::Option> options(stats.options_max);
-  std::vector<option::Option> buffer(stats.buffer_max);
-  option::Parser parse(usage, argc, argv, &options[0], &buffer[0]);
+  // Stats counts a sentinel slot, so both of these are at least one. Saying
+  // so here is what lets the compiler see that the arrays are never empty,
+  // and so that the parser cannot be handed a null to walk.
+  std::vector<option::Option> options(std::max(1u, stats.options_max));
+  std::vector<option::Option> buffer(std::max(1u, stats.buffer_max));
+  option::Parser parse(usage, argc, argv, options.data(), buffer.data());
 
   if (parse.error()) return ERROR;
 
@@ -976,7 +980,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = parse_uint(opt.arg); break;
         case MBIC3_INDGEN_MODE:
           mbic3_indgen_mode_ = std::stoul(opt.arg);
-          if (!(mbic3_indgen_mode_ >= 0 && mbic3_indgen_mode_ <= 2))
+          if (mbic3_indgen_mode_ > 2)
             throw PonoException(
                 "--ic3-indgen-mode value must be between 0 and 2.");
           break;

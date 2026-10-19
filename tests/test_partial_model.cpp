@@ -33,7 +33,7 @@ class DynamicCoiUnitTests : public ::testing::Test,
 // #define BoolEQ(x, y) (s->make_term(Iff, (x), (y)))
 #define ITE(c, x, y) (s->make_term(Ite, (c), (x), (y)))
 
-#define CheckPartialModel(p, u)                    \
+#define CHECK_PARTIAL_MODEL(p, u)                  \
   {                                                \
     s->push();                                     \
     auto ast = EQ(p, u);                           \
@@ -89,24 +89,24 @@ TEST_P(DynamicCoiUnitTests, SimpleCoiTest)
 
   PartialModelGen pt(s);
 
-  CheckPartialModel(x_plus_1, u);
-  CheckPartialModel(x_sub_1, u);
-  CheckPartialModel(x_and_1, u);
-  CheckPartialModel(x_plus_y, u);
-  CheckPartialModel(x_sub_y, u);
-  CheckPartialModel(x_and_y, u);
-  CheckPartialModel(t0, u);
-  CheckPartialModel(t1, u);
-  CheckPartialModel(t2, u);
-  CheckPartialModel(t3, u);
-  CheckPartialModel(t4, u);
-  CheckPartialModel(t5, u);
-  CheckPartialModel(t6, u);
-  CheckPartialModel(e1, u);
-  CheckPartialModel(e2, u);
-  CheckPartialModel(e3, u);
-  CheckPartialModel(e4a, u);
-  CheckPartialModel(e4b, u);
+  CHECK_PARTIAL_MODEL(x_plus_1, u)
+  CHECK_PARTIAL_MODEL(x_sub_1, u)
+  CHECK_PARTIAL_MODEL(x_and_1, u)
+  CHECK_PARTIAL_MODEL(x_plus_y, u)
+  CHECK_PARTIAL_MODEL(x_sub_y, u)
+  CHECK_PARTIAL_MODEL(x_and_y, u)
+  CHECK_PARTIAL_MODEL(t0, u)
+  CHECK_PARTIAL_MODEL(t1, u)
+  CHECK_PARTIAL_MODEL(t2, u)
+  CHECK_PARTIAL_MODEL(t3, u)
+  CHECK_PARTIAL_MODEL(t4, u)
+  CHECK_PARTIAL_MODEL(t5, u)
+  CHECK_PARTIAL_MODEL(t6, u)
+  CHECK_PARTIAL_MODEL(e1, u)
+  CHECK_PARTIAL_MODEL(e2, u)
+  CHECK_PARTIAL_MODEL(e3, u)
+  CHECK_PARTIAL_MODEL(e4a, u)
+  CHECK_PARTIAL_MODEL(e4b, u)
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedDynamicCoiUnitTests,

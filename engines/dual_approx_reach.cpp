@@ -144,7 +144,7 @@ bool DualApproxReach::step(int i)
 
   ++reached_k_;
   assert(i == reached_k_);
-  assert(forward_seq_.size() == reached_k_ + 1);
+  assert(forward_seq_.size() == static_cast<size_t>(reached_k_) + 1);
   assert(forward_seq_.size() == backward_seq_.size());
 
   return check_fixed_point();

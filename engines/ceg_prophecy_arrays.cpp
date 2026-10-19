@@ -413,11 +413,9 @@ template <class Prover_T>
 Term CegProphecyArrays<Prover_T>::get_bmc_formula(size_t b)
 {
   Term abs_bmc_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
-  for (int k = 0; k < b; ++k) {
+  for (size_t k = 0; k < b; ++k) {
     abs_bmc_formula = super::solver_->make_term(
-        And,
-        abs_bmc_formula,
-        abs_unroller_.at_time(abs_ts_.trans(), timestep(k)));
+        And, abs_bmc_formula, abs_unroller_.at_time(abs_ts_.trans(), k));
   }
 
   return super::solver_->make_term(
@@ -567,7 +565,7 @@ Term CegProphecyArrays<Prover_T>::label(const Term & t)
           super::solver_->make_sort(BOOL));
       break;
     }
-    catch (IncorrectUsageException & e) {
+    catch (IncorrectUsageException &) {
       ++i;
     }
     catch (SmtException & e) {
@@ -624,7 +622,6 @@ template <class Prover_T>
 void CegProphecyArrays<Prover_T>::add_important_var(const Term & v)
 {
   // No-Op
-  ;
 }
 
 template <>

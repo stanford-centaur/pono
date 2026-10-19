@@ -128,7 +128,7 @@ ProverResult InterpolantMC::check_until(int k)
       }
     }
   }
-  catch (InternalSolverException & e) {
+  catch (InternalSolverException &) {
     logger.log(1, "Failed when computing interpolant.");
   }
   return ProverResult::UNKNOWN;

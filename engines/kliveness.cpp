@@ -87,7 +87,7 @@ ProverResult KLiveness::check_until(int k)
   for (; live_count_ <= options_.klive_bound_;
        live_count_ += options_.klive_step_size_) {
     logger.log(1, "k-liveness counter {}", live_count_);
-    if (k < live_count_ + 1) {
+    if (k < 0 || static_cast<size_t>(k) < live_count_ + 1) {
       // k must be at least live_count_ + 1 to be able to
       // count live_count_ times
       logger.log(1,

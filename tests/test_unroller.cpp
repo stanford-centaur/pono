@@ -87,6 +87,9 @@ TEST_P(UnrollerUnitTests, GetTime)
   // should be <= since only over current state vars, input vars, and next state
   // vars
   EXPECT_THROW(u.get_curr_time(x1px4), PonoException);
+
+  // a term with no variables is at no particular time
+  EXPECT_THROW(u.get_curr_time(rts.make_term(3, bvsort)), PonoException);
 }
 
 TEST_P(UnrollerUnitTests, StagedUnrolling)

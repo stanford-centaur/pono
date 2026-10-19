@@ -23,7 +23,7 @@
 %x WORD_INIT WORD_BASE WORD_VALUE
 %%
 
-[ \t]     ;
+[ \t]     {}
 MODULE {yylineno = 1; return pono::smvparser::make_MODULE(_encoder.loc);}
 IVAR   {return pono::smvparser::make_IVAR(_encoder.loc);}
 VAR  {return pono::smvparser::make_VAR(_encoder.loc);}
@@ -111,7 +111,7 @@ in {return pono::smvparser::make_OP_IN(_encoder.loc);}
 "xor"  {return pono::smvparser::make_OP_XOR(_encoder.loc);}
 "xnor"  {return pono::smvparser::make_OP_XNOR(_encoder.loc);}
 
-\.    {return pono::smvparser::make_DOT(_encoder.loc);};
+\.    {return pono::smvparser::make_DOT(_encoder.loc);}
 ".." {return pono::smvparser::make_TO(_encoder.loc);}
 "(" {return pono::smvparser::make_LPARE(_encoder.loc);}
 ")" {return pono::smvparser::make_RPARE(_encoder.loc);}

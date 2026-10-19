@@ -156,7 +156,7 @@ bool BaseProver::witness(vector<UnorderedTermMap> & out)
       try {
         map[v] = transfer_to_orig_ts_as(wit_map.at(pv), sk);
       }
-      catch (exception & e) {
+      catch (exception &) {
         success = false;
         break;
       }
@@ -169,7 +169,7 @@ bool BaseProver::witness(vector<UnorderedTermMap> & out)
         try {
           map[elem.second] = transfer_to_orig_ts_as(wit_map.at(pt), sk);
         }
-        catch (exception & e) {
+        catch (exception &) {
           success = false;
           break;
         }

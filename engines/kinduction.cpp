@@ -254,6 +254,11 @@ ProverResult KInduction::check_until(int k)
         compute_witness();
         return ProverResult::FALSE;
       }
+      // an unknown result does not rule out a counterexample
+      if (!res.is_unsat()) {
+        kind_log_msg(1, "", "base case at bound {} is {}", i, res.to_string());
+        return ProverResult::UNKNOWN;
+      }
     }
 
     solver_->pop();

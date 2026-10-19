@@ -143,7 +143,7 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
       }
     }
   }
-  catch (SmtException & e) {
+  catch (SmtException &) {
     logger.log(2, "Failed to reduce predicates");
   }
 

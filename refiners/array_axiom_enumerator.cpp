@@ -277,7 +277,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
                  core_set.size(),
                  all_violated_axioms.size());
     }
-    catch (SmtException & e) {
+    catch (SmtException &) {
       // if core is empty, that's fine -- continue
       // but it should only happen if no axioms were added
       assert(!all_violated_axioms.size());
@@ -358,7 +358,8 @@ bool ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
         ts_axioms_[unrolled_ax] = ax;
         num_found_lemmas++;
 
-        if (lemma_limit > 0 && num_found_lemmas >= lemma_limit) {
+        if (lemma_limit > 0
+            && num_found_lemmas >= static_cast<size_t>(lemma_limit)) {
           // if given a lemma limit, then finish when that limit is reached
           return num_found_lemmas;
         }
@@ -434,7 +435,8 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
         to_axiom_inst_.insert({ unrolled_ax, ax_inst });
         num_found_lemmas++;
 
-        if (lemma_limit > 0 && num_found_lemmas >= lemma_limit) {
+        if (lemma_limit > 0
+            && num_found_lemmas >= static_cast<size_t>(lemma_limit)) {
           // if given a lemma limit, then finish when that limit is reached
           return num_found_lemmas;
         }

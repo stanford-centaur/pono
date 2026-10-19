@@ -436,7 +436,7 @@ ProverResult IC3Base::step(int i)
   // reached_k_ is the number of transitions that have been checked
   // at this point there are reached_k_ + 1 frames that don't
   // intersect bad, and reached_k_ + 2 frames overall
-  assert(reached_k_ == frontier_idx());
+  assert(static_cast<size_t>(reached_k_) == frontier_idx());
   logger.log(1, "Blocking phase at frame {}", i);
   if (!block_all()) {
     // counter-example
@@ -1077,7 +1077,7 @@ void IC3Base::reset_solver()
       }
     }
   }
-  catch (SmtException & e) {
+  catch (SmtException &) {
     logger.log(1,
                "Failed to reset solver (underlying solver must not support "
                "it). Disabling solver resets for rest of run.");
@@ -1107,7 +1107,7 @@ Term IC3Base::label(const Term & t)
             solver_->make_sort(BOOL));
         break;
       }
-      catch (IncorrectUsageException & e) {
+      catch (IncorrectUsageException &) {
         ++i;
       }
       catch (SmtException & e) {

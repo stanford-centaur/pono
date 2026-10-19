@@ -67,7 +67,9 @@ uint64_t SygusPdr::GetScore(const Term & t)
   if (pos != score_map.end()) return pos->second.score;
   term_score_walker_.WalkBFS(t);
   pos = score_map.find(t);
-  assert(pos != score_map.end());
+  if (pos == score_map.end()) {
+    throw PonoException("Walking " + t->to_string() + " scored no term.");
+  }
   return pos->second.score;
 }
 
@@ -361,7 +363,9 @@ IC3Formula SygusPdr::inductive_generalization(size_t i, const IC3Formula & c)
   // this is to produce the lemma
   // find the model
   auto model_pos = model2cube_.find(c.term);
-  assert(model_pos != model2cube_.end());
+  if (model_pos == model2cube_.end()) {
+    throw PonoException("No model recorded for " + c.term->to_string());
+  }
   syntax_analysis::IC3FormulaModel * post_model = model_pos->second;
 
   Term Init_prime = ts_.next(ts_.init());
