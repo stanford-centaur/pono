@@ -153,10 +153,52 @@ TEST_P(SVUnitTests, ReportingSystemTasksIgnoredWrongFails)
 
 // The other half of the split: a system task that takes an argument
 // by reference writes through it, so skipping the call would drop
-// that write.
-TEST_P(SVUnitTests, SystemTaskOutputArg)
+// that write. One per registration class in slang, since it is
+// slang's own metadata that reports whether a given task has output
+// arguments, and that is what this encoder asks.
+
+// `$readmemh`, which fills a memory the design goes on to read.
+TEST_P(SVUnitTests, SystemTaskReadmem)
 {
-  expect_encode_throws("system_task_output_arg.sv");
+  expect_encode_throws("system_task_readmem.sv");
+}
+
+// `$deposit`, which assigns a variable outside any assignment.
+TEST_P(SVUnitTests, SystemTaskDeposit)
+{
+  expect_encode_throws("system_task_deposit.sv");
+}
+
+// `$cast`, whose destination is its first argument.
+TEST_P(SVUnitTests, SystemTaskCast)
+{
+  expect_encode_throws("system_task_cast.sv");
+}
+
+// `$sformat`, which formats into its first argument.
+TEST_P(SVUnitTests, SystemTaskSformat)
+{
+  expect_encode_throws("system_task_sformat.sv");
+}
+
+// `$swrite`, the same idea from the `$write` family.
+TEST_P(SVUnitTests, SystemTaskSwrite)
+{
+  expect_encode_throws("system_task_swrite.sv");
+}
+
+// `$fscanf`, a function rather than a task: its result can be
+// discarded, which leaves its writes as the only reason to call it.
+TEST_P(SVUnitTests, SystemTaskFscanf)
+{
+  expect_encode_throws("system_task_fscanf.sv");
+}
+
+// `$value$plusargs`, which writes the parsed value into its second
+// argument.
+TEST_P(SVUnitTests, SystemTaskValuePlusargs)
+{
+  expect_encode_throws("system_task_value_plusargs.sv");
 }
 
 // Assertion control writes nothing and still decides which

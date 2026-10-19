@@ -4,7 +4,7 @@
 // loaders). Skipping such a call is not like skipping a `$display`:
 // the target keeps whatever it held, and here that means a memory
 // the design goes on to read is never filled.
-module system_task_output_arg (
+module system_task_readmem (
     input logic       clk,
     input logic [1:0] idx
 );
