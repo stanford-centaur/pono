@@ -278,14 +278,16 @@ const vector<MoxiError> moxi_errors({
     { "(set-logic ALL)"
       "(define-fun f () (Array Int Real) ((as const (Array Int Real)) 0))",
       "needs a value of sort Real, not Int" },
-    { "(set-logic ALL) (declare-fun g (Real) Bool) (define-fun f () Bool (g 1))",
+    { "(set-logic ALL) (declare-fun g (Real) Bool)"
+      "(define-fun f () Bool (g 1))",
       "to arguments of sort" },
     { "(set-logic ALL) (define-fun f () Real 1)",
       "the definition of f has sort Int, but Real is declared" },
     { "(set-logic ALL) (define-fun h ((x Real)) Real x)"
       "(define-fun f () Real (h 1))",
       "argument 1 of h has sort Int instead of Real" },
-    { "(set-logic ALL) (declare-fun c () Int) (define-fun f () Real (as c Real))",
+    { "(set-logic ALL) (declare-fun c () Int)"
+      "(define-fun f () Real (as c Real))",
       "c does not have sort Real" },
     { "(set-logic ALL) (define-fun f () Real ((as + Real) 1 2))",
       "the application of + does not have sort Real" },
