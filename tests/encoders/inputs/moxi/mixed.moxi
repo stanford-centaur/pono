@@ -1,0 +1,24 @@
+; In AUFLIRA and AUFNIRA, an integer argument of +, -, *, /, <, <=, > and >=
+; stands for a real next to a real argument, and always for /. Other
+; operators, e.g. =, take no integer for a real.
+(set-logic AUFLIRA)
+
+(define-system Halve
+  :input ((n Int))
+  :output ((x Real))
+  :init (= x 0.0)
+  :trans (= x' (/ n 2)))
+
+; x = 3/2 after n = 3
+(check-system Halve
+  :input ((n Int))
+  :output ((x Real))
+  :reachable (three_halves (= (- (* 2 x) 1) 2.0))
+  :query (reach_three_halves (three_halves)))
+
+; x is a multiple of 1/2, so never strictly between 0 and 1/2
+(check-system Halve
+  :input ((n Int))
+  :output ((x Real))
+  :reachable (between (and (< 0 x) (< x (/ 1 2))))
+  :query (reach_between (between)))

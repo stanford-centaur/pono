@@ -1,0 +1,28 @@
+; A counter that wraps around to 0 after 5, so it never shows 6.
+(set-logic QF_BV)
+
+(define-system Counter
+  :output ((c (_ BitVec 4)))
+  :init (= c #x0)
+  :trans (= c' (ite (= c #x5) #x0 (bvadd c #x1))))
+
+(check-system Counter
+  :output ((c (_ BitVec 4)))
+  :reachable (five (= c #x5))
+  :query (reach_five (five)))
+
+(check-system Counter
+  :output ((c (_ BitVec 4)))
+  :reachable (six (= c #x6))
+  :query (reach_six (six)))
+
+; conditions over a transition, with next-state variables
+(check-system Counter
+  :output ((c (_ BitVec 4)))
+  :reachable (up (and (= c #x2) (= c' #x3)))
+  :query (step_up (up)))
+
+(check-system Counter
+  :output ((c (_ BitVec 4)))
+  :reachable (skip (and (= c #x5) (= c' #x6)))
+  :query (step_skip (skip)))

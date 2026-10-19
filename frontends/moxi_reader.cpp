@@ -1,0 +1,1298 @@
+/*********************                                                        */
+/*! \file moxi_reader.cpp
+** \verbatim
+** Top contributors (to current version):
+**   Po-Chun Chien
+** This file is part of the pono project.
+** Copyright (c) 2019 by the authors listed in the file AUTHORS
+** (in the top-level source directory) and their institutional affiliations.
+** All rights reserved.  See the file LICENSE in the top-level source
+** directory for licensing information.\endverbatim
+**
+** \brief Reads a MoXI file into the systems and checks it defines, as
+**        terms of a solver, for MoxiEncoder to encode.
+**
+**/
+
+#include "frontends/moxi_reader.h"
+
+#include <algorithm>
+#include <atomic>
+#include <cassert>
+#include <cctype>
+#include <limits>
+#include <ostream>
+#include <sstream>
+
+#include "utils/exceptions.h"
+#include "utils/str_util.h"
+
+using namespace smt;
+using namespace std;
+
+namespace pono {
+namespace moxi {
+
+namespace {
+
+/** A predefined function that maps to an operator of the solver. It takes
+ *  as many arguments as smt-switch's get_arity says the operator takes. */
+struct Builtin
+{
+  PrimOp op;
+  /** a bound on the number of arguments, for a function that takes fewer
+   *  than the operator */
+  size_t max_args = numeric_limits<size_t>::max();
+};
+
+const unordered_map<string, Builtin> & builtins()
+{
+  static const unordered_map<string, Builtin> table{
+    // core
+    { "not", { Not } },
+    { "and", { And } },
+    { "or", { Or } },
+    { "xor", { Xor } },
+    { "=>", { Implies } },
+    { "=", { Equal } },
+    { "distinct", { Distinct } },
+    // MoXI adds a binary disequality
+    { "!=", { Distinct, 2 } },
+    { "ite", { Ite } },
+    // integers and reals
+    { "+", { Plus } },
+    { "-", { Minus } },
+    { "*", { Mult } },
+    { "/", { Div } },
+    { "div", { IntDiv } },
+    { "mod", { Mod } },
+    { "abs", { Abs } },
+    { "<", { Lt } },
+    { "<=", { Le } },
+    { ">", { Gt } },
+    { ">=", { Ge } },
+    { "to_real", { To_Real } },
+    { "to_int", { To_Int } },
+    { "is_int", { Is_Int } },
+    // bit-vectors
+    { "concat", { Concat } },
+    { "bvnot", { BVNot } },
+    { "bvneg", { BVNeg } },
+    { "bvand", { BVAnd } },
+    { "bvor", { BVOr } },
+    { "bvxor", { BVXor } },
+    { "bvadd", { BVAdd } },
+    { "bvmul", { BVMul } },
+    { "bvnand", { BVNand } },
+    { "bvnor", { BVNor } },
+    { "bvxnor", { BVXnor } },
+    { "bvsub", { BVSub } },
+    { "bvudiv", { BVUdiv } },
+    { "bvsdiv", { BVSdiv } },
+    { "bvurem", { BVUrem } },
+    { "bvsrem", { BVSrem } },
+    { "bvsmod", { BVSmod } },
+    { "bvshl", { BVShl } },
+    { "bvlshr", { BVLshr } },
+    { "bvashr", { BVAshr } },
+    { "bvcomp", { BVComp } },
+    { "bvult", { BVUlt } },
+    { "bvule", { BVUle } },
+    { "bvugt", { BVUgt } },
+    { "bvuge", { BVUge } },
+    { "bvslt", { BVSlt } },
+    { "bvsle", { BVSle } },
+    { "bvsgt", { BVSgt } },
+    { "bvsge", { BVSge } },
+    { "ubv_to_int", { UBV_To_Int } },
+    { "sbv_to_int", { SBV_To_Int } },
+    // arrays
+    { "select", { Select } },
+    { "store", { Store } },
+  };
+  return table;
+}
+
+/** The operators that SMT-LIB declares as (op Real Real s), which AUFLIRA
+ *  and AUFNIRA let take integers for reals. */
+const unordered_set<PrimOp> real_operators{ Plus, Minus, Mult, Div,
+                                            Lt,   Le,    Gt,   Ge };
+
+/** Predefined functions that take indices, as in ((_ extract 7 0) x). */
+const unordered_map<string, PrimOp> indexed_builtins{
+  { "extract", Extract },
+  { "zero_extend", Zero_Extend },
+  { "sign_extend", Sign_Extend },
+  { "rotate_left", Rotate_Left },
+  { "rotate_right", Rotate_Right },
+  { "repeat", Repeat },
+  { "int_to_bv", Int_To_BV },
+  // not an operator of the solver, see make_indexed_application
+  { "divisible", NUM_OPS_AND_NULL },
+};
+
+const unordered_set<string> builtin_sorts{
+  "Bool", "Int", "Real", "BitVec", "Array"
+};
+
+bool is_predefined_function(const string & name)
+{
+  return name == "true" || name == "false" || builtins().count(name)
+         || indexed_builtins.count(name);
+}
+
+/** @return whether the name is bv followed by a numeral, as in (_ bv5 8) */
+bool is_bv_literal_name(const string & name)
+{
+  return name.size() > 2 && name.compare(0, 2, "bv") == 0
+         && all_of(name.begin() + 2, name.end(), [](char c) {
+              return isdigit(static_cast<unsigned char>(c));
+            });
+}
+
+/** Recognizes a logic by the SMT-LIB naming scheme: an optional QF_, the
+ *  letters of other theories, and then those of the arithmetic, if any.
+ *  @return whether the name is a logic
+ */
+bool parse_logic(const string & logic, bool & has_int, bool & has_real)
+{
+  if (logic == "ALL") {
+    has_int = has_real = true;
+    return true;
+  }
+  string rest = logic;
+  if (syntax_analysis::StrStartsWith(rest, "QF_")) {
+    rest = rest.substr(3);
+  }
+  bool has_theory = false;
+  for (const string theory : { "AX", "A", "UF", "BV", "FP", "DT", "S" }) {
+    if (syntax_analysis::StrStartsWith(rest, theory)) {
+      rest = rest.substr(theory.size());
+      has_theory = true;
+    }
+  }
+  static const unordered_map<string, pair<bool, bool>> arithmetic{
+    { "", { false, false } },   { "IDL", { true, false } },
+    { "RDL", { false, true } }, { "LIA", { true, false } },
+    { "LRA", { false, true } }, { "NIA", { true, false } },
+    { "NRA", { false, true } }, { "LIRA", { true, true } },
+    { "NIRA", { true, true } },
+  };
+  auto it = arithmetic.find(rest);
+  if (it == arithmetic.end() || (rest.empty() && !has_theory)) {
+    return false;
+  }
+  has_int = it->second.first;
+  has_real = it->second.second;
+  return true;
+}
+
+/** @return a name for a placeholder symbol. A solver refuses a second symbol
+ *  of a name, and readers may share one, so the count is shared too. */
+string placeholder_name()
+{
+  static atomic<uint64_t> count{ 0 };
+  return generated_name("moxi_" + to_string(count++));
+}
+
+string describe_sorts(const TermVec & args)
+{
+  string result;
+  for (const Term & arg : args) {
+    result += (result.empty() ? "" : ", ") + arg->get_sort()->to_string();
+  }
+  return result;
+}
+
+}  // namespace
+
+void Location::columns(int count)
+{
+  const int64_t column = static_cast<int64_t>(end.column) + count;
+  end.column = static_cast<uint32_t>(max<int64_t>(1, column));
+}
+
+void Location::lines(int count)
+{
+  if (count > 0) {
+    end.line += static_cast<uint32_t>(count);
+    end.column = 1;
+  }
+}
+
+ostream & operator<<(ostream & os, const Location & loc)
+{
+  return os << loc.begin.line << ":" << loc.begin.column;
+}
+
+const Variable & System::variable(size_t i) const
+{
+  if (i < inputs.size()) {
+    return inputs[i];
+  }
+  i -= inputs.size();
+  if (i < outputs.size()) {
+    return outputs[i];
+  }
+  return locals.at(i - outputs.size());
+}
+
+Reader::Reader(const string & filename, const SmtSolver & solver)
+    : filename_(filename), solver_(solver), bool_sort_(solver->make_sort(BOOL))
+{
+  parse();
+}
+
+void Reader::error(const Location & loc, const string & message) const
+{
+  ostringstream text;
+  text << filename_ << ":" << loc << ": " << message;
+  throw PonoException(text.str());
+}
+
+// commands
+
+void Reader::set_logic(const string & logic, const Location & loc)
+{
+  if (logic_set_) {
+    error(loc, "the logic is already set");
+  }
+  if (!parse_logic(logic, logic_has_int_, logic_has_real_)) {
+    error(loc, "unknown logic " + logic);
+  }
+  logic_set_ = true;
+}
+
+void Reader::declare_sort(const string & name,
+                          const string & arity,
+                          const Location & loc)
+{
+  check_new_sort_name(name, loc);
+  const uint64_t n = parse_index(arity, loc);
+  try {
+    declared_sorts_[name] = { solver_->make_sort(name, n), n };
+  }
+  catch (const SmtException & e) {
+    error(loc, "cannot declare sort " + name + ": " + e.what());
+  }
+}
+
+void Reader::define_sort(const string & name,
+                         const vector<string> & params,
+                         const SortExpr & body,
+                         const Location & loc)
+{
+  check_new_sort_name(name, loc);
+  // Resolve the body once to report its mistakes here, with the parameters
+  // standing for an arbitrary sort.
+  SortParams dummies;
+  for (const string & param : params) {
+    if (!dummies.emplace(param, bool_sort_).second) {
+      error(loc, "sort parameter " + param + " is repeated");
+    }
+  }
+  resolve_sort(body, &dummies);
+  defined_sorts_[name] = { params, body };
+}
+
+void Reader::declare_enum_sort(const string & name,
+                               const vector<string> & values,
+                               const Location & loc)
+{
+  check_new_sort_name(name, loc);
+  unordered_set<string> seen;
+  for (const string & value : values) {
+    check_new_global_name(value, loc);
+    if (!seen.insert(value).second) {
+      error(loc, "value " + value + " of enumeration " + name + " is repeated");
+    }
+  }
+  const SolverEnum se = solver_->get_solver_enum();
+  if (!solver_has_attribute(se, THEORY_DATATYPE)) {
+    error(loc,
+          "solver " + to_string(se)
+              + " does not support datatypes, which enumeration sorts are;"
+                " choose one that does, e.g. with --smt-solver cvc5");
+  }
+  // An enumeration is a datatype whose constructors take no arguments.
+  try {
+    DatatypeDecl decl = solver_->make_datatype_decl(name);
+    for (const string & value : values) {
+      solver_->add_constructor(decl,
+                               solver_->make_datatype_constructor_decl(value));
+    }
+    const Sort sort = solver_->make_sort(decl);
+    enum_sorts_[name] = sort;
+    for (const string & value : values) {
+      enum_values_[value] = solver_->make_term(
+          Apply_Constructor, solver_->get_constructor(sort, value));
+    }
+  }
+  catch (const SmtException & e) {
+    error(loc, "cannot declare enumeration " + name + ": " + e.what());
+  }
+}
+
+void Reader::declare_fun(const string & name,
+                         const vector<SortExpr> & args,
+                         const SortExpr & result,
+                         const Location & loc)
+{
+  check_new_global_name(name, loc);
+  const Sort result_sort = resolve_sort(result);
+  if (args.empty()) {
+    constants_.push_back(
+        { name, result_sort, make_placeholder(result_sort), loc });
+    constant_names_[name] = &constants_.back();
+    return;
+  }
+  Function function;
+  for (const SortExpr & arg : args) {
+    function.arg_sorts.push_back(resolve_sort(arg));
+  }
+  SortVec sorts = function.arg_sorts;
+  sorts.push_back(result_sort);
+  function.result = result_sort;
+  try {
+    function.symbol =
+        solver_->make_symbol(name, solver_->make_sort(FUNCTION, sorts));
+  }
+  catch (const SmtException & e) {
+    error(loc, "cannot declare function " + name + ": " + e.what());
+  }
+  functions_[name] = function;
+  function_names_.insert(name);
+}
+
+void Reader::begin_define_fun(const string & name,
+                              const vector<SortedVar> & params,
+                              const SortExpr & result,
+                              const Location & loc)
+{
+  check_new_global_name(name, loc);
+  macro_name_ = name;
+  macro_ = Macro();
+  bound_scopes_.emplace_back();
+  unordered_set<string> seen;
+  for (const SortedVar & param : params) {
+    if (!seen.insert(param.name).second) {
+      error(param.loc, "parameter " + param.name + " is repeated");
+    }
+    const Sort sort = resolve_sort(*param.sort);
+    macro_.params.push_back(make_placeholder(sort));
+    macro_.param_sorts.push_back(sort);
+    bind(param.name, macro_.params.back());
+  }
+  macro_.result = resolve_sort(result);
+  next_allowed_ = false;
+  formula_attribute_ = "define-fun";
+}
+
+void Reader::end_define_fun(const Term & body, const Location & loc)
+{
+  pop_scope();
+  macro_.body = body;
+  if (!has_sort(body, macro_.result)) {
+    error(loc,
+          "the definition of " + macro_name_ + " has sort "
+              + body->get_sort()->to_string() + ", but "
+              + macro_.result->to_string() + " is declared");
+  }
+  macros_[macro_name_] = std::move(macro_);
+}
+
+void Reader::begin_system(const string & name, const Location & loc)
+{
+  scope_ = Scope::SYSTEM;
+  system_ = make_shared<System>();
+  system_->name = name;
+  system_->loc = loc;
+  declared_attributes_.clear();
+  command_names_.clear();
+  variables_in_scope_.clear();
+}
+
+void Reader::end_system()
+{
+  // A later definition of the same name replaces this one, while the
+  // systems defined in between keep instantiating this one.
+  systems_[system_->name] = system_;
+  system_.reset();
+  variables_in_scope_.clear();
+  scope_ = Scope::TOP;
+}
+
+void Reader::begin_check(const string & system, const Location & loc)
+{
+  auto it = systems_.find(system);
+  if (it == systems_.end()) {
+    error(loc, "unknown system " + system);
+  }
+  scope_ = Scope::CHECK;
+  check_ = Check();
+  check_.system = it->second;
+  check_.loc = loc;
+  declared_attributes_.clear();
+  command_names_.clear();
+  variables_in_scope_.clear();
+  formula_positions_.clear();
+  query_exprs_.clear();
+}
+
+void Reader::end_check()
+{
+  unordered_set<string> query_names;
+  for (const QueryExpr & expr : query_exprs_) {
+    if (!query_names.insert(expr.name).second) {
+      error(expr.loc, "query " + expr.name + " is defined more than once");
+    }
+    if (expr.formulas.empty()) {
+      error(expr.loc, "query " + expr.name + " lists no formulas");
+    }
+    Query query{ expr.name, {}, expr.loc };
+    size_t currents = 0;
+    for (const string & name : expr.formulas) {
+      auto it = formula_positions_.find(name);
+      if (it == formula_positions_.end()) {
+        error(expr.loc,
+              "query " + expr.name + " refers to " + name
+                  + ", which is not a formula of this check-system");
+      }
+      if (find(query.formulas.begin(), query.formulas.end(), it->second)
+          != query.formulas.end()) {
+        continue;
+      }
+      query.formulas.push_back(it->second);
+      if (check_.formulas[it->second].kind == FormulaKind::CURRENT) {
+        ++currents;
+      }
+    }
+    if (currents > 1) {
+      error(expr.loc,
+            "query " + expr.name + " has more than one :current formula");
+    }
+    check_.queries.push_back(std::move(query));
+  }
+  checks_.push_back(std::move(check_));
+  check_ = Check();
+  variables_in_scope_.clear();
+  scope_ = Scope::TOP;
+}
+
+vector<Variable> & Reader::variables(const string & attribute,
+                                     const Location & loc)
+{
+  if (scope_ == Scope::SYSTEM) {
+    if (attribute == ":input") return system_->inputs;
+    if (attribute == ":output") return system_->outputs;
+    if (attribute == ":local") return system_->locals;
+  } else if (scope_ == Scope::CHECK) {
+    if (attribute == ":input") return check_.inputs;
+    if (attribute == ":output") return check_.outputs;
+    if (attribute == ":local") return check_.locals;
+  }
+  error(loc, "unexpected attribute " + attribute);
+}
+
+void Reader::declare_variables(const string & attribute,
+                               const vector<SortedVar> & vars,
+                               const Location & loc)
+{
+  if (!declared_attributes_.insert(attribute).second) {
+    error(loc, "attribute " + attribute + " appears more than once");
+  }
+  vector<Variable> & group = variables(attribute, loc);
+  for (const SortedVar & var : vars) {
+    if (is_generated_name(var.name)) {
+      error(var.loc, "the name " + var.name + " is reserved for pono");
+    }
+    if (!command_names_.insert(var.name).second) {
+      error(var.loc, "variable " + var.name + " is declared more than once");
+    }
+    const Sort sort = resolve_sort(*var.sort);
+    group.push_back({ var.name,
+                      sort,
+                      make_placeholder(sort),
+                      make_placeholder(sort),
+                      var.loc });
+  }
+}
+
+void Reader::check_signature(const string & attribute,
+                             vector<Variable> & declared,
+                             const vector<Variable> & expected,
+                             const Location & loc)
+{
+  const System & system = *check_.system;
+  if (!declared_attributes_.count(attribute)) {
+    // Leaving out the attribute keeps the names the system gave them.
+    for (const Variable & var : expected) {
+      if (!command_names_.insert(var.name).second) {
+        error(loc,
+              "variable " + var.name + " of system " + system.name
+                  + " clashes with a variable of this check-system");
+      }
+      declared.push_back({ var.name,
+                           var.sort,
+                           make_placeholder(var.sort),
+                           make_placeholder(var.sort),
+                           loc });
+    }
+    return;
+  }
+  if (declared.size() != expected.size()) {
+    error(loc,
+          "the " + attribute + " attribute declares "
+              + to_string(declared.size()) + " variables, but system "
+              + system.name + " has " + to_string(expected.size()));
+  }
+  for (size_t i = 0; i < declared.size(); ++i) {
+    if (declared[i].sort != expected[i].sort) {
+      error(declared[i].loc,
+            "variable " + declared[i].name + " has sort "
+                + declared[i].sort->to_string() + ", but the variable "
+                + expected[i].name + " of system " + system.name
+                + " it renames has sort " + expected[i].sort->to_string());
+    }
+  }
+}
+
+void Reader::enter_variables(const vector<Variable> & vars)
+{
+  for (const Variable & var : vars) {
+    variables_in_scope_[var.name] = &var;
+  }
+}
+
+void Reader::end_variables()
+{
+  variables_in_scope_.clear();
+  variable_positions_.clear();
+  if (scope_ == Scope::CHECK) {
+    const System & system = *check_.system;
+    check_signature(":input", check_.inputs, system.inputs, check_.loc);
+    check_signature(":output", check_.outputs, system.outputs, check_.loc);
+    check_signature(":local", check_.locals, system.locals, check_.loc);
+    enter_variables(check_.inputs);
+    enter_variables(check_.outputs);
+    enter_variables(check_.locals);
+    return;
+  }
+  assert(scope_ == Scope::SYSTEM);
+  enter_variables(system_->inputs);
+  enter_variables(system_->outputs);
+  enter_variables(system_->locals);
+  for (size_t i = 0; i < system_->num_variables(); ++i) {
+    variable_positions_[system_->variable(i).name] = i;
+  }
+}
+
+void Reader::begin_formula(const string & attribute)
+{
+  next_allowed_ = attribute == ":trans" || attribute == ":assumption"
+                  || attribute == ":fairness" || attribute == ":reachable";
+  formula_attribute_ = attribute;
+}
+
+void Reader::set_system_formula(const string & attribute,
+                                const Term & formula,
+                                const Location & loc)
+{
+  next_allowed_ = false;
+  if (!declared_attributes_.insert(attribute).second) {
+    error(loc, "attribute " + attribute + " appears more than once");
+  }
+  if (formula->get_sort() != bool_sort_) {
+    error(loc,
+          "the formula of " + attribute + " has sort "
+              + formula->get_sort()->to_string() + " instead of Bool");
+  }
+  if (attribute == ":init") {
+    system_->init = formula;
+  } else if (attribute == ":trans") {
+    system_->trans = formula;
+  } else {
+    assert(attribute == ":inv");
+    system_->inv = formula;
+  }
+}
+
+void Reader::add_subsystem(const string & name,
+                           const string & system,
+                           const vector<string> & args,
+                           const Location & loc)
+{
+  // The instance names the variables it has, see MoxiEncoder.
+  if (is_generated_name(name)) {
+    error(loc, "the name " + name + " is reserved for pono");
+  }
+  if (!command_names_.insert(name).second) {
+    error(loc,
+          "subsystem " + name + " has the name of another variable or"
+              + " subsystem of " + system_->name);
+  }
+  auto it = systems_.find(system);
+  if (it == systems_.end()) {
+    error(loc, "unknown system " + system);
+  }
+  const System & target = *it->second;
+  const size_t expected = target.inputs.size() + target.outputs.size();
+  if (args.size() != expected) {
+    error(loc,
+          "subsystem " + name + " passes " + to_string(args.size())
+              + " variables to system " + system + ", which has "
+              + to_string(expected) + " inputs and outputs");
+  }
+  Subsystem subsystem{ name, it->second, {}, loc };
+  for (size_t i = 0; i < args.size(); ++i) {
+    auto pos = variable_positions_.find(args[i]);
+    if (pos == variable_positions_.end()) {
+      error(loc,
+            "subsystem " + name + " passes " + args[i]
+                + ", which is not a variable of system " + system_->name);
+    }
+    const Variable & actual = system_->variable(pos->second);
+    const Variable & formal = target.variable(i);
+    if (actual.sort != formal.sort) {
+      error(loc,
+            "subsystem " + name + " passes " + actual.name + " of sort "
+                + actual.sort->to_string() + " for " + formal.name + " of sort "
+                + formal.sort->to_string());
+    }
+    subsystem.args.push_back(pos->second);
+  }
+  system_->subsystems.push_back(std::move(subsystem));
+}
+
+void Reader::add_check_formula(const string & attribute,
+                               const string & name,
+                               const Term & formula,
+                               const Location & loc)
+{
+  next_allowed_ = false;
+  if (formula->get_sort() != bool_sort_) {
+    error(loc,
+          "the formula " + name + " has sort "
+              + formula->get_sort()->to_string() + " instead of Bool");
+  }
+  FormulaKind kind = FormulaKind::CURRENT;
+  if (attribute == ":assumption") {
+    kind = FormulaKind::ASSUMPTION;
+  } else if (attribute == ":fairness") {
+    kind = FormulaKind::FAIRNESS;
+  } else if (attribute == ":reachable") {
+    kind = FormulaKind::REACHABLE;
+  } else {
+    assert(attribute == ":current");
+  }
+  if (!formula_positions_.emplace(name, check_.formulas.size()).second) {
+    error(loc, "another formula of this check-system is named " + name);
+  }
+  check_.formulas.push_back({ name, kind, formula, loc });
+}
+
+void Reader::add_query(const QueryExpr & query)
+{
+  // Queries may name formulas that come later, so they are resolved at the
+  // end of the command.
+  query_exprs_.push_back(query);
+}
+
+void Reader::add_queries(const vector<QueryExpr> & queries,
+                         const Location & loc)
+{
+  check_.queries_attributes.push_back(loc);
+  for (const QueryExpr & query : queries) {
+    add_query(query);
+  }
+}
+
+// sorts
+
+Sort Reader::int_sort(const Location & loc)
+{
+  if (!int_sort_) {
+    const SolverEnum se = solver_->get_solver_enum();
+    if (!solver_has_attribute(se, THEORY_INT)) {
+      error(loc,
+            "solver " + to_string(se)
+                + " does not support integers; choose one that does,"
+                  " e.g. with --smt-solver cvc5");
+    }
+    int_sort_ = solver_->make_sort(INT);
+  }
+  return int_sort_;
+}
+
+Sort Reader::real_sort(const Location & loc)
+{
+  if (!real_sort_) {
+    const SolverEnum se = solver_->get_solver_enum();
+    if (!solver_has_attribute(se, THEORY_REAL)) {
+      error(loc,
+            "solver " + to_string(se)
+                + " does not support reals; choose one that does,"
+                  " e.g. with --smt-solver cvc5");
+    }
+    real_sort_ = solver_->make_sort(REAL);
+  }
+  return real_sort_;
+}
+
+Sort Reader::numeral_sort(const Location & loc)
+{
+  // In SMT-LIB, numerals are reals in the logics without integers.
+  return logic_has_real_ && !logic_has_int_ ? real_sort(loc) : int_sort(loc);
+}
+
+uint64_t Reader::parse_index(const string & index, const Location & loc) const
+{
+  if (index.empty() || index.size() > 19
+      || !all_of(index.begin(), index.end(), [](char c) {
+           return isdigit(static_cast<unsigned char>(c));
+         })) {
+    error(loc, "expected a numeral that fits 64 bits, not " + index);
+  }
+  return stoull(index);
+}
+
+Sort Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
+{
+  const string & name = expr.name;
+  const bool plain = expr.indices.empty() && expr.args.empty();
+  if (params && plain) {
+    auto it = params->find(name);
+    if (it != params->end()) {
+      return it->second;
+    }
+  }
+  try {
+    if (name == "Bool" && plain) {
+      return bool_sort_;
+    } else if (name == "Int" && plain) {
+      return int_sort(expr.loc);
+    } else if (name == "Real" && plain) {
+      return real_sort(expr.loc);
+    } else if (name == "BitVec" && expr.indices.size() == 1
+               && expr.args.empty()) {
+      const uint64_t width = parse_index(expr.indices[0], expr.loc);
+      if (!width) {
+        error(expr.loc, "bit-vectors need a positive width");
+      }
+      return solver_->make_sort(BV, width);
+    } else if (name == "Array" && expr.indices.empty()
+               && expr.args.size() == 2) {
+      return solver_->make_sort(ARRAY,
+                                resolve_sort(expr.args[0], params),
+                                resolve_sort(expr.args[1], params));
+    }
+
+    auto enumeration = enum_sorts_.find(name);
+    if (enumeration != enum_sorts_.end() && plain) {
+      return enumeration->second;
+    }
+
+    auto defined = defined_sorts_.find(name);
+    if (defined != defined_sorts_.end() && expr.indices.empty()
+        && expr.args.size() == defined->second.params.size()) {
+      SortParams args;
+      for (size_t i = 0; i < expr.args.size(); ++i) {
+        args[defined->second.params[i]] = resolve_sort(expr.args[i], params);
+      }
+      return resolve_sort(defined->second.body, &args);
+    }
+
+    auto declared = declared_sorts_.find(name);
+    if (declared != declared_sorts_.end() && expr.indices.empty()
+        && expr.args.size() == declared->second.arity) {
+      if (!declared->second.arity) {
+        return declared->second.sort;
+      }
+      SortVec args;
+      for (const SortExpr & arg : expr.args) {
+        args.push_back(resolve_sort(arg, params));
+      }
+      return solver_->make_sort(declared->second.sort, args);
+    }
+  }
+  catch (const SmtException & e) {
+    error(expr.loc, "cannot make sort " + name + ": " + e.what());
+  }
+
+  const bool known = builtin_sorts.count(name) || enum_sorts_.count(name)
+                     || defined_sorts_.count(name)
+                     || declared_sorts_.count(name);
+  error(expr.loc,
+        known ? "wrong indices or arguments for sort " + name
+              : "unknown sort " + name);
+}
+
+void Reader::check_new_sort_name(const string & name,
+                                 const Location & loc) const
+{
+  if (builtin_sorts.count(name) || enum_sorts_.count(name)
+      || defined_sorts_.count(name) || declared_sorts_.count(name)) {
+    error(loc, "sort " + name + " is already defined");
+  }
+}
+
+void Reader::check_new_global_name(const string & name,
+                                   const Location & loc) const
+{
+  if (is_generated_name(name)) {
+    error(loc, "the name " + name + " is reserved for pono");
+  }
+  if (is_predefined_function(name)) {
+    error(loc, name + " is a predefined symbol");
+  }
+  if (enum_values_.count(name) || constant_names_.count(name)
+      || functions_.count(name) || macros_.count(name)) {
+    error(loc, "symbol " + name + " is already declared");
+  }
+}
+
+Term Reader::make_placeholder(const Sort & sort)
+{
+  return solver_->make_symbol(placeholder_name(), sort);
+}
+
+// terms
+
+const Variable * Reader::lookup_variable(const string & name) const
+{
+  auto it = variables_in_scope_.find(name);
+  return it == variables_in_scope_.end() ? nullptr : it->second;
+}
+
+Term Reader::lookup_bound(const string & name) const
+{
+  auto it = bound_.find(name);
+  return it == bound_.end() ? Term() : it->second.back();
+}
+
+void Reader::bind(const string & name, const Term & term)
+{
+  bound_[name].push_back(term);
+  bound_scopes_.back().push_back(name);
+}
+
+void Reader::push_let(const vector<VarBinding> & bindings)
+{
+  // The bindings of a let are parallel: each term was built without the
+  // others in scope, so they are all bound only now.
+  bound_scopes_.emplace_back();
+  unordered_set<string> seen;
+  for (const VarBinding & binding : bindings) {
+    if (!seen.insert(binding.name).second) {
+      error(binding.loc, "let binds " + binding.name + " more than once");
+    }
+    bind(binding.name, binding.term);
+  }
+}
+
+void Reader::pop_scope()
+{
+  for (const string & name : bound_scopes_.back()) {
+    // bind() put the name in, so this does not insert it
+    vector<Term> & terms = bound_[name];
+    assert(!terms.empty());
+    if (terms.size() == 1) {
+      bound_.erase(name);
+    } else {
+      terms.pop_back();
+    }
+  }
+  bound_scopes_.pop_back();
+}
+
+void Reader::push_quantifier(const vector<SortedVar> & vars)
+{
+  bound_scopes_.emplace_back();
+  TermVec params;
+  unordered_set<string> seen;
+  for (const SortedVar & var : vars) {
+    if (!seen.insert(var.name).second) {
+      error(var.loc, "quantifier binds " + var.name + " more than once");
+    }
+    const Sort sort = resolve_sort(*var.sort);
+    params.push_back(solver_->make_param(placeholder_name(), sort));
+    bind(var.name, params.back());
+  }
+  quantifier_params_.push_back(std::move(params));
+}
+
+Term Reader::pop_quantifier(bool forall,
+                            const Term & body,
+                            const Location & loc)
+{
+  TermVec args = std::move(quantifier_params_.back());
+  quantifier_params_.pop_back();
+  pop_scope();
+  args.push_back(body);
+  return make_term(forall ? Forall : Exists, args, loc);
+}
+
+Term Reader::make_numeral(const string & digits, const Location & loc)
+{
+  return make_number(digits, numeral_sort(loc), loc);
+}
+
+Term Reader::make_decimal(const string & text, const Location & loc)
+{
+  // Solvers take a decimal as a fraction more readily than as is.
+  const size_t point = text.find('.');
+  string denominator = "1" + string(text.size() - point - 1, '0');
+  string numerator = text.substr(0, point) + text.substr(point + 1);
+  numerator.erase(0,
+                  min(numerator.find_first_not_of('0'), numerator.size() - 1));
+  return make_number(numerator + "/" + denominator, real_sort(loc), loc);
+}
+
+Term Reader::make_binary(const string & bits, const Location & loc)
+{
+  try {
+    return solver_->make_term(bits, solver_->make_sort(BV, bits.size()), 2);
+  }
+  catch (const SmtException & e) {
+    error(loc, "cannot make bit-vector #b" + bits + ": " + e.what());
+  }
+}
+
+Term Reader::make_hexadecimal(const string & digits, const Location & loc)
+{
+  try {
+    return solver_->make_term(
+        digits, solver_->make_sort(BV, 4 * digits.size()), 16);
+  }
+  catch (const SmtException & e) {
+    error(loc, "cannot make bit-vector #x" + digits + ": " + e.what());
+  }
+}
+
+Term Reader::make_next(const string & name, const Location & loc)
+{
+  if (lookup_bound(name)) {
+    error(loc, "the bound variable " + name + " cannot be primed");
+  }
+  const Variable * var = lookup_variable(name);
+  if (!var) {
+    if (enum_values_.count(name) || constant_names_.count(name)
+        || macros_.count(name) || functions_.count(name)) {
+      error(loc, "only variables of a system can be primed, unlike " + name);
+    }
+    error(loc, "unknown variable " + name + " (primed)");
+  }
+  if (!next_allowed_) {
+    error(loc,
+          "the next-state variable " + name + "' cannot appear in "
+              + formula_attribute_);
+  }
+  return var->next;
+}
+
+Term Reader::make_identifier_term(const Identifier & id)
+{
+  if (!id.indices.empty()) {
+    return make_indexed_constant(id);
+  }
+  if (id.qualifier) {
+    if (id.name == "const") {
+      error(id.loc, "a constant array needs the value of its elements");
+    }
+    Identifier plain = id;
+    plain.qualifier.reset();
+    const Sort sort = resolve_sort(*id.qualifier);
+    const Term term = make_identifier_term(plain);
+    if (!has_sort(term, sort)) {
+      error(id.loc, id.name + " does not have sort " + sort->to_string());
+    }
+    return term;
+  }
+  if (id.primed) {
+    return make_next(id.name, id.loc);
+  }
+
+  const string & name = id.name;
+  if (name == "true" || name == "false") {
+    return solver_->make_term(name == "true");
+  }
+  if (Term term = lookup_bound(name)) {
+    return term;
+  }
+  if (const Variable * var = lookup_variable(name)) {
+    return var->curr;
+  }
+  auto value = enum_values_.find(name);
+  if (value != enum_values_.end()) {
+    return value->second;
+  }
+  auto constant = constant_names_.find(name);
+  if (constant != constant_names_.end()) {
+    return constant->second->placeholder;
+  }
+  auto macro = macros_.find(name);
+  if (macro != macros_.end()) {
+    if (!macro->second.params.empty()) {
+      error(id.loc, "function " + name + " needs arguments");
+    }
+    return macro->second.body;
+  }
+  if (functions_.count(name) || is_predefined_function(name)) {
+    error(id.loc, "function " + name + " needs arguments");
+  }
+  // A quoted symbol may carry the prime inside, as in |x'|.
+  if (name.size() > 1 && name.back() == '\''
+      && lookup_variable(name.substr(0, name.size() - 1))) {
+    return make_next(name.substr(0, name.size() - 1), id.loc);
+  }
+  error(id.loc, "unknown symbol " + name);
+}
+
+Term Reader::make_indexed_constant(const Identifier & id)
+{
+  if (!is_bv_literal_name(id.name) || id.indices.size() != 1 || id.primed
+      || id.qualifier) {
+    error(id.loc, "unknown indexed constant " + id.name);
+  }
+  const uint64_t width = parse_index(id.indices[0], id.loc);
+  if (!width) {
+    error(id.loc, "bit-vectors need a positive width");
+  }
+  try {
+    return solver_->make_term(id.name.substr(2), solver_->make_sort(BV, width));
+  }
+  catch (const SmtException & e) {
+    error(id.loc, "cannot make bit-vector " + id.name + ": " + e.what());
+  }
+}
+
+Term Reader::make_application(const Identifier & id,
+                              const TermVec & args,
+                              const Location & loc)
+{
+  if (id.primed) {
+    error(id.loc, "the primed symbol " + id.name + "' is not a function");
+  }
+  if (id.qualifier) {
+    const Sort sort = resolve_sort(*id.qualifier);
+    if (id.name == "const" && id.indices.empty()) {
+      if (sort->get_sort_kind() != ARRAY) {
+        error(id.loc, "(as const S) needs an array sort S");
+      }
+      if (args.size() != 1) {
+        error(loc, "a constant array takes a single value");
+      }
+      if (!has_sort(args[0], sort->get_elemsort())) {
+        error(loc,
+              "a constant array of sort " + sort->to_string()
+                  + " needs a value of sort "
+                  + sort->get_elemsort()->to_string() + ", not "
+                  + args[0]->get_sort()->to_string());
+      }
+      try {
+        return solver_->make_term(args[0], sort);
+      }
+      catch (const SmtException & e) {
+        error(loc, string("cannot make constant array: ") + e.what());
+      }
+    }
+    // Otherwise the sort only disambiguates, which the arguments do already.
+    Identifier plain = id;
+    plain.qualifier.reset();
+    const Term term = make_application(plain, args, loc);
+    if (!has_sort(term, sort)) {
+      error(loc,
+            "the application of " + id.name + " does not have sort "
+                + sort->to_string());
+    }
+    return term;
+  }
+  if (!id.indices.empty()) {
+    return make_indexed_application(id, args, loc);
+  }
+
+  // Declared functions come first, as a variable cannot be applied anyway.
+  auto macro = macros_.find(id.name);
+  if (macro != macros_.end()) {
+    return apply_macro(id.name, macro->second, args, loc);
+  }
+  auto function = functions_.find(id.name);
+  if (function != functions_.end()) {
+    const Function & f = function->second;
+    if (args.size() != f.arg_sorts.size()) {
+      error(loc,
+            "function " + id.name + " takes " + to_string(f.arg_sorts.size())
+                + " arguments, not " + to_string(args.size()));
+    }
+    TermVec children{ f.symbol };
+    children.insert(children.end(), args.begin(), args.end());
+    return make_term(Apply, children, loc);
+  }
+  return make_builtin(id.name, args, loc);
+}
+
+Term Reader::apply_macro(const string & name,
+                         const Macro & macro,
+                         TermVec args,
+                         const Location & loc)
+{
+  if (args.size() != macro.params.size()) {
+    error(loc,
+          "function " + name + " takes " + to_string(macro.params.size())
+              + " arguments, not " + to_string(args.size()));
+  }
+  UnorderedTermMap substitution;
+  for (size_t i = 0; i < args.size(); ++i) {
+    const Term & arg = args[i];
+    if (!has_sort(arg, macro.param_sorts[i])) {
+      error(loc,
+            "argument " + to_string(i + 1) + " of " + name + " has sort "
+                + arg->get_sort()->to_string() + " instead of "
+                + macro.param_sorts[i]->to_string());
+    }
+    substitution[macro.params[i]] = arg;
+  }
+  try {
+    return solver_->substitute(macro.body, substitution);
+  }
+  catch (const SmtException & e) {
+    error(loc, "cannot apply " + name + ": " + e.what());
+  }
+}
+
+Term Reader::make_indexed_application(const Identifier & id,
+                                      const TermVec & args,
+                                      const Location & loc)
+{
+  auto it = indexed_builtins.find(id.name);
+  if (it == indexed_builtins.end()) {
+    error(id.loc, "unknown indexed function " + id.name);
+  }
+  vector<uint64_t> indices;
+  for (const string & index : id.indices) {
+    indices.push_back(parse_index(index, id.loc));
+  }
+  const size_t num_indices = id.name == "extract" ? 2 : 1;
+  if (indices.size() != num_indices) {
+    error(id.loc,
+          id.name + " takes " + to_string(num_indices) + " indices, not "
+              + to_string(indices.size()));
+  }
+  if (args.size() != 1) {
+    error(loc,
+          id.name + " takes a single argument, not " + to_string(args.size()));
+  }
+  if (id.name == "divisible") {
+    if (!indices[0]) {
+      error(id.loc, "divisible needs a positive index");
+    }
+    const Term divisor =
+        solver_->make_term(to_string(indices[0]), int_sort(id.loc));
+    const Term zero = solver_->make_term(int64_t{ 0 }, int_sort(id.loc));
+    return make_term(
+        Equal, { make_term(Mod, { args[0], divisor }, loc), zero }, loc);
+  }
+  const Op op = num_indices == 2 ? Op(it->second, indices[0], indices[1])
+                                 : Op(it->second, indices[0]);
+  return make_term(op, args, loc);
+}
+
+Term Reader::make_builtin(const string & name,
+                          TermVec args,
+                          const Location & loc)
+{
+  auto it = builtins().find(name);
+  if (it == builtins().end()) {
+    error(loc, "unknown function " + name);
+  }
+  const Builtin & builtin = it->second;
+  // SMT-LIB declares - also as negation, which smt-switch calls Negate
+  const PrimOp op =
+      builtin.op == Minus && args.size() == 1 ? Negate : builtin.op;
+  const pair<size_t, size_t> arity = get_arity(op);
+  if (args.size() < arity.first
+      || args.size() > min(arity.second, builtin.max_args)) {
+    error(loc,
+          name + " cannot take " + to_string(args.size()) + " argument"
+              + (args.size() == 1 ? "" : "s"));
+  }
+
+  // In a logic with both integers and reals, an integer argument of an
+  // operator that SMT-LIB declares as (op Real Real s) stands for a real
+  // next to a real argument, and always for /, as AUFLIRA and AUFNIRA
+  // define. Converting each integer argument gives the value of the
+  // conversions in the binary applications that SMT-LIB expands an n-ary one
+  // into.
+  if (logic_has_int_ && logic_has_real_ && real_operators.count(op)
+      && (op == Div || any_of(args.begin(), args.end(), [](const Term & arg) {
+            return arg->get_sort()->get_sort_kind() == REAL;
+          }))) {
+    for (Term & arg : args) {
+      if (arg->get_sort()->get_sort_kind() == INT) {
+        arg = make_term(To_Real, { arg }, loc);
+      }
+    }
+  }
+
+  if (op == Negate) {
+    // The negation of a number stays a value, as some solvers, e.g. cvc5,
+    // take only values as the elements of constant arrays. It takes the sort
+    // of the number, which a solver may not report, e.g. MathSAT makes 1.0 an
+    // integer.
+    auto number = numbers_.find(args[0]);
+    if (number != numbers_.end()) {
+      const string & text = number->second.text;
+      return make_number(text[0] == '-' ? text.substr(1) : "-" + text,
+                         number->second.sort,
+                         loc);
+    }
+  }
+  // smt-switch applies an operator that SMT-LIB defines as :left-assoc,
+  // :right-assoc, :chainable or :pairwise to any number of arguments, as
+  // SMT-LIB defines it.
+  return make_term(op, args, loc);
+}
+
+bool Reader::has_sort(const Term & term, const Sort & sort) const
+{
+  if (term->get_sort() == sort) {
+    return true;
+  }
+  // smt-switch's MathSAT and Yices2 backends give a real with an integer
+  // value, e.g. 1.0, the sort Int, so an integer passes for a real with them.
+  const SolverEnum se = solver_->get_solver_enum();
+  return (se == MSAT || se == MSAT_INTERPOLATOR || se == YICES2)
+         && sort->get_sort_kind() == REAL
+         && term->get_sort()->get_sort_kind() == INT;
+}
+
+Term Reader::make_number(const string & text,
+                         const Sort & sort,
+                         const Location & loc)
+{
+  try {
+    const Term term = solver_->make_term(text, sort);
+    numbers_.emplace(term, Number{ text, sort });
+    return term;
+  }
+  catch (const SmtException & e) {
+    error(loc, "cannot make number " + text + ": " + e.what());
+  }
+}
+
+Term Reader::make_term(const Op & op,
+                       const TermVec & args,
+                       const Location & loc) const
+{
+  try {
+    return solver_->make_term(op, args);
+  }
+  catch (const SmtException & e) {
+    error(loc,
+          "cannot apply " + op.to_string() + " to arguments of sort "
+              + describe_sorts(args) + ": " + e.what());
+  }
+}
+
+}  // namespace moxi
+}  // namespace pono

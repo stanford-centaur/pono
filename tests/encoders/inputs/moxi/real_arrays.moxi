@@ -1,0 +1,27 @@
+; Arrays of reals where numerals are integers. An integer stands for a real
+; only as an argument of arithmetic, so the indices and elements are converted
+; with to_real or written as decimals. The negation of a decimal is a value,
+; as the element of a constant array, which some solvers, e.g. cvc5, take
+; only as a value.
+(set-logic ALL)
+
+(define-system Table
+  :input ((i Int) (v Int))
+  :local ((a (Array Int Real)) (b (Array Real Real)))
+  :init (and (= a ((as const (Array Int Real)) (- 1.0)))
+             (= b ((as const (Array Real Real)) 0.0)))
+  :trans (and (= a' (store a i (to_real v)))
+              (= b' (store b (to_real i) (select a 2)))))
+
+(check-system Table
+  :input ((i Int) (v Int))
+  :local ((a (Array Int Real)) (b (Array Real Real)))
+  :reachable (copied (and (= (select a 0) 3.0) (= (select b 0.0) (- 1.0))))
+  :query (reach_copied (copied)))
+
+; b changes only at integer indices
+(check-system Table
+  :input ((i Int) (v Int))
+  :local ((a (Array Int Real)) (b (Array Real Real)))
+  :reachable (changed (distinct (select b 1.5) 0.0))
+  :query (reach_changed (changed)))

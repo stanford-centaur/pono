@@ -1,0 +1,33 @@
+; Operators that SMT-LIB defines as :chainable, :pairwise or :right-assoc
+; apply to more than two arguments as SMT-LIB defines them.
+(set-logic QF_BV)
+
+(define-system Count
+  :output ((x (_ BitVec 4)))
+  :init (= x #x0)
+  :trans (= x' (bvadd x #x1)))
+
+; x = 3 and 3 = x
+(check-system Count
+  :output ((x (_ BitVec 4)))
+  :reachable (three (= x #x3 x))
+  :query (chain (three)))
+
+; 3 = 4 never holds, whatever x is
+(check-system Count
+  :output ((x (_ BitVec 4)))
+  :reachable (three_four (= x #x3 #x4))
+  :query (chain_all (three_four)))
+
+; the first and the last argument are equal, though neighbors need not be
+(check-system Count
+  :output ((x (_ BitVec 4)))
+  :reachable (apart (distinct x #x0 x))
+  :query (pairwise (apart)))
+
+; x = 1 implies that x = 2 implies false, which holds as x is not both. The
+; sort checker of the MoXI tool suite takes => as binary, unlike SMT-LIB.
+(check-system Count
+  :output ((x (_ BitVec 4)))
+  :reachable (broken (not (=> (= x #x1) (= x #x2) false)))
+  :query (right_assoc (broken)))

@@ -430,4 +430,84 @@ TEST_F(CliUnitTests, SmvJusticeIsRejected)
   expect_rejected(run_pono({ "--justice", input_path("smv/counter.smv") }),
                   "--justice is not supported for smv");
 }
+
+// A MoXI query brings its own assumptions, so --prop picks the check-system
+// command whose query to encode. The two here disagree, which is what makes
+// the selection visible. "sat" occurs in "unsat", so the line it is on is
+// matched.
+TEST_F(CliUnitTests, MoxiPropSelectsCheckSystem)
+{
+  const string counter = input_path("moxi/counter.moxi");
+  EXPECT_TRUE(contains(run_pono({ "-e", "ind", "-p", "0", counter }).output,
+                       "\nsat\n"));
+  EXPECT_TRUE(contains(run_pono({ "-e", "ind", "-p", "1", counter }).output,
+                       "\nunsat\n"));
+}
+
+// A reachability condition over a step has next-state variables, which the
+// driver monitors as for any property that has them.
+TEST_F(CliUnitTests, MoxiChecksConditionOverStep)
+{
+  const string counter = input_path("moxi/counter.moxi");
+  EXPECT_TRUE(contains(run_pono({ "-e", "ind", "-p", "2", counter }).output,
+                       "\nsat\n"));
+  EXPECT_TRUE(contains(run_pono({ "-e", "ind", "-p", "3", counter }).output,
+                       "\nunsat\n"));
+}
+
+TEST_F(CliUnitTests, MoxiRejectsIndexOutOfRange)
+{
+  expect_rejected(run_pono({ "-p", "4", input_path("moxi/counter.moxi") }),
+                  "Check-system index 4 is out of range");
+}
+
+// Bitwuzla, the default solver, has no integers, and the message says what
+// to do about it.
+TEST_F(CliUnitTests, MoxiNamesSolverForInts)
+{
+  expect_rejected(run_pono({ input_path("moxi/assumptions.moxi") }),
+                  "does not support integers; choose one that does");
+  EXPECT_TRUE(contains(run_pono({ "--smt-solver",
+                                  "cvc5",
+                                  "-e",
+                                  "ind",
+                                  "-p",
+                                  "1",
+                                  input_path("moxi/assumptions.moxi") })
+                           .output,
+                       "\nunsat\n"));
+}
+
+// Enumeration sorts are datatypes, which Bitwuzla does not have either.
+TEST_F(CliUnitTests, MoxiNamesSolverForEnums)
+{
+  expect_rejected(run_pono({ input_path("moxi/enums.moxi") }),
+                  "does not support datatypes, which enumeration sorts are");
+  EXPECT_TRUE(contains(run_pono({ "--smt-solver",
+                                  "cvc5",
+                                  "-e",
+                                  "ind",
+                                  "-p",
+                                  "1",
+                                  input_path("moxi/enums.moxi") })
+                           .output,
+                       "\nunsat\n"));
+}
+
+// The trace names the variables of a subsystem after its instance, and
+// leaves out what pono generated.
+TEST_F(CliUnitTests, MoxiTraceNamesSubsystemVars)
+{
+  const PonoRun run =
+      run_pono({ "--witness", "-k", "6", input_path("moxi/subsystems.moxi") });
+  EXPECT_TRUE(contains(run.output, "\tx : "));
+  EXPECT_TRUE(contains(run.output, "\td1.first.held : "));
+  EXPECT_TRUE(omits(run.output, pono::generated_prefix));
+}
+
+TEST_F(CliUnitTests, MoxiJusticeIsRejected)
+{
+  expect_rejected(run_pono({ "--justice", input_path("moxi/counter.moxi") }),
+                  "--justice is not supported for moxi");
+}
 }  // namespace pono_tests
