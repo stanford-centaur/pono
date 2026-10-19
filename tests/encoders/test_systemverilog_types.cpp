@@ -133,21 +133,26 @@ TEST_P(SVUnitTests, UnpackedArraySmallForms)
       "unpacked_array_small_forms.sv", 8, ProverResult::TRUE);
 }
 
+// A `'{default: ...}` fill becomes a constant array, and the pinned
+// bitwuzla warns "equality over constant arrays not fully supported
+// yet" and gives up when a query compares one -- so a proof over such
+// a design rests on a base case bitwuzla cannot settle. cvc5 proves
+// these. Drop this helper, and use ProverResult::TRUE directly, once
+// bitwuzla is updated.
+static ProverResult proved_unless_const_array(smt::SolverEnum solver)
+{
+  return solver == smt::SolverEnum::BZLA ? ProverResult::UNKNOWN
+                                         : ProverResult::TRUE;
+}
+
 // More than one dimension: an array of arrays, so each index is a
 // Select going down and a Store coming back out. The dimensions are
 // unequal and neighbours in both are asserted, so an index applied
 // to the wrong dimension is refuted rather than quietly working.
 TEST_P(SVUnitTests, UnpackedArrayMultiDim)
 {
-  // Same pinned-bitwuzla limitation as UnpackedArrayWholeOps: the
-  // `'{default: ...}` fills are constant arrays, and comparing one
-  // in the same query warns "equality over constant arrays not fully
-  // supported yet" and gives up. cvc5 proves it. Drop the special
-  // case once bitwuzla is updated.
-  ProverResult expected = GetParam() == smt::SolverEnum::BZLA
-                              ? ProverResult::UNKNOWN
-                              : ProverResult::TRUE;
-  check_prover<KInduction>("unpacked_array_2d.sv", 8, expected);
+  check_prover<KInduction>(
+      "unpacked_array_2d.sv", 8, proved_unless_const_array(GetParam()));
 }
 
 // Arrays built outside a clocked block: a combinational lookup
@@ -156,7 +161,8 @@ TEST_P(SVUnitTests, UnpackedArrayMultiDim)
 // one constraint per array when the block ends.
 TEST_P(SVUnitTests, UnpackedArrayCombWrite)
 {
-  check_prover<KInduction>("unpacked_array_comb.sv", 6, ProverResult::TRUE);
+  check_prover<KInduction>(
+      "unpacked_array_comb.sv", 6, proved_unless_const_array(GetParam()));
 }
 
 // The same for an `initial` block, which constrains the initial
@@ -170,14 +176,8 @@ TEST_P(SVUnitTests, UnpackedArrayInitialWrite)
 // the array taken apart -- SMT arrays support all three natively.
 TEST_P(SVUnitTests, UnpackedArrayWholeOps)
 {
-  // The pinned bitwuzla warns "equality over constant arrays not
-  // fully supported yet" and gives up when a whole-array comparison
-  // meets the constant array the reset assigns; cvc5 proves it. Drop
-  // the special case once bitwuzla is updated.
-  ProverResult expected = GetParam() == smt::SolverEnum::BZLA
-                              ? ProverResult::UNKNOWN
-                              : ProverResult::TRUE;
-  check_prover<KInduction>("unpacked_array_whole_ops.sv", 12, expected);
+  check_prover<KInduction>(
+      "unpacked_array_whole_ops.sv", 12, proved_unless_const_array(GetParam()));
 }
 
 // ---------------------------------------------------------------------------

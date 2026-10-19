@@ -46,7 +46,10 @@ add_library(
   assertion_walker.cpp
   tableau.cpp
 )
-target_include_directories(pono-systemverilog PUBLIC ${INCLUDE_DIRS})
+# Everything this target includes by a pono-relative path lives in the
+# source tree; slang's and smt-switch's own headers come with the
+# targets linked below, so no generated-header directory is needed.
+target_include_directories(pono-systemverilog PUBLIC "${PROJECT_SOURCE_DIR}")
 # slang requires C++20 features in its headers; keep this PRIVATE so it
 # doesn't force pono-lib (or pono-bin, or tests) to build at C++20 --
 # nothing outside this target includes slang headers directly. (The
