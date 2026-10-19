@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-smt_switch_version=82c361d19724fb275131a1636ade46eafa862019 # v1.1.6
+# v1.1.6-377-g37b01b4, on main
+smt_switch_version=37b01b47aaefe56cec6f1f8c4984a0b31b80373d
 
 # Keep the invocation directory to resolve relative path arguments against,
 # since they would otherwise be taken relative to the smt-switch checkout that
@@ -16,17 +17,18 @@ Usage: $0 [<option> ...]
 
 Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 
-Each dependency location below suppresses the download and build of that
-dependency. A --*-dir takes an install prefix, a --*-home a source tree.
+smt-switch downloads and builds each solver it cannot find, except MathSAT and
+Yices2, whose licenses do not allow that. Each dependency location below takes
+an install prefix, where the solver then has to be.
 
 -h, --help              display this message and exit
 
 Dependency locations:
---bitwuzla-dir=STR      use an existing bitwuzla installation
---btor-home=STR         use an existing Boolector source tree
---cvc5-home=STR         use an existing cvc5 source tree
+--bitwuzla-dir=STR      use an existing Bitwuzla installation
+--btor-dir=STR          use an existing Boolector installation
+--cvc5-dir=STR          use an existing cvc5 installation
 --msat-dir=STR          use an existing MathSAT installation (default: $root_dir/deps/mathsat)
---yices2-home=STR       use an existing Yices2 source tree
+--yices2-dir=STR        use an existing Yices2 installation
 --z3-dir=STR            use an existing Z3 installation
 
 Optional features / backends (default: off for all):
@@ -54,10 +56,10 @@ abspath() {
 # Parse options. This only records what was requested; the smt-switch options
 # are assembled afterwards so that they do not depend on argument order.
 bitwuzla_dir=
-btor_home=
-cvc5_home=
+btor_dir=
+cvc5_dir=
 msat_dir=
-yices2_home=
+yices2_dir=
 z3_dir=
 with_boolector=false
 with_msat=false
@@ -71,16 +73,23 @@ while (($# > 0)); do
     # Dependency locations
     --bitwuzla-dir) die "missing argument to $1 (see -h)" ;;
     --bitwuzla-dir=*) bitwuzla_dir=$(abspath "${1#*=}") ;;
-    --btor-home) die "missing argument to $1 (see -h)" ;;
-    --btor-home=*) btor_home=$(abspath "${1#*=}") ;;
-    --cvc5-home) die "missing argument to $1 (see -h)" ;;
-    --cvc5-home=*) cvc5_home=$(abspath "${1#*=}") ;;
+    --btor-dir) die "missing argument to $1 (see -h)" ;;
+    --btor-dir=*) btor_dir=$(abspath "${1#*=}") ;;
+    --cvc5-dir) die "missing argument to $1 (see -h)" ;;
+    --cvc5-dir=*) cvc5_dir=$(abspath "${1#*=}") ;;
     --msat-dir) die "missing argument to $1 (see -h)" ;;
     --msat-dir=*) msat_dir=$(abspath "${1#*=}") ;;
-    --yices2-home) die "missing argument to $1 (see -h)" ;;
-    --yices2-home=*) yices2_home=$(abspath "${1#*=}") ;;
+    --yices2-dir) die "missing argument to $1 (see -h)" ;;
+    --yices2-dir=*) yices2_dir=$(abspath "${1#*=}") ;;
     --z3-dir) die "missing argument to $1 (see -h)" ;;
     --z3-dir=*) z3_dir=$(abspath "${1#*=}") ;;
+    # These named a source tree, which smt-switch no longer takes.
+    --btor-home | --btor-home=* | --cvc5-home | --cvc5-home=* | \
+      --yices2-home | --yices2-home=*)
+      option=${1%%=*}
+      die "$option was replaced by ${option%-home}-dir, which takes an" \
+        "install prefix (see -h)"
+      ;;
 
     # Optional features / backends
     --python) with_python=true ;;
@@ -95,14 +104,14 @@ done
 
 # A solver location on its own would make smt-switch's own configure.sh enable
 # that backend implicitly, which would not match the libraries counted below.
-if [[ -n $btor_home && $with_boolector == false ]]; then
-  die "--btor-home requires --with-btor"
+if [[ -n $btor_dir && $with_boolector == false ]]; then
+  die "--btor-dir requires --with-btor"
 fi
 if [[ -n $msat_dir && $with_msat == false ]]; then
   die "--msat-dir requires --with-msat"
 fi
-if [[ -n $yices2_home && $with_yices2 == false ]]; then
-  die "--yices2-home requires --with-yices2"
+if [[ -n $yices2_dir && $with_yices2 == false ]]; then
+  die "--yices2-dir requires --with-yices2"
 fi
 if [[ -n $z3_dir && $with_z3 == false ]]; then
   die "--z3-dir requires --with-z3"
@@ -118,20 +127,22 @@ if [[ -n $bitwuzla_dir ]]; then
   conf_opts+=(--bitwuzla-dir="$bitwuzla_dir")
   pono_opts+=(--bitwuzla-dir="$bitwuzla_dir")
 fi
-if [[ -n $cvc5_home ]]; then
-  conf_opts+=(--cvc5-home="$cvc5_home")
+if [[ -n $cvc5_dir ]]; then
+  conf_opts+=(--cvc5-dir="$cvc5_dir")
+  pono_opts+=(--cvc5-dir="$cvc5_dir")
 fi
 if [[ $with_boolector == true ]]; then
-  conf_opts+=(--btor)
+  conf_opts+=(--boolector)
   pono_opts+=(--with-btor)
   solvers+=(boolector)
   : $((num_of_libs++))
-  if [[ -n $btor_home ]]; then
-    conf_opts+=(--btor-home="$btor_home")
+  if [[ -n $btor_dir ]]; then
+    conf_opts+=(--boolector-dir="$btor_dir")
+    pono_opts+=(--btor-dir="$btor_dir")
   fi
 fi
 if [[ $with_msat == true ]]; then
-  conf_opts+=(--msat)
+  conf_opts+=(--mathsat)
   pono_opts+=(--with-msat)
   solvers+=(mathsat)
   : $((num_of_libs++))
@@ -142,15 +153,16 @@ if [[ $with_msat == true ]]; then
     # ci-scripts/setup-msat.sh unpacks the download.
     msat_dir=$root_dir/deps/mathsat
   fi
-  conf_opts+=(--msat-home="$msat_dir")
+  conf_opts+=(--mathsat-dir="$msat_dir")
 fi
 if [[ $with_yices2 == true ]]; then
   conf_opts+=(--yices2)
   pono_opts+=(--with-yices2)
   solvers+=(yices2)
   : $((num_of_libs++))
-  if [[ -n $yices2_home ]]; then
-    conf_opts+=(--yices2-home="$yices2_home")
+  if [[ -n $yices2_dir ]]; then
+    conf_opts+=(--yices2-dir="$yices2_dir")
+    pono_opts+=(--yices2-dir="$yices2_dir")
   fi
 fi
 if [[ $with_z3 == true ]]; then
@@ -159,14 +171,18 @@ if [[ $with_z3 == true ]]; then
   solvers+=(z3)
   : $((num_of_libs++))
   if [[ -n $z3_dir ]]; then
-    # smt-switch still spells --z3-dir --z3-install-dir.
-    conf_opts+=(--z3-install-dir="$z3_dir")
+    conf_opts+=(--z3-dir="$z3_dir")
     pono_opts+=(--z3-dir="$z3_dir")
   fi
 fi
 if [[ $with_python == true ]]; then
   conf_opts+=(--python)
   pono_opts+=(--python)
+fi
+# smt-switch has to be given only a bison that is there, and builds one itself
+# if the system's is too old.
+if [[ -d $root_dir/deps/bison-install ]]; then
+  conf_opts+=(--bison-dir="$root_dir/deps/bison-install")
 fi
 
 # Download code if needed and check out correct version
@@ -179,27 +195,14 @@ cd smt-switch
 git checkout -f "$smt_switch_version" ||
   echo "warning: smt-switch folder is not a git repo"
 
-# Build dependencies, skipping the ones we were given a location for
-if [[ -z $bitwuzla_dir ]]; then
-  ./contrib/setup-bitwuzla.sh
-fi
-if [[ -z $cvc5_home ]]; then
-  ./contrib/setup-cvc5.sh
-fi
-if [[ $with_boolector == true && -z $btor_home ]]; then
-  ./contrib/setup-boolector.sh
-fi
-if [[ $with_z3 == true && -z $z3_dir ]]; then
-  ./contrib/setup-z3.sh
-fi
-
-# Configure, build, test, and install smt-switch
+# Configure, build, and install smt-switch, which also builds the solvers it
+# cannot find
 if [[ -d build ]]; then
   echo "$(pwd)/build already exists, please remove it manually if you" \
     "want to reconfigure smt-switch"
 else
-  ./configure.sh --prefix=local --static --smtlib-reader --bitwuzla --cvc5 \
-    --bison-dir=../bison-install ${conf_opts[@]+"${conf_opts[@]}"}
+  ./configure.sh --prefix=local --static --smtlib-reader --without-tests \
+    --bitwuzla --cvc5 ${conf_opts[@]+"${conf_opts[@]}"}
 fi
 cd build
 cmake --build . -j

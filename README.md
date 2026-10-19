@@ -38,7 +38,7 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
 * Run `./contrib/setup-btor2tools.sh`.
 * Run `./configure.sh`.
   * if building with mathsat, also include `--with-msat` as an option to `configure.sh`
-  * to build against dependencies installed elsewhere, pass their install prefixes with `--smt-switch-dir`, `--bitwuzla-dir`, `--msat-dir`, and `--z3-dir`; `setup-smt-switch.sh` prints the ones you need to repeat
+  * to build against dependencies installed elsewhere, pass their install prefixes with `--smt-switch-dir` and the solvers' `--bitwuzla-dir`, `--btor-dir`, `--cvc5-dir`, `--msat-dir`, `--yices2-dir`, and `--z3-dir`; `setup-smt-switch.sh` prints the ones you need to repeat
 * Run `cd build`.
 * Run `make`.
 * [optional] Run `make check` to build and run the tests.

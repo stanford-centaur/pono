@@ -34,7 +34,7 @@ class ModelBasedIC3 : public IC3Base
  protected:
   // for mbic3_indgen_mode_ == 2
   // interpolant based generalization
-  smt::SmtSolver interpolator_;
+  smt::SmtInterpolator interpolator_;
   std::unique_ptr<smt::TermTranslator> to_interpolator_;
   std::unique_ptr<smt::TermTranslator> to_solver_;
 

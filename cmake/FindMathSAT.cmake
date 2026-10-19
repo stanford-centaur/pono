@@ -2,15 +2,15 @@
 FindMathSAT
 -----------
 
-Finds the MathSAT 5 SMT solver's headers (https://mathsat.fbk.eu). MathSAT is
+Finds the MathSAT 5 SMT solver (https://mathsat.fbk.eu). MathSAT is
 distributed as a prebuilt archive and ships no CMake package config files, so
-this module locates it directly.
+this module locates it directly. pono needs direct access to MathSAT's C API
+to set solver options.
 
-Only the headers are located, not ``libmathsat``. pono needs direct access to
-MathSAT's C API to set solver options, but links MathSAT through smt-switch:
-a static smt-switch build repacks MathSAT's objects into
-``libsmt-switch-msat.a``, so also linking the standalone archive would risk
-duplicate definitions.
+smt-switch's package locates MathSAT for its own backend with a module of the
+same name, which leaves a ``MathSAT::mathsat`` that already exists alone. The
+target defined here is therefore the one both link, and has to carry the
+library as well as the headers.
 
 Hints
 ^^^^^
@@ -26,35 +26,40 @@ Imported Targets
 ^^^^^^^^^^^^^^^^^
 
 ``MathSAT::mathsat``
-  Interface target carrying MathSAT's include directory, if found.
+  The MathSAT library and its include directory, if found. MathSAT needs GMP,
+  which smt-switch's MathSAT backend links.
 
 Result Variables
 ^^^^^^^^^^^^^^^^^
 
 ``MathSAT_FOUND``
-  True if the MathSAT headers were found.
+  True if the MathSAT headers and library were found.
 #]=======================================================================]
 
-# Cached (as find_path() results always are), but a cache hit from an earlier
-# configure with a different MathSAT_ROOT would otherwise stick around
-# unsearched.
+# Cached (as find_path() and find_library() results always are), but a cache
+# hit from an earlier configure with a different MathSAT_ROOT would otherwise
+# stick around unsearched.
 unset(MathSAT_INCLUDE_DIR CACHE)
 find_path(MathSAT_INCLUDE_DIR NAMES mathsat.h)
+unset(MathSAT_LIBRARY CACHE)
+find_library(MathSAT_LIBRARY NAMES mathsat)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
   MathSAT
-  REQUIRED_VARS MathSAT_INCLUDE_DIR
+  REQUIRED_VARS MathSAT_LIBRARY MathSAT_INCLUDE_DIR
   REASON_FAILURE_MESSAGE
     "Try running ci-scripts/setup-msat.sh, or set --msat-dir to an install prefix."
 )
 
 if(MathSAT_FOUND AND NOT TARGET MathSAT::mathsat)
-  add_library(MathSAT::mathsat INTERFACE IMPORTED)
+  add_library(MathSAT::mathsat UNKNOWN IMPORTED)
   set_target_properties(
     MathSAT::mathsat
-    PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${MathSAT_INCLUDE_DIR}"
+    PROPERTIES
+      IMPORTED_LOCATION "${MathSAT_LIBRARY}"
+      INTERFACE_INCLUDE_DIRECTORIES "${MathSAT_INCLUDE_DIR}"
   )
 endif()
 
-mark_as_advanced(MathSAT_INCLUDE_DIR)
+mark_as_advanced(MathSAT_INCLUDE_DIR MathSAT_LIBRARY)

@@ -70,7 +70,7 @@ class InterpolantMC : public SafetyProver
   const bool unroll_eagerly_;
   const bool interp_backward_;
 
-  smt::SmtSolver interpolator_;
+  smt::SmtInterpolator interpolator_;
   // for translating terms to interpolator_
   smt::TermTranslator to_interpolator_;
   // for translating terms to solver_

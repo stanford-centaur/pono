@@ -64,14 +64,14 @@ smt::SmtSolver create_reducer(smt::SolverEnum se,
                               bool logging,
                               const StringMap & solver_opts = {});
 
-/** Creates an interpolating SmtSolver of the provided type */
-smt::SmtSolver create_interpolating_solver(smt::SolverEnum se,
-                                           bool printing,
-                                           const StringMap & solver_opts);
+/** Creates an interpolating solver of the provided type */
+smt::SmtInterpolator create_interpolating_solver(smt::SolverEnum se,
+                                                 bool printing,
+                                                 const StringMap & solver_opts);
 
 // same as create_interpolating_solver but will set reasonable options
 // for particular engines (mostly IC3-variants)
-smt::SmtSolver create_interpolating_solver_for(
+smt::SmtInterpolator create_interpolating_solver_for(
     smt::SolverEnum se,
     Engine e,
     bool printing = false,
