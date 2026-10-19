@@ -264,6 +264,31 @@ const vector<MoxiError> moxi_errors({
     { "(set-logic QF_BV) (define-fun f () (_ BitVec 3) (concat #b1 #b0 #b1))",
       "concat cannot take 3 arguments" },
     { "(define-fun f () Bool (to_bv3 true))", "unknown function to_bv3" },
+    // an integer stands for a real only as an argument of arithmetic
+    { "(set-logic ALL) (define-fun f () Bool (= 1.5 1))",
+      "cannot apply = to arguments of sort Real, Int" },
+    { "(set-logic ALL) (define-fun f () Real (ite true 1.5 1))",
+      "cannot apply ite to arguments of sort Bool, Real, Int" },
+    { "(set-logic ALL) (declare-fun a () (Array Real Real))"
+      "(define-fun f () Real (select a 1))",
+      "cannot apply select" },
+    { "(set-logic ALL) (declare-fun a () (Array Int Real))"
+      "(define-fun f () (Array Int Real) (store a 0 1))",
+      "cannot apply store" },
+    { "(set-logic ALL)"
+      "(define-fun f () (Array Int Real) ((as const (Array Int Real)) 0))",
+      "needs a value of sort Real, not Int" },
+    { "(set-logic ALL) (declare-fun g (Real) Bool) (define-fun f () Bool (g 1))",
+      "to arguments of sort" },
+    { "(set-logic ALL) (define-fun f () Real 1)",
+      "the definition of f has sort Int, but Real is declared" },
+    { "(set-logic ALL) (define-fun h ((x Real)) Real x)"
+      "(define-fun f () Real (h 1))",
+      "argument 1 of h has sort Int instead of Real" },
+    { "(set-logic ALL) (declare-fun c () Int) (define-fun f () Real (as c Real))",
+      "c does not have sort Real" },
+    { "(set-logic ALL) (define-fun f () Real ((as + Real) 1 2))",
+      "the application of + does not have sort Real" },
     // operators of solvers that SMT-LIB does not have
     { "(set-logic QF_BV) (define-fun f () (_ BitVec 1) (bvredor #b10))",
       "unknown function bvredor" },

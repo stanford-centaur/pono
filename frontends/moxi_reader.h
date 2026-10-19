@@ -420,18 +420,9 @@ class Reader
                         const Macro & macro,
                         smt::TermVec args,
                         const Location & loc);
-  /** Converts the integer arguments to reals if any argument is a real. */
-  void unify_numeric(smt::TermVec & args, const Location & loc) const;
-  /** Converts an integer term to a real one if the sort asks for that. */
-  smt::Term coerce(const smt::Term & term,
-                   const smt::Sort & sort,
-                   const Location & loc) const;
-  /** Converts an integer term to the real sort: a number to a value, as
-   *  some solvers, e.g. cvc5, take only values as the elements of constant
-   *  arrays, and other terms with to_real. */
-  smt::Term to_real(const smt::Term & term,
-                    const smt::Sort & real,
-                    const Location & loc) const;
+  /** @return whether the term has the sort, or is a real with an integer
+   *  value that the solver gives the sort Int */
+  bool has_sort(const smt::Term & term, const smt::Sort & sort) const;
   /** Makes a number from its text, which numbers_ keeps. */
   smt::Term make_number(const std::string & text,
                         const smt::Sort & sort,

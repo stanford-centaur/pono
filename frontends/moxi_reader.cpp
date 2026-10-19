@@ -35,21 +35,11 @@ namespace moxi {
 
 namespace {
 
-/** How an operator reconciles integer and real arguments. */
-enum class Numeric
-{
-  NONE,   ///< it does not take numbers, or takes them as they are
-  UNIFY,  ///< integers become reals if any argument is a real
-  REAL,   ///< integers always become reals, as for real division
-  ARRAY,  ///< integers become reals as real indices or elements of arrays
-};
-
 /** A predefined function that maps to an operator of the solver. It takes
  *  as many arguments as smt-switch's get_arity says the operator takes. */
 struct Builtin
 {
   PrimOp op;
-  Numeric numeric;
   /** a bound on the number of arguments, for a function that takes fewer
    *  than the operator */
   size_t max_args = numeric_limits<size_t>::max();
@@ -59,69 +49,74 @@ const unordered_map<string, Builtin> & builtins()
 {
   static const unordered_map<string, Builtin> table{
     // core
-    { "not", { Not, Numeric::NONE } },
-    { "and", { And, Numeric::NONE } },
-    { "or", { Or, Numeric::NONE } },
-    { "xor", { Xor, Numeric::NONE } },
-    { "=>", { Implies, Numeric::NONE } },
-    { "=", { Equal, Numeric::UNIFY } },
-    { "distinct", { Distinct, Numeric::UNIFY } },
+    { "not", { Not } },
+    { "and", { And } },
+    { "or", { Or } },
+    { "xor", { Xor } },
+    { "=>", { Implies } },
+    { "=", { Equal } },
+    { "distinct", { Distinct } },
     // MoXI adds a binary disequality
-    { "!=", { Distinct, Numeric::UNIFY, 2 } },
-    { "ite", { Ite, Numeric::UNIFY } },
+    { "!=", { Distinct, 2 } },
+    { "ite", { Ite } },
     // integers and reals
-    { "+", { Plus, Numeric::UNIFY } },
-    { "-", { Minus, Numeric::UNIFY } },
-    { "*", { Mult, Numeric::UNIFY } },
-    { "/", { Div, Numeric::REAL } },
-    { "div", { IntDiv, Numeric::NONE } },
-    { "mod", { Mod, Numeric::NONE } },
-    { "abs", { Abs, Numeric::NONE } },
-    { "<", { Lt, Numeric::UNIFY } },
-    { "<=", { Le, Numeric::UNIFY } },
-    { ">", { Gt, Numeric::UNIFY } },
-    { ">=", { Ge, Numeric::UNIFY } },
-    { "to_real", { To_Real, Numeric::NONE } },
-    { "to_int", { To_Int, Numeric::NONE } },
-    { "is_int", { Is_Int, Numeric::NONE } },
+    { "+", { Plus } },
+    { "-", { Minus } },
+    { "*", { Mult } },
+    { "/", { Div } },
+    { "div", { IntDiv } },
+    { "mod", { Mod } },
+    { "abs", { Abs } },
+    { "<", { Lt } },
+    { "<=", { Le } },
+    { ">", { Gt } },
+    { ">=", { Ge } },
+    { "to_real", { To_Real } },
+    { "to_int", { To_Int } },
+    { "is_int", { Is_Int } },
     // bit-vectors
-    { "concat", { Concat, Numeric::NONE } },
-    { "bvnot", { BVNot, Numeric::NONE } },
-    { "bvneg", { BVNeg, Numeric::NONE } },
-    { "bvand", { BVAnd, Numeric::NONE } },
-    { "bvor", { BVOr, Numeric::NONE } },
-    { "bvxor", { BVXor, Numeric::NONE } },
-    { "bvadd", { BVAdd, Numeric::NONE } },
-    { "bvmul", { BVMul, Numeric::NONE } },
-    { "bvnand", { BVNand, Numeric::NONE } },
-    { "bvnor", { BVNor, Numeric::NONE } },
-    { "bvxnor", { BVXnor, Numeric::NONE } },
-    { "bvsub", { BVSub, Numeric::NONE } },
-    { "bvudiv", { BVUdiv, Numeric::NONE } },
-    { "bvsdiv", { BVSdiv, Numeric::NONE } },
-    { "bvurem", { BVUrem, Numeric::NONE } },
-    { "bvsrem", { BVSrem, Numeric::NONE } },
-    { "bvsmod", { BVSmod, Numeric::NONE } },
-    { "bvshl", { BVShl, Numeric::NONE } },
-    { "bvlshr", { BVLshr, Numeric::NONE } },
-    { "bvashr", { BVAshr, Numeric::NONE } },
-    { "bvcomp", { BVComp, Numeric::NONE } },
-    { "bvult", { BVUlt, Numeric::NONE } },
-    { "bvule", { BVUle, Numeric::NONE } },
-    { "bvugt", { BVUgt, Numeric::NONE } },
-    { "bvuge", { BVUge, Numeric::NONE } },
-    { "bvslt", { BVSlt, Numeric::NONE } },
-    { "bvsle", { BVSle, Numeric::NONE } },
-    { "bvsgt", { BVSgt, Numeric::NONE } },
-    { "bvsge", { BVSge, Numeric::NONE } },
-    { "ubv_to_int", { UBV_To_Int, Numeric::NONE } },
-    { "sbv_to_int", { SBV_To_Int, Numeric::NONE } },
+    { "concat", { Concat } },
+    { "bvnot", { BVNot } },
+    { "bvneg", { BVNeg } },
+    { "bvand", { BVAnd } },
+    { "bvor", { BVOr } },
+    { "bvxor", { BVXor } },
+    { "bvadd", { BVAdd } },
+    { "bvmul", { BVMul } },
+    { "bvnand", { BVNand } },
+    { "bvnor", { BVNor } },
+    { "bvxnor", { BVXnor } },
+    { "bvsub", { BVSub } },
+    { "bvudiv", { BVUdiv } },
+    { "bvsdiv", { BVSdiv } },
+    { "bvurem", { BVUrem } },
+    { "bvsrem", { BVSrem } },
+    { "bvsmod", { BVSmod } },
+    { "bvshl", { BVShl } },
+    { "bvlshr", { BVLshr } },
+    { "bvashr", { BVAshr } },
+    { "bvcomp", { BVComp } },
+    { "bvult", { BVUlt } },
+    { "bvule", { BVUle } },
+    { "bvugt", { BVUgt } },
+    { "bvuge", { BVUge } },
+    { "bvslt", { BVSlt } },
+    { "bvsle", { BVSle } },
+    { "bvsgt", { BVSgt } },
+    { "bvsge", { BVSge } },
+    { "ubv_to_int", { UBV_To_Int } },
+    { "sbv_to_int", { SBV_To_Int } },
     // arrays
-    { "select", { Select, Numeric::ARRAY } },
-    { "store", { Store, Numeric::ARRAY } },
+    { "select", { Select } },
+    { "store", { Store } },
   };
   return table;
 }
+
+/** The operators that SMT-LIB declares as (op Real Real s), which AUFLIRA
+ *  and AUFNIRA let take integers for reals. */
+const unordered_set<PrimOp> real_operators{ Plus, Minus, Mult, Div,
+                                            Lt,   Le,    Gt,   Ge };
 
 /** Predefined functions that take indices, as in ((_ extract 7 0) x). */
 const unordered_map<string, PrimOp> indexed_builtins{
@@ -190,16 +185,6 @@ bool parse_logic(const string & logic, bool & has_int, bool & has_real)
   has_int = it->second.first;
   has_real = it->second.second;
   return true;
-}
-
-/** @return whether a term of the actual sort can stand where the expected
- *  one is. An integer can stand for a real: some solvers, e.g. MathSAT, keep
- *  integral constants integers even when asked for reals, and mix the two. */
-bool fits(const Sort & actual, const Sort & expected)
-{
-  return actual == expected
-         || (expected->get_sort_kind() == REAL
-             && actual->get_sort_kind() == INT);
 }
 
 /** @return a name for a placeholder symbol. A solver refuses a second symbol
@@ -406,8 +391,8 @@ void Reader::begin_define_fun(const string & name,
 void Reader::end_define_fun(const Term & body, const Location & loc)
 {
   pop_scope();
-  macro_.body = coerce(body, macro_.result, loc);
-  if (!fits(macro_.body->get_sort(), macro_.result)) {
+  macro_.body = body;
+  if (!has_sort(body, macro_.result)) {
     error(loc,
           "the definition of " + macro_name_ + " has sort "
               + body->get_sort()->to_string() + ", but "
@@ -1017,8 +1002,8 @@ Term Reader::make_identifier_term(const Identifier & id)
     Identifier plain = id;
     plain.qualifier.reset();
     const Sort sort = resolve_sort(*id.qualifier);
-    const Term term = coerce(make_identifier_term(plain), sort, id.loc);
-    if (!fits(term->get_sort(), sort)) {
+    const Term term = make_identifier_term(plain);
+    if (!has_sort(term, sort)) {
       error(id.loc, id.name + " does not have sort " + sort->to_string());
     }
     return term;
@@ -1097,9 +1082,15 @@ Term Reader::make_application(const Identifier & id,
       if (args.size() != 1) {
         error(loc, "a constant array takes a single value");
       }
-      const Term elem = coerce(args[0], sort->get_elemsort(), loc);
+      if (!has_sort(args[0], sort->get_elemsort())) {
+        error(loc,
+              "a constant array of sort " + sort->to_string()
+                  + " needs a value of sort "
+                  + sort->get_elemsort()->to_string() + ", not "
+                  + args[0]->get_sort()->to_string());
+      }
       try {
-        return solver_->make_term(elem, sort);
+        return solver_->make_term(args[0], sort);
       }
       catch (const SmtException & e) {
         error(loc, string("cannot make constant array: ") + e.what());
@@ -1108,8 +1099,8 @@ Term Reader::make_application(const Identifier & id,
     // Otherwise the sort only disambiguates, which the arguments do already.
     Identifier plain = id;
     plain.qualifier.reset();
-    const Term term = coerce(make_application(plain, args, loc), sort, loc);
-    if (!fits(term->get_sort(), sort)) {
+    const Term term = make_application(plain, args, loc);
+    if (!has_sort(term, sort)) {
       error(loc,
             "the application of " + id.name + " does not have sort "
                 + sort->to_string());
@@ -1134,9 +1125,7 @@ Term Reader::make_application(const Identifier & id,
                 + " arguments, not " + to_string(args.size()));
     }
     TermVec children{ f.symbol };
-    for (size_t i = 0; i < args.size(); ++i) {
-      children.push_back(coerce(args[i], f.arg_sorts[i], loc));
-    }
+    children.insert(children.end(), args.begin(), args.end());
     return make_term(Apply, children, loc);
   }
   return make_builtin(id.name, args, loc);
@@ -1154,8 +1143,8 @@ Term Reader::apply_macro(const string & name,
   }
   UnorderedTermMap substitution;
   for (size_t i = 0; i < args.size(); ++i) {
-    const Term arg = coerce(args[i], macro.param_sorts[i], loc);
-    if (!fits(arg->get_sort(), macro.param_sorts[i])) {
+    const Term & arg = args[i];
+    if (!has_sort(arg, macro.param_sorts[i])) {
       error(loc,
             "argument " + to_string(i + 1) + " of " + name + " has sort "
                 + arg->get_sort()->to_string() + " instead of "
@@ -1228,25 +1217,28 @@ Term Reader::make_builtin(const string & name,
               + (args.size() == 1 ? "" : "s"));
   }
 
-  if (builtin.numeric == Numeric::REAL) {
+  // In a logic with both integers and reals, an integer argument of an
+  // operator that SMT-LIB declares as (op Real Real s) stands for a real
+  // next to a real argument, and always for /, as AUFLIRA and AUFNIRA
+  // define. Converting each integer argument gives the value of the
+  // conversions in the binary applications that SMT-LIB expands an n-ary one
+  // into.
+  if (logic_has_int_ && logic_has_real_ && real_operators.count(op)
+      && (op == Div || any_of(args.begin(), args.end(), [](const Term & arg) {
+            return arg->get_sort()->get_sort_kind() == REAL;
+          }))) {
     for (Term & arg : args) {
-      arg = coerce(arg, real_sort(loc), loc);
-    }
-  } else if (builtin.numeric == Numeric::UNIFY) {
-    unify_numeric(args, loc);
-  } else if (builtin.numeric == Numeric::ARRAY
-             && args[0]->get_sort()->get_sort_kind() == ARRAY) {
-    const Sort array = args[0]->get_sort();
-    args[1] = coerce(args[1], array->get_indexsort(), loc);
-    if (args.size() == 3) {
-      args[2] = coerce(args[2], array->get_elemsort(), loc);
+      if (arg->get_sort()->get_sort_kind() == INT) {
+        arg = make_term(To_Real, { arg }, loc);
+      }
     }
   }
 
   if (op == Negate) {
-    // The negation of a number stays a value, see to_real. It takes the
-    // sort of the number, which a solver may not report, e.g. MathSAT makes
-    // 1.0 an integer.
+    // The negation of a number stays a value, as some solvers, e.g. cvc5,
+    // take only values as the elements of constant arrays. It takes the sort
+    // of the number, which a solver may not report, e.g. MathSAT makes 1.0 an
+    // integer.
     auto number = numbers_.find(args[0]);
     if (number != numbers_.end()) {
       const string & text = number->second.text;
@@ -1261,48 +1253,17 @@ Term Reader::make_builtin(const string & name,
   return make_term(op, args, loc);
 }
 
-void Reader::unify_numeric(TermVec & args, const Location & loc) const
+bool Reader::has_sort(const Term & term, const Sort & sort) const
 {
-  auto real = find_if(args.begin(), args.end(), [](const Term & arg) {
-    return arg->get_sort()->get_sort_kind() == REAL;
-  });
-  if (real == args.end()) {
-    return;
+  if (term->get_sort() == sort) {
+    return true;
   }
-  const Sort real_sort = (*real)->get_sort();
-  for (Term & arg : args) {
-    if (arg->get_sort()->get_sort_kind() == INT) {
-      arg = to_real(arg, real_sort, loc);
-    }
-  }
-}
-
-Term Reader::coerce(const Term & term,
-                    const Sort & sort,
-                    const Location & loc) const
-{
-  if (sort->get_sort_kind() == REAL
-      && term->get_sort()->get_sort_kind() == INT) {
-    return to_real(term, sort, loc);
-  }
-  return term;
-}
-
-Term Reader::to_real(const Term & term,
-                     const Sort & real,
-                     const Location & loc) const
-{
-  auto number = numbers_.find(term);
-  if (number == numbers_.end()) {
-    return make_term(To_Real, { term }, loc);
-  }
-  const string & text = number->second.text;
-  try {
-    return solver_->make_term(text, real);
-  }
-  catch (const SmtException & e) {
-    error(loc, "cannot make real " + text + ": " + e.what());
-  }
+  // smt-switch's MathSAT and Yices2 backends give a real with an integer
+  // value, e.g. 1.0, the sort Int, so an integer passes for a real with them.
+  const SolverEnum se = solver_->get_solver_enum();
+  return (se == MSAT || se == MSAT_INTERPOLATOR || se == YICES2)
+         && sort->get_sort_kind() == REAL
+         && term->get_sort()->get_sort_kind() == INT;
 }
 
 Term Reader::make_number(const string & text,
