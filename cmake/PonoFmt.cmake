@@ -24,8 +24,12 @@ if(PONO_LINK_STATIC)
   mark_as_advanced(PONO_FMT_STATIC_LIBRARY)
 endif()
 
+# The floor is slang's rather than pono's own, which would be 9: slang
+# links fmt too and asks for 12.2, so accepting an older system copy here
+# would send slang to its own fetch, whose fmt target then collides with
+# the fmt::fmt this find_package() imported.
 if(NOT PONO_LINK_STATIC OR PONO_FMT_STATIC_LIBRARY)
-  find_package(fmt 9 QUIET)
+  find_package(fmt 12.2 QUIET)
 endif()
 
 if(fmt_FOUND)

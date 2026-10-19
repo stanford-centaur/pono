@@ -35,6 +35,7 @@
 #include "engines/prover.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
+#include "frontends/systemverilog/encoder.h"
 #include "frontends/vmt_encoder.h"
 #include "modifiers/control_signals.h"
 #include "modifiers/liveness_to_safety_translator.h"
@@ -460,6 +461,93 @@ int main(int argc, char ** argv)
         if (!pono_options.vcd_name_.empty()) {
           VCDWitnessPrinter vcdprinter(rts, cex);
           vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
+        }
+      } else if (res == TRUE) {
+        cout << "unsat" << endl;
+      } else {
+        assert(res == pono::UNKNOWN);
+        cout << "unknown" << endl;
+      }
+    } else if (file_ext == "sv" || file_ext == "v") {
+      logger.log(2, "Parsing SystemVerilog file: {}", pono_options.filename_);
+      FunctionalTransitionSystem fts(s);
+      SystemVerilogEncoder::Result sv_result =
+          SystemVerilogEncoder::encode(fts,
+                                       pono_options.filename_,
+                                       pono_options.sv_filelists_,
+                                       pono_options.sv_top_);
+      const TermVec & propvec = sv_result.propvec;
+      const auto & ltl_justice_vec = sv_result.ltl_justice;
+      unsigned int num_props =
+          pono_options.justice_ ? ltl_justice_vec.size() : propvec.size();
+      if (num_props == 0) {
+        throw PonoException(
+            "No " + string(pono_options.justice_ ? "liveness" : "safety")
+            + " properties found in SystemVerilog file "
+            + pono_options.filename_
+            + ". Add assert statements to specify properties.");
+      }
+      if (pono_options.prop_idx_ >= num_props) {
+        throw PonoException(
+            "Property index " + to_string(pono_options.prop_idx_)
+            + " is greater than the number of properties in file "
+            + pono_options.filename_ + " (" + to_string(num_props) + ")");
+      }
+
+      vector<UnorderedTermMap> cex;
+      if (pono_options.justice_) {
+        const TermVec & conditions = ltl_justice_vec[pono_options.prop_idx_];
+        switch (pono_options.justice_translator_) {
+          case pono::LIVENESS_TO_SAFETY: {
+            // These modify the transition system in place.
+            if (pono_options.static_coi_) {
+              StaticConeOfInfluence coi(
+                  fts, conditions, pono_options.verbosity_);
+            }
+            Term prop = LivenessToSafetyTranslator{}.translate(fts, conditions);
+            res = check_prop(pono_options, prop, fts, s, cex);
+            break;
+          }
+          case pono::KLIVENESS: {
+            LivenessProperty justice_prop(s, conditions);
+            KLiveness justice_prover(justice_prop, fts, s, pono_options);
+            res = justice_prover.check_until(pono_options.bound_);
+            if (res == ProverResult::FALSE && pono_options.witness_
+                && !justice_prover.witness(cex)) {
+              logger.log(0,
+                         "Only got a partial witness from engine. "
+                         "Not suitable for printing.");
+            }
+            break;
+          }
+        }
+      } else {
+        Term prop = propvec[pono_options.prop_idx_];
+        res = check_prop(pono_options, prop, fts, s, cex);
+      }
+      assert(res != ERROR);
+
+      logger.log(
+          0, "Property {} is {}", pono_options.prop_idx_, to_string(res));
+
+      if (res == FALSE) {
+        cout << "sat" << endl;
+        assert(pono_options.witness_ || cex.size() == 0);
+        for (size_t t = 0; t < cex.size(); t++) {
+          cout << "AT TIME " << t << endl;
+          for (auto elem : cex[t]) {
+            cout << "\t" << elem.first << " : " << elem.second << endl;
+          }
+        }
+        if (!pono_options.vcd_name_.empty()) {
+          if (pono_options.justice_) {
+            throw PonoException(
+                "VCD generation for justice properties "
+                "is not supported yet.");
+          } else {
+            VCDWitnessPrinter vcdprinter(fts, cex);
+            vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
+          }
         }
       } else if (res == TRUE) {
         cout << "unsat" << endl;

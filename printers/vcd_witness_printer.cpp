@@ -76,11 +76,14 @@ static std::string as_bits(std::string val)
     throw PonoException("Don't know how to interpret value: " + val);
   }
 
+  // Bool-sorted signal -> the same `b`-prefixed form the #b branch
+  // below produces, since callers emit a space before the signal id
+  // (VCD scalar changes take no space, vector changes need the `b`).
   if (val == "true") {
-    return "1";
+    return "b1";
   }
   if (val == "false") {
-    return "0";
+    return "b0";
   }
 
   if (res.substr(0, 2) == "#b") {
