@@ -42,6 +42,24 @@
   #include "frontends/smvscanner.h"
   #undef yylex
   #define yylex smvscanner.yylex
+
+  // nuXmv's integer / and mod truncate towards zero as C's / and % do,
+  // whereas SMT-LIB's div and mod are Euclidean. The two agree on a
+  // nonnegative dividend, and C has a / b = -(-a / b) and a % b = -(-a % b).
+  static smt::Term make_truncating_term(const smt::SmtSolver & solver,
+                                        smt::PrimOp op,
+                                        const smt::Term & a,
+                                        const smt::Term & b)
+  {
+    smt::Term a_nonneg =
+        solver->make_term(smt::Ge, a, solver->make_term(0, a->get_sort()));
+    smt::Term neg_a = solver->make_term(smt::Negate, a);
+    return solver->make_term(
+        smt::Ite,
+        a_nonneg,
+        solver->make_term(op, a, b),
+        solver->make_term(smt::Negate, solver->make_term(op, neg_a, b)));
+  }
 }
 
 %define parse.trace
@@ -1094,7 +1112,10 @@ simple_expr: constant {
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
               if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  res = enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
+                  if (bvs_a == SMVnode::Integer && bvs_b == SMVnode::Integer)
+                    res = make_truncating_term(enc.solver_, smt::IntDiv, a->getTerm(), b->getTerm());
+                  else
+                    res = enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
                   assert(res); //check res non-null
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
@@ -1122,7 +1143,10 @@ simple_expr: constant {
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
               if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  res = enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
+                  if (bvs_a == SMVnode::Integer && bvs_b == SMVnode::Integer)
+                    res = make_truncating_term(enc.solver_, smt::Mod, a->getTerm(), b->getTerm());
+                  else
+                    res = enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
                   assert(res); //check res non-null
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
@@ -1132,7 +1156,7 @@ simple_expr: constant {
                     assert(res); //check res non-null
                     $$ = new SMVnode(res,SMVnode::Unsigned);
                   } else if (bvs_a == bvs_b && bvs_a == SMVnode::Signed){
-                    res = enc.solver_->make_term(smt::BVSmod, a->getTerm(), b->getTerm());
+                    res = enc.solver_->make_term(smt::BVSrem, a->getTerm(), b->getTerm());
                     assert(res); //check res non-null
                     $$ = new SMVnode(res,SMVnode::Signed);
                   } else{
