@@ -544,14 +544,22 @@ void BTOR2Encoder::parse(const std::string filename)
       terms_[bt2_line->id] =
           solver_->make_term(Op(Zero_Extend, bit_index(bt2_line->args[1])),
                              bool_to_bv(termargs[0]));
-    } else if (bt2_line->tag == BTOR2_TAG_rol) {
-      terms_[bt2_line->id] =
-          solver_->make_term(Op(Rotate_Left, bit_index(bt2_line->args[1])),
-                             bool_to_bv(termargs[0]));
-    } else if (bt2_line->tag == BTOR2_TAG_ror) {
-      terms_[bt2_line->id] =
-          solver_->make_term(Op(Rotate_Right, bit_index(bt2_line->args[1])),
-                             bool_to_bv(termargs[0]));
+    } else if (bt2_line->tag == BTOR2_TAG_rol
+               || bt2_line->tag == BTOR2_TAG_ror) {
+      // Btor2 rotates by the value of the second operand modulo the width,
+      // while SMT-LIB only rotates by a constant index, so shift the operand
+      // both ways and combine the halves. Rotating by zero shifts by the full
+      // width on one side, which gives zero and leaves the other side intact.
+      Term t = bool_to_bv(termargs[0]);
+      Sort sort = t->get_sort();
+      Term width = solver_->make_term(sort->get_width(), sort);
+      Term amount = solver_->make_term(BVUrem, bool_to_bv(termargs[1]), width);
+      Term rest = solver_->make_term(BVSub, width, amount);
+      const bool left = bt2_line->tag == BTOR2_TAG_rol;
+      terms_[bt2_line->id] = solver_->make_term(
+          BVOr,
+          solver_->make_term(left ? BVShl : BVLshr, t, amount),
+          solver_->make_term(left ? BVLshr : BVShl, t, rest));
     } else if (bt2_line->tag == BTOR2_TAG_inc) {
       Term t = bool_to_bv(termargs[0]);
       terms_[bt2_line->id] =
