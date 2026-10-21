@@ -264,9 +264,8 @@ const vector<MoxiError> moxi_errors({
     { "(set-logic QF_BV) (define-fun f () (_ BitVec 3) (concat #b1 #b0 #b1))",
       "concat cannot take 3 arguments" },
     { "(define-fun f () Bool (to_bv3 true))", "unknown function to_bv3" },
-    // an integer stands for a real only as an argument of arithmetic
-    { "(set-logic ALL) (define-fun f () Bool (= 1.5 1))",
-      "cannot apply = to arguments of sort Real, Int" },
+    // an integer stands for a real only as an argument of arithmetic, =,
+    // distinct and !=
     { "(set-logic ALL) (define-fun f () Real (ite true 1.5 1))",
       "cannot apply ite to arguments of sort Bool, Real, Int" },
     { "(set-logic ALL) (declare-fun a () (Array Real Real))"

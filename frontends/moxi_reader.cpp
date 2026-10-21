@@ -1220,10 +1220,12 @@ Term Reader::make_builtin(const string & name,
   // In a logic with both integers and reals, an integer argument of an
   // operator that SMT-LIB declares as (op Real Real s) stands for a real
   // next to a real argument, and always for /, as AUFLIRA and AUFNIRA
-  // define. Converting each integer argument gives the value of the
-  // conversions in the binary applications that SMT-LIB expands an n-ary one
-  // into.
-  if (logic_has_int_ && logic_has_real_ && real_operators.count(op)
+  // define. So does an integer argument of =, distinct and != next to a real
+  // one, as cvc5 reads them outside its strict mode. Converting each integer
+  // argument gives the value of the conversions in the binary applications
+  // that SMT-LIB expands an n-ary one into.
+  if (logic_has_int_ && logic_has_real_
+      && (real_operators.count(op) || op == Equal || op == Distinct)
       && (op == Div || any_of(args.begin(), args.end(), [](const Term & arg) {
             return arg->get_sort()->get_sort_kind() == REAL;
           }))) {
