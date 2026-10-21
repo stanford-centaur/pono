@@ -1,0 +1,61 @@
+# Pono @PACKAGE_VERSION@
+
+A statically linked build of the [Pono](https://github.com/stanford-centaur/pono)
+model checker for x86-64 Linux, which runs without any other files.
+
+    $ ./pono --version
+    @VERSION_LINE@
+
+## Contents
+
+- `pono`: the model checker.
+- `smoketest.sh`: prints the version and the usage of `pono`, then runs it on
+  the tasks in `examples/` and exits with status 0 if `pono` reports the
+  verdict each task is named after.
+- `examples/`: a MoXI task with a satisfiable query, `sat.moxi`, and one with
+  an unsatisfiable query, `unsat.moxi`.
+- `LICENSE` and `LICENSES/`: the licenses of Pono and of the software linked
+  into it.
+
+## Usage
+
+    ./pono [<option> ...] <file>
+
+where `<file>` is a model in Btor2, SMV, VMT, or MoXI format.
+`./pono --help` lists the options. Pono prints `sat` if it finds a trace that
+satisfies the query (violates the property), `unsat` if it proves that none
+does, and `unknown` if it does neither.
+
+## License
+
+@IF_MATHSAT@
+Pono itself is under the BSD 3-Clause License, but this binary includes
+MathSAT 5, which is available for research and evaluation purposes only and
+can not be used in a commercial environment without written permission from
+Fondazione Bruno Kessler.
+
+@END_MATHSAT@
+`LICENSE` lists every component linked into the binary, and `LICENSES/`
+holds their license texts.
+
+| Component | Version | License | Source |
+| --- | --- | --- | --- |
+@COMPONENTS@
+
+## Rebuilding
+
+The binary was built from @SOURCE@ with
+
+    ./configure.sh @CONFIGURE_FLAGS@
+    cmake --build build
+
+after setting up the dependencies as Pono's README describes, at the versions
+the table above lists.
+
+@IF_MATHSAT@
+MathSAT is not part of the source: `ci-scripts/setup-msat.sh` downloads it
+into `deps/mathsat` once you accept its license.
+
+@END_MATHSAT@
+Rebuilding is also how to link the binary against modified versions of its
+LGPL-licensed libraries, as their licenses permit.

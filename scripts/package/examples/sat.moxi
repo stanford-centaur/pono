@@ -1,0 +1,14 @@
+; A counter that an input either increments or leaves alone. The query asks
+; whether the counter can reach 3, which it does after three increments, so
+; the query is satisfiable.
+(set-logic QF_LIA)
+(define-system main
+  :input ((inc Bool))
+  :output ((count Int))
+  :init (= count 0)
+  :trans (= count' (ite inc (+ count 1) count)))
+(check-system main
+  :input ((inc Bool))
+  :output ((count Int))
+  :reachable (three (= count 3))
+  :query (reach-three (three)))
