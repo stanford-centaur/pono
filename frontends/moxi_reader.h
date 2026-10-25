@@ -32,6 +32,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "options/options.h"
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -72,6 +73,74 @@ struct SortExpr
   Location loc;
 };
 
+/** An enumeration sort that another sort encodes, its values being 0, 1, ...
+ *  in the order of the declaration. */
+struct Enumeration
+{
+  std::string name;
+  smt::Sort sort;  ///< that encodes it
+  smt::TermVec values;
+  /** whether the encoding sort has no other values, as the bit-vectors of a
+   *  width do if there are 2^width values */
+  bool exact = false;
+};
+
+struct EncodedSort;
+
+/** A sort of MoXI, as the solver's sort that encodes it. An enumeration that
+ *  another sort encodes, e.g. Int, has to be told apart from that sort and
+ *  from other enumerations, and so do the sorts made of it. */
+struct MoxiSort
+{
+  smt::Sort sort;
+  /** what tells the sort apart if it involves such an enumeration; null
+   *  otherwise, as the solver's sort is then the same */
+  const EncodedSort * encoded = nullptr;
+
+  /** @return whether the sort involves an enumeration that another sort
+   *  encodes */
+  bool involves_enumeration() const { return encoded; }
+
+  std::string to_string() const;
+
+  bool operator==(const MoxiSort & other) const
+  {
+    return sort == other.sort && encoded == other.encoded;
+  }
+
+  bool operator!=(const MoxiSort & other) const { return !(*this == other); }
+};
+
+/** A sort that involves an enumeration that another sort encodes. The reader
+ *  holds one of each, so that two are the same sort exactly if they are the
+ *  same object. */
+struct EncodedSort
+{
+  smt::Sort sort;    ///< that encodes it
+  std::string name;  ///< as MoXI writes it
+  /** the enumeration the sort is, or null */
+  const Enumeration * enumeration = nullptr;
+  /** the index and element sorts of an array, or the arguments of a declared
+   *  sort */
+  std::vector<MoxiSort> args;
+};
+
+/** A term of the solver, with its sort of MoXI. */
+struct MoxiTerm
+{
+  smt::Term term;
+  /** what tells its sort apart if it involves an enumeration that another
+   *  sort encodes; null otherwise, as the term's sort is then its sort of
+   *  MoXI. Null, rather than an optional sort, keeps the term as cheap to
+   *  copy as the solver's own term is, as nearly all terms need nothing. */
+  const EncodedSort * encoded = nullptr;
+
+  /** @return its sort of MoXI */
+  MoxiSort sort() const;
+};
+
+using MoxiTermVec = std::vector<MoxiTerm>;
+
 // The parser holds its values in slots as large as the largest of their
 // types, clears each slot it makes, and moves the values between slots.
 // Hence the sorts nested in the values below are kept behind pointers.
@@ -99,7 +168,7 @@ struct SortedVar
 struct VarBinding
 {
   std::string name;
-  smt::Term term;
+  MoxiTerm term;
   Location loc;
 };
 
@@ -116,7 +185,7 @@ struct QueryExpr
 struct Variable
 {
   std::string name;
-  smt::Sort sort;
+  MoxiSort sort;
   smt::Term curr;
   smt::Term next;
   Location loc;
@@ -128,7 +197,7 @@ struct Variable
 struct Constant
 {
   std::string name;
-  smt::Sort sort;
+  MoxiSort sort;
   smt::Term placeholder;
   Location loc;
 };
@@ -221,8 +290,11 @@ class Reader
   /** Parses a MoXI file.
    *  @param filename the file to read
    *  @param solver the solver to build the terms and sorts with
+   *  @param enum_encoding the sort to encode enumeration sorts as
    */
-  Reader(const std::string & filename, const smt::SmtSolver & solver);
+  Reader(const std::string & filename,
+         const smt::SmtSolver & solver,
+         MoxiEnumEncoding enum_encoding = MoxiEnumEncoding::DT);
 
   Reader(const Reader &) = delete;
   Reader & operator=(const Reader &) = delete;
@@ -243,6 +315,11 @@ class Reader
   {
     return function_names_;
   }
+
+  /** @return the formula that keeps a term of the sort among the values of
+   *  its enumeration, if another sort encodes it that has more values; null
+   *  otherwise */
+  smt::Term range(const MoxiSort & sort, const smt::Term & term) const;
 
   /** Throws a PonoException locating the message in the file. */
   [[noreturn]] void error(const Location & loc,
@@ -273,7 +350,7 @@ class Reader
                         const std::vector<SortedVar> & params,
                         const SortExpr & result,
                         const Location & loc);
-  void end_define_fun(const smt::Term & body, const Location & loc);
+  void end_define_fun(const MoxiTerm & body, const Location & loc);
 
   void begin_system(const std::string & name, const Location & loc);
   void end_system();
@@ -292,7 +369,7 @@ class Reader
    *  whether next-state variables may appear in it. */
   void begin_formula(const std::string & attribute);
   void set_system_formula(const std::string & attribute,
-                          const smt::Term & formula,
+                          const MoxiTerm & formula,
                           const Location & loc);
   void add_subsystem(const std::string & name,
                      const std::string & system,
@@ -300,23 +377,23 @@ class Reader
                      const Location & loc);
   void add_check_formula(const std::string & attribute,
                          const std::string & name,
-                         const smt::Term & formula,
+                         const MoxiTerm & formula,
                          const Location & loc);
   void add_query(const QueryExpr & query);
   void add_queries(const std::vector<QueryExpr> & queries,
                    const Location & loc);
 
   // terms
-  smt::Term make_numeral(const std::string & digits, const Location & loc);
-  smt::Term make_decimal(const std::string & text, const Location & loc);
-  smt::Term make_binary(const std::string & bits, const Location & loc);
-  smt::Term make_hexadecimal(const std::string & digits, const Location & loc);
+  MoxiTerm make_numeral(const std::string & digits, const Location & loc);
+  MoxiTerm make_decimal(const std::string & text, const Location & loc);
+  MoxiTerm make_binary(const std::string & bits, const Location & loc);
+  MoxiTerm make_hexadecimal(const std::string & digits, const Location & loc);
   /** @return the term an identifier stands for on its own */
-  smt::Term make_identifier_term(const Identifier & id);
+  MoxiTerm make_identifier_term(const Identifier & id);
   /** @return the application of the function an identifier names */
-  smt::Term make_application(const Identifier & id,
-                             const smt::TermVec & args,
-                             const Location & loc);
+  MoxiTerm make_application(const Identifier & id,
+                            const MoxiTermVec & args,
+                            const Location & loc);
   /** Binds the symbols of a let for its body. */
   void push_let(const std::vector<VarBinding> & bindings);
   /** Ends the scope of the innermost let, or of define-fun parameters. */
@@ -325,9 +402,9 @@ class Reader
   void push_quantifier(const std::vector<SortedVar> & vars);
   /** Ends the scope of the innermost quantifier.
    *  @return the quantified formula */
-  smt::Term pop_quantifier(bool forall,
-                           const smt::Term & body,
-                           const Location & loc);
+  MoxiTerm pop_quantifier(bool forall,
+                          const MoxiTerm & body,
+                          const Location & loc);
 
  private:
   /** Reads the file with the lexer and parser, defined in moxiparser.l. */
@@ -341,17 +418,17 @@ class Reader
   struct Macro
   {
     smt::TermVec params;
-    smt::SortVec param_sorts;
+    std::vector<MoxiSort> param_sorts;
     smt::Term body;
-    smt::Sort result;
+    MoxiSort result;
   };
 
   /** An uninterpreted function from declare-fun. */
   struct Function
   {
     smt::Term symbol;
-    smt::SortVec arg_sorts;
-    smt::Sort result;
+    std::vector<MoxiSort> arg_sorts;
+    MoxiSort result;
   };
 
   /** A sort from define-sort, possibly with parameters. */
@@ -384,10 +461,22 @@ class Reader
     CHECK
   };
 
-  using SortParams = std::unordered_map<std::string, smt::Sort>;
+  using SortParams = std::unordered_map<std::string, MoxiSort>;
 
-  smt::Sort resolve_sort(const SortExpr & expr,
-                         const SortParams * params = nullptr);
+  MoxiSort resolve_sort(const SortExpr & expr,
+                        const SortParams * params = nullptr);
+  /** @return the one object that tells apart the sort, which involves an
+   *  enumeration that another sort encodes */
+  const EncodedSort * encode_sort(const smt::Sort & sort,
+                                  const std::string & name,
+                                  const Enumeration * enumeration,
+                                  std::vector<MoxiSort> args);
+  /** Refuses where the solver would tell apart values of a sort that are
+   *  equal in MoXI, as the sort that encodes an enumeration has other values.
+   *  @param reason what would tell them apart */
+  [[noreturn]] void refuse_encoding(const Enumeration & enumeration,
+                                    const std::string & reason,
+                                    const Location & loc) const;
   smt::Sort int_sort(const Location & loc);
   smt::Sort real_sort(const Location & loc);
   /** @return the sort that numerals have in the logic */
@@ -405,24 +494,43 @@ class Reader
   /** @return the variable of the system or check in scope, or null */
   const Variable * lookup_variable(const std::string & name) const;
   /** @return the term a let or quantifier binds the name to, or null */
-  smt::Term lookup_bound(const std::string & name) const;
-  void bind(const std::string & name, const smt::Term & term);
-  smt::Term make_next(const std::string & name, const Location & loc);
+  const MoxiTerm * lookup_bound(const std::string & name) const;
+  void bind(const std::string & name, const MoxiTerm & term);
+  MoxiTerm make_next(const std::string & name, const Location & loc);
 
-  smt::Term make_indexed_constant(const Identifier & id);
-  smt::Term make_indexed_application(const Identifier & id,
-                                     const smt::TermVec & args,
-                                     const Location & loc);
-  smt::Term make_builtin(const std::string & name,
-                         smt::TermVec args,
-                         const Location & loc);
-  smt::Term apply_macro(const std::string & name,
-                        const Macro & macro,
-                        smt::TermVec args,
+  MoxiTerm make_indexed_constant(const Identifier & id);
+  MoxiTerm make_indexed_application(const Identifier & id,
+                                    const MoxiTermVec & args,
+                                    const Location & loc);
+  MoxiTerm make_builtin(const std::string & name,
+                        MoxiTermVec args,
                         const Location & loc);
+  /** Applies a predefined function to arguments of which one at least
+   *  involves an enumeration that another sort encodes. */
+  MoxiTerm make_builtin_of_enumerations(const std::string & name,
+                                        smt::PrimOp op,
+                                        const MoxiTermVec & args,
+                                        const Location & loc);
+  MoxiTerm apply_macro(const std::string & name,
+                       const Macro & macro,
+                       const MoxiTermVec & args,
+                       const Location & loc);
+  /** @return the equality of two terms of the sort as MoXI defines it,
+   *  which only the values of an enumeration take part in
+   *  @param name the function that compares them, for errors */
+  smt::Term make_equality(const smt::Term & a,
+                          const smt::Term & b,
+                          const MoxiSort & sort,
+                          const std::string & name,
+                          const Location & loc);
+  /** @return the term, or the first value of its enumeration where it is
+   *  not one of its values */
+  MoxiTerm clamp(const MoxiTerm & term, const Location & loc) const;
+  /** @return whether the term is a formula, i.e. has sort Bool */
+  bool is_formula(const MoxiTerm & term) const;
   /** @return whether the term has the sort, or is a real with an integer
    *  value that the solver gives the sort Int */
-  bool has_sort(const smt::Term & term, const smt::Sort & sort) const;
+  bool has_sort(const MoxiTerm & term, const MoxiSort & sort) const;
   /** Makes a number from its text, which numbers_ keeps. */
   smt::Term make_number(const std::string & text,
                         const smt::Sort & sort,
@@ -446,12 +554,14 @@ class Reader
 
   std::string filename_;
   smt::SmtSolver solver_;
+  MoxiEnumEncoding enum_encoding_;
   Location location_;
 
   // the logic
   bool logic_set_ = false;
   bool logic_has_int_ = true;
   bool logic_has_real_ = true;
+  bool logic_has_bv_ = true;
   /** the sort of formulas, of kind BV for solvers that alias Bool and
    *  (_ BitVec 1), e.g. Boolector */
   smt::Sort bool_sort_;
@@ -464,8 +574,13 @@ class Reader
   // global declarations
   std::unordered_map<std::string, DeclaredSort> declared_sorts_;
   std::unordered_map<std::string, SortDefinition> defined_sorts_;
-  std::unordered_map<std::string, smt::Sort> enum_sorts_;  ///< datatypes
-  std::unordered_map<std::string, smt::Term> enum_values_;
+  std::unordered_map<std::string, MoxiSort> enum_sorts_;
+  std::unordered_map<std::string, MoxiTerm> enum_values_;
+  /** the enumerations that other sorts encode, and the sorts made of them;
+   *  a deque keeps pointers valid */
+  std::deque<Enumeration> enumerations_;
+  std::deque<EncodedSort> encoded_sorts_;
+  std::unordered_map<std::string, const EncodedSort *> encoded_sort_names_;
   std::deque<Constant> constants_;
   std::unordered_map<std::string, const Constant *> constant_names_;
   std::unordered_map<std::string, Function> functions_;
@@ -492,9 +607,9 @@ class Reader
   Macro macro_;
 
   // symbols bound by lets and quantifiers, innermost last
-  std::unordered_map<std::string, std::vector<smt::Term>> bound_;
+  std::unordered_map<std::string, std::vector<MoxiTerm>> bound_;
   std::vector<std::vector<std::string>> bound_scopes_;
-  std::vector<smt::TermVec> quantifier_params_;
+  std::vector<MoxiTermVec> quantifier_params_;
 };
 
 }  // namespace moxi

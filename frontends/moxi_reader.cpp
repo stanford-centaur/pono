@@ -25,6 +25,7 @@
 #include <sstream>
 
 #include "utils/exceptions.h"
+#include "utils/logger.h"
 #include "utils/str_util.h"
 
 using namespace smt;
@@ -32,6 +33,9 @@ using namespace std;
 
 namespace pono {
 namespace moxi {
+
+// pono's own to_string, for its options and results, would hide it.
+using std::to_string;
 
 namespace {
 
@@ -154,10 +158,13 @@ bool is_bv_literal_name(const string & name)
  *  letters of other theories, and then those of the arithmetic, if any.
  *  @return whether the name is a logic
  */
-bool parse_logic(const string & logic, bool & has_int, bool & has_real)
+bool parse_logic(const string & logic,
+                 bool & has_int,
+                 bool & has_real,
+                 bool & has_bv)
 {
   if (logic == "ALL") {
-    has_int = has_real = true;
+    has_int = has_real = has_bv = true;
     return true;
   }
   string rest = logic;
@@ -165,10 +172,12 @@ bool parse_logic(const string & logic, bool & has_int, bool & has_real)
     rest = rest.substr(3);
   }
   bool has_theory = false;
+  bool bv = false;
   for (const string theory : { "AX", "A", "UF", "BV", "FP", "DT", "S" }) {
     if (syntax_analysis::StrStartsWith(rest, theory)) {
       rest = rest.substr(theory.size());
       has_theory = true;
+      bv |= theory == "BV";
     }
   }
   static const unordered_map<string, pair<bool, bool>> arithmetic{
@@ -184,6 +193,7 @@ bool parse_logic(const string & logic, bool & has_int, bool & has_real)
   }
   has_int = it->second.first;
   has_real = it->second.second;
+  has_bv = bv;
   return true;
 }
 
@@ -204,7 +214,81 @@ string describe_sorts(const TermVec & args)
   return result;
 }
 
+string describe_sorts(const MoxiTermVec & args)
+{
+  string result;
+  for (const MoxiTerm & arg : args) {
+    result += (result.empty() ? "" : ", ") + arg.sort().to_string();
+  }
+  return result;
+}
+
+/** @return the sort of MoXI that is the solver's sort */
+MoxiSort plain_sort(const Sort & sort) { return { sort, nullptr }; }
+
+/** @return the term, whose sort of MoXI is its sort */
+MoxiTerm plain(const Term & term) { return { term, nullptr }; }
+
+/** @return the term with the sort of MoXI */
+MoxiTerm typed(const Term & term, const MoxiSort & sort)
+{
+  return { term, sort.encoded };
+}
+
+MoxiSort element_sort(const MoxiSort & array)
+{
+  return array.encoded ? array.encoded->args[1]
+                       : plain_sort(array.sort->get_elemsort());
+}
+
+/** @return the enumeration the sort is if a sort with more values encodes
+ *  it, or null */
+const Enumeration * inexact_enumeration(const MoxiSort & sort)
+{
+  const Enumeration * enumeration =
+      sort.encoded ? sort.encoded->enumeration : nullptr;
+  return enumeration && !enumeration->exact ? enumeration : nullptr;
+}
+
+/** @return an enumeration that a sort with more values encodes, by which the
+ *  solver's equality on the sort tells apart values that are equal in MoXI,
+ *  or null. An array holds elements at the other values of the encoding sort
+ *  if it is indexed by the enumeration, and may hold these values if they
+ *  are its elements. The other sorts have the same values in MoXI and in the
+ *  solver: a term of an enumeration takes only its values, and those of a
+ *  declared sort are opaque. */
+const Enumeration * inexact_equality(const MoxiSort & sort)
+{
+  if (!sort.encoded || sort.sort->get_sort_kind() != ARRAY) {
+    return nullptr;
+  }
+  for (const MoxiSort & arg : sort.encoded->args) {
+    if (const Enumeration * enumeration = inexact_enumeration(arg)) {
+      return enumeration;
+    }
+  }
+  for (const MoxiSort & arg : sort.encoded->args) {
+    if (const Enumeration * enumeration = inexact_equality(arg)) {
+      return enumeration;
+    }
+  }
+  return nullptr;
+}
+
 }  // namespace
+
+string MoxiSort::to_string() const
+{
+  return encoded ? encoded->name : sort->to_string();
+}
+
+MoxiSort MoxiTerm::sort() const
+{
+  // the encoding sort, as the solver may report another for a value, e.g.
+  // MathSAT reports Int for the real 1
+  return encoded ? MoxiSort{ encoded->sort, encoded }
+                 : MoxiSort{ term->get_sort(), nullptr };
+}
 
 void Location::columns(int count)
 {
@@ -237,10 +321,41 @@ const Variable & System::variable(size_t i) const
   return locals.at(i - outputs.size());
 }
 
-Reader::Reader(const string & filename, const SmtSolver & solver)
-    : filename_(filename), solver_(solver), bool_sort_(solver->make_sort(BOOL))
+Reader::Reader(const string & filename,
+               const SmtSolver & solver,
+               MoxiEnumEncoding enum_encoding)
+    : filename_(filename),
+      solver_(solver),
+      enum_encoding_(enum_encoding),
+      bool_sort_(solver->make_sort(BOOL))
 {
   parse();
+}
+
+Term Reader::range(const MoxiSort & sort, const Term & term) const
+{
+  const Enumeration * enumeration = inexact_enumeration(sort);
+  if (!enumeration) {
+    return nullptr;
+  }
+  const TermVec & values = enumeration->values;
+  switch (enumeration->sort->get_sort_kind()) {
+    case BV: return solver_->make_term(BVUle, term, values.back());
+    case INT:
+      return solver_->make_term(And,
+                                solver_->make_term(Le, values.front(), term),
+                                solver_->make_term(Le, term, values.back()));
+    default: {
+      // Reals lie between the values, too.
+      assert(enumeration->sort->get_sort_kind() == REAL);
+      TermVec equalities;
+      for (const Term & value : values) {
+        equalities.push_back(solver_->make_term(Equal, term, value));
+      }
+      return equalities.size() == 1 ? equalities[0]
+                                    : solver_->make_term(Or, equalities);
+    }
+  }
 }
 
 void Reader::error(const Location & loc, const string & message) const
@@ -257,7 +372,7 @@ void Reader::set_logic(const string & logic, const Location & loc)
   if (logic_set_) {
     error(loc, "the logic is already set");
   }
-  if (!parse_logic(logic, logic_has_int_, logic_has_real_)) {
+  if (!parse_logic(logic, logic_has_int_, logic_has_real_, logic_has_bv_)) {
     error(loc, "unknown logic " + logic);
   }
   logic_set_ = true;
@@ -287,7 +402,7 @@ void Reader::define_sort(const string & name,
   // standing for an arbitrary sort.
   SortParams dummies;
   for (const string & param : params) {
-    if (!dummies.emplace(param, bool_sort_).second) {
+    if (!dummies.emplace(param, plain_sort(bool_sort_)).second) {
       error(loc, "sort parameter " + param + " is repeated");
     }
   }
@@ -308,25 +423,76 @@ void Reader::declare_enum_sort(const string & name,
     }
   }
   const SolverEnum se = solver_->get_solver_enum();
-  if (!solver_has_attribute(se, THEORY_DATATYPE)) {
+  const bool has_datatypes = solver_has_attribute(se, THEORY_DATATYPE);
+  MoxiEnumEncoding encoding = enum_encoding_;
+  if (encoding == MoxiEnumEncoding::AUTO) {
+    // Datatypes encode an enumeration exactly. Otherwise a sort of the logic
+    // does, or bit-vectors, which every solver has, if the logic has none.
+    if (has_datatypes) {
+      encoding = MoxiEnumEncoding::DT;
+    } else if (logic_has_bv_ || (!logic_has_int_ && !logic_has_real_)) {
+      encoding = MoxiEnumEncoding::BV;
+    } else {
+      encoding =
+          logic_has_int_ ? MoxiEnumEncoding::INT : MoxiEnumEncoding::REAL;
+    }
+  }
+  if (encoding == MoxiEnumEncoding::DT && !has_datatypes) {
     error(loc,
           "solver " + to_string(se)
               + " does not support datatypes, which enumeration sorts are;"
-                " choose one that does, e.g. with --smt-solver cvc5");
+                " choose one that does, e.g. with --smt-solver cvc5, or"
+                " another encoding with --moxi-enum-as");
   }
-  // An enumeration is a datatype whose constructors take no arguments.
   try {
-    DatatypeDecl decl = solver_->make_datatype_decl(name);
-    for (const string & value : values) {
-      solver_->add_constructor(decl,
-                               solver_->make_datatype_constructor_decl(value));
+    if (encoding == MoxiEnumEncoding::DT) {
+      // An enumeration is a datatype whose constructors take no arguments.
+      DatatypeDecl decl = solver_->make_datatype_decl(name);
+      for (const string & value : values) {
+        solver_->add_constructor(
+            decl, solver_->make_datatype_constructor_decl(value));
+      }
+      const Sort sort = solver_->make_sort(decl);
+      enum_sorts_[name] = plain_sort(sort);
+      for (const string & value : values) {
+        enum_values_[value] = plain(solver_->make_term(
+            Apply_Constructor, solver_->get_constructor(sort, value)));
+      }
+      logger.log(1, "MoXI enumeration {} is a datatype", name);
+      return;
     }
-    const Sort sort = solver_->make_sort(decl);
+    // Another sort encodes the enumeration, from which its name keeps it
+    // apart.
+    Enumeration & enumeration = enumerations_.emplace_back();
+    enumeration.name = name;
+    if (encoding == MoxiEnumEncoding::BV) {
+      // as few bits as tell the values apart, but at least one
+      uint64_t width = 1;
+      while (width < 64 && (uint64_t{ 1 } << width) < values.size()) {
+        ++width;
+      }
+      enumeration.sort = solver_->make_sort(BV, width);
+      enumeration.exact =
+          width < 64 && (uint64_t{ 1 } << width) == values.size();
+    } else {
+      enumeration.sort =
+          encoding == MoxiEnumEncoding::INT ? int_sort(loc) : real_sort(loc);
+    }
+    for (size_t i = 0; i < values.size(); ++i) {
+      enumeration.values.push_back(
+          solver_->make_term(to_string(i), enumeration.sort));
+    }
+    const MoxiSort sort{
+      enumeration.sort, encode_sort(enumeration.sort, name, &enumeration, {})
+    };
     enum_sorts_[name] = sort;
-    for (const string & value : values) {
-      enum_values_[value] = solver_->make_term(
-          Apply_Constructor, solver_->get_constructor(sort, value));
+    for (size_t i = 0; i < values.size(); ++i) {
+      enum_values_[values[i]] = typed(enumeration.values[i], sort);
     }
+    logger.log(1,
+               "MoXI enumeration {} is encoded as {}",
+               name,
+               enumeration.sort->to_string());
   }
   catch (const SmtException & e) {
     error(loc, "cannot declare enumeration " + name + ": " + e.what());
@@ -339,19 +505,30 @@ void Reader::declare_fun(const string & name,
                          const Location & loc)
 {
   check_new_global_name(name, loc);
-  const Sort result_sort = resolve_sort(result);
+  const MoxiSort result_sort = resolve_sort(result);
   if (args.empty()) {
     constants_.push_back(
-        { name, result_sort, make_placeholder(result_sort), loc });
+        { name, result_sort, make_placeholder(result_sort.sort), loc });
     constant_names_[name] = &constants_.back();
     return;
   }
   Function function;
+  SortVec sorts;
   for (const SortExpr & arg : args) {
     function.arg_sorts.push_back(resolve_sort(arg));
+    sorts.push_back(function.arg_sorts.back().sort);
+    // A function gives equal results for equal arguments, but the solver
+    // would tell apart some that are equal in MoXI.
+    if (const Enumeration * enumeration =
+            inexact_equality(function.arg_sorts.back())) {
+      refuse_encoding(*enumeration,
+                      "function " + name
+                          + " would tell apart equal arguments of sort "
+                          + function.arg_sorts.back().to_string(),
+                      arg.loc);
+    }
   }
-  SortVec sorts = function.arg_sorts;
-  sorts.push_back(result_sort);
+  sorts.push_back(result_sort.sort);
   function.result = result_sort;
   try {
     function.symbol =
@@ -378,25 +555,25 @@ void Reader::begin_define_fun(const string & name,
     if (!seen.insert(param.name).second) {
       error(param.loc, "parameter " + param.name + " is repeated");
     }
-    const Sort sort = resolve_sort(*param.sort);
-    macro_.params.push_back(make_placeholder(sort));
+    const MoxiSort sort = resolve_sort(*param.sort);
+    macro_.params.push_back(make_placeholder(sort.sort));
     macro_.param_sorts.push_back(sort);
-    bind(param.name, macro_.params.back());
+    bind(param.name, typed(macro_.params.back(), sort));
   }
   macro_.result = resolve_sort(result);
   next_allowed_ = false;
   formula_attribute_ = "define-fun";
 }
 
-void Reader::end_define_fun(const Term & body, const Location & loc)
+void Reader::end_define_fun(const MoxiTerm & body, const Location & loc)
 {
   pop_scope();
-  macro_.body = body;
+  macro_.body = body.term;
   if (!has_sort(body, macro_.result)) {
     error(loc,
           "the definition of " + macro_name_ + " has sort "
-              + body->get_sort()->to_string() + ", but "
-              + macro_.result->to_string() + " is declared");
+              + body.sort().to_string() + ", but " + macro_.result.to_string()
+              + " is declared");
   }
   macros_[macro_name_] = std::move(macro_);
 }
@@ -509,11 +686,11 @@ void Reader::declare_variables(const string & attribute,
     if (!command_names_.insert(var.name).second) {
       error(var.loc, "variable " + var.name + " is declared more than once");
     }
-    const Sort sort = resolve_sort(*var.sort);
+    const MoxiSort sort = resolve_sort(*var.sort);
     group.push_back({ var.name,
                       sort,
-                      make_placeholder(sort),
-                      make_placeholder(sort),
+                      make_placeholder(sort.sort),
+                      make_placeholder(sort.sort),
                       var.loc });
   }
 }
@@ -534,8 +711,8 @@ void Reader::check_signature(const string & attribute,
       }
       declared.push_back({ var.name,
                            var.sort,
-                           make_placeholder(var.sort),
-                           make_placeholder(var.sort),
+                           make_placeholder(var.sort.sort),
+                           make_placeholder(var.sort.sort),
                            loc });
     }
     return;
@@ -550,9 +727,9 @@ void Reader::check_signature(const string & attribute,
     if (declared[i].sort != expected[i].sort) {
       error(declared[i].loc,
             "variable " + declared[i].name + " has sort "
-                + declared[i].sort->to_string() + ", but the variable "
+                + declared[i].sort.to_string() + ", but the variable "
                 + expected[i].name + " of system " + system.name
-                + " it renames has sort " + expected[i].sort->to_string());
+                + " it renames has sort " + expected[i].sort.to_string());
     }
   }
 }
@@ -595,25 +772,25 @@ void Reader::begin_formula(const string & attribute)
 }
 
 void Reader::set_system_formula(const string & attribute,
-                                const Term & formula,
+                                const MoxiTerm & formula,
                                 const Location & loc)
 {
   next_allowed_ = false;
   if (!declared_attributes_.insert(attribute).second) {
     error(loc, "attribute " + attribute + " appears more than once");
   }
-  if (formula->get_sort() != bool_sort_) {
+  if (!is_formula(formula)) {
     error(loc,
           "the formula of " + attribute + " has sort "
-              + formula->get_sort()->to_string() + " instead of Bool");
+              + formula.sort().to_string() + " instead of Bool");
   }
   if (attribute == ":init") {
-    system_->init = formula;
+    system_->init = formula.term;
   } else if (attribute == ":trans") {
-    system_->trans = formula;
+    system_->trans = formula.term;
   } else {
     assert(attribute == ":inv");
-    system_->inv = formula;
+    system_->inv = formula.term;
   }
 }
 
@@ -656,8 +833,8 @@ void Reader::add_subsystem(const string & name,
     if (actual.sort != formal.sort) {
       error(loc,
             "subsystem " + name + " passes " + actual.name + " of sort "
-                + actual.sort->to_string() + " for " + formal.name + " of sort "
-                + formal.sort->to_string());
+                + actual.sort.to_string() + " for " + formal.name + " of sort "
+                + formal.sort.to_string());
     }
     subsystem.args.push_back(pos->second);
   }
@@ -666,14 +843,14 @@ void Reader::add_subsystem(const string & name,
 
 void Reader::add_check_formula(const string & attribute,
                                const string & name,
-                               const Term & formula,
+                               const MoxiTerm & formula,
                                const Location & loc)
 {
   next_allowed_ = false;
-  if (formula->get_sort() != bool_sort_) {
+  if (!is_formula(formula)) {
     error(loc,
-          "the formula " + name + " has sort "
-              + formula->get_sort()->to_string() + " instead of Bool");
+          "the formula " + name + " has sort " + formula.sort().to_string()
+              + " instead of Bool");
   }
   FormulaKind kind = FormulaKind::CURRENT;
   if (attribute == ":assumption") {
@@ -688,7 +865,7 @@ void Reader::add_check_formula(const string & attribute,
   if (!formula_positions_.emplace(name, check_.formulas.size()).second) {
     error(loc, "another formula of this check-system is named " + name);
   }
-  check_.formulas.push_back({ name, kind, formula, loc });
+  check_.formulas.push_back({ name, kind, formula.term, loc });
 }
 
 void Reader::add_query(const QueryExpr & query)
@@ -756,7 +933,7 @@ uint64_t Reader::parse_index(const string & index, const Location & loc) const
   return stoull(index);
 }
 
-Sort Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
+MoxiSort Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
 {
   const string & name = expr.name;
   const bool plain = expr.indices.empty() && expr.args.empty();
@@ -768,23 +945,40 @@ Sort Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
   }
   try {
     if (name == "Bool" && plain) {
-      return bool_sort_;
+      return plain_sort(bool_sort_);
     } else if (name == "Int" && plain) {
-      return int_sort(expr.loc);
+      return plain_sort(int_sort(expr.loc));
     } else if (name == "Real" && plain) {
-      return real_sort(expr.loc);
+      return plain_sort(real_sort(expr.loc));
     } else if (name == "BitVec" && expr.indices.size() == 1
                && expr.args.empty()) {
       const uint64_t width = parse_index(expr.indices[0], expr.loc);
       if (!width) {
         error(expr.loc, "bit-vectors need a positive width");
       }
-      return solver_->make_sort(BV, width);
+      return plain_sort(solver_->make_sort(BV, width));
     } else if (name == "Array" && expr.indices.empty()
                && expr.args.size() == 2) {
-      return solver_->make_sort(ARRAY,
-                                resolve_sort(expr.args[0], params),
-                                resolve_sort(expr.args[1], params));
+      const MoxiSort index = resolve_sort(expr.args[0], params);
+      const MoxiSort element = resolve_sort(expr.args[1], params);
+      // Selecting at equal indices gives equal elements, but the solver would
+      // tell apart some that are equal in MoXI.
+      if (const Enumeration * enumeration = inexact_equality(index)) {
+        refuse_encoding(*enumeration,
+                        "an array would tell apart equal indices of sort "
+                            + index.to_string(),
+                        expr.args[0].loc);
+      }
+      MoxiSort array =
+          plain_sort(solver_->make_sort(ARRAY, index.sort, element.sort));
+      if (index.involves_enumeration() || element.involves_enumeration()) {
+        array.encoded = encode_sort(
+            array.sort,
+            "(Array " + index.to_string() + " " + element.to_string() + ")",
+            nullptr,
+            { index, element });
+      }
+      return array;
     }
 
     auto enumeration = enum_sorts_.find(name);
@@ -806,13 +1000,26 @@ Sort Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
     if (declared != declared_sorts_.end() && expr.indices.empty()
         && expr.args.size() == declared->second.arity) {
       if (!declared->second.arity) {
-        return declared->second.sort;
+        return plain_sort(declared->second.sort);
       }
-      SortVec args;
+      vector<MoxiSort> args;
+      SortVec sorts;
       for (const SortExpr & arg : expr.args) {
         args.push_back(resolve_sort(arg, params));
+        sorts.push_back(args.back().sort);
       }
-      return solver_->make_sort(declared->second.sort, args);
+      MoxiSort sort =
+          plain_sort(solver_->make_sort(declared->second.sort, sorts));
+      if (any_of(args.begin(), args.end(), [](const MoxiSort & arg) {
+            return arg.involves_enumeration();
+          })) {
+        string text = "(" + name;
+        for (const MoxiSort & arg : args) {
+          text += " " + arg.to_string();
+        }
+        sort.encoded = encode_sort(sort.sort, text + ")", nullptr, args);
+      }
+      return sort;
     }
   }
   catch (const SmtException & e) {
@@ -825,6 +1032,32 @@ Sort Reader::resolve_sort(const SortExpr & expr, const SortParams * params)
   error(expr.loc,
         known ? "wrong indices or arguments for sort " + name
               : "unknown sort " + name);
+}
+
+const EncodedSort * Reader::encode_sort(const Sort & sort,
+                                        const string & name,
+                                        const Enumeration * enumeration,
+                                        vector<MoxiSort> args)
+{
+  // How MoXI writes the sort tells it apart, as enumerations have names of
+  // their own.
+  auto it = encoded_sort_names_.find(name);
+  if (it != encoded_sort_names_.end()) {
+    return it->second;
+  }
+  encoded_sorts_.push_back({ sort, name, enumeration, std::move(args) });
+  return encoded_sort_names_[name] = &encoded_sorts_.back();
+}
+
+void Reader::refuse_encoding(const Enumeration & enumeration,
+                             const string & reason,
+                             const Location & loc) const
+{
+  error(loc,
+        "cannot encode enumeration " + enumeration.name + " as "
+            + enumeration.sort->to_string() + " here, as " + reason
+            + " by values outside " + enumeration.name
+            + "; datatypes (--moxi-enum-as dt) encode it exactly");
 }
 
 void Reader::check_new_sort_name(const string & name,
@@ -864,13 +1097,13 @@ const Variable * Reader::lookup_variable(const string & name) const
   return it == variables_in_scope_.end() ? nullptr : it->second;
 }
 
-Term Reader::lookup_bound(const string & name) const
+const MoxiTerm * Reader::lookup_bound(const string & name) const
 {
   auto it = bound_.find(name);
-  return it == bound_.end() ? Term() : it->second.back();
+  return it == bound_.end() ? nullptr : &it->second.back();
 }
 
-void Reader::bind(const string & name, const Term & term)
+void Reader::bind(const string & name, const MoxiTerm & term)
 {
   bound_[name].push_back(term);
   bound_scopes_.back().push_back(name);
@@ -894,7 +1127,7 @@ void Reader::pop_scope()
 {
   for (const string & name : bound_scopes_.back()) {
     // bind() put the name in, so this does not insert it
-    vector<Term> & terms = bound_[name];
+    vector<MoxiTerm> & terms = bound_[name];
     assert(!terms.empty());
     if (terms.size() == 1) {
       bound_.erase(name);
@@ -908,36 +1141,72 @@ void Reader::pop_scope()
 void Reader::push_quantifier(const vector<SortedVar> & vars)
 {
   bound_scopes_.emplace_back();
-  TermVec params;
+  MoxiTermVec params;
   unordered_set<string> seen;
   for (const SortedVar & var : vars) {
     if (!seen.insert(var.name).second) {
       error(var.loc, "quantifier binds " + var.name + " more than once");
     }
-    const Sort sort = resolve_sort(*var.sort);
-    params.push_back(solver_->make_param(placeholder_name(), sort));
+    const MoxiSort sort = resolve_sort(*var.sort);
+    // The solver's variable has the encoding sort, and keeps the sort of
+    // MoXI for the guard that pop_quantifier adds.
+    params.push_back(
+        typed(solver_->make_param(placeholder_name(), sort.sort), sort));
     bind(var.name, params.back());
   }
   quantifier_params_.push_back(std::move(params));
 }
 
-Term Reader::pop_quantifier(bool forall,
-                            const Term & body,
-                            const Location & loc)
+MoxiTerm Reader::pop_quantifier(bool forall,
+                                const MoxiTerm & body,
+                                const Location & loc)
 {
-  TermVec args = std::move(quantifier_params_.back());
+  const MoxiTermVec params = std::move(quantifier_params_.back());
   quantifier_params_.pop_back();
   pop_scope();
-  args.push_back(body);
-  return make_term(forall ? Forall : Exists, args, loc);
+  // The solver refuses a body that is not a formula, unless an enumeration
+  // passes for Bool with it, as two values in (_ BitVec 1) do with Boolector.
+  if (body.encoded) {
+    error(loc,
+          "the body of the quantifier has sort " + body.sort().to_string()
+              + " instead of Bool");
+  }
+  // In MoXI, a variable of an enumeration ranges over its values. Bound in
+  // the solver, it ranges over the whole sort that encodes them, e.g. all
+  // integers, so the quantifier is restricted to the values that stand for
+  // those of the enumeration:
+  //   (forall ((c Color)) phi) becomes (forall ((c Int)) (=> in_range phi))
+  //   (exists ((c Color)) phi) becomes (exists ((c Int)) (and in_range phi))
+  // where in_range is (and (<= 0 c) (<= c 2)) for three values, see range.
+  // As in_range holds for exactly the values that stand for those of the
+  // enumeration, the formula keeps its meaning. The guard conjoins the
+  // ranges of all variables that need one; variables of other sorts, and of
+  // enumerations that datatypes or 2^k values of bit-vectors encode, need
+  // none.
+  TermVec args;
+  TermVec ranges;
+  for (const MoxiTerm & param : params) {
+    args.push_back(param.term);
+    if (const Term in_range = range(param.sort(), param.term)) {
+      ranges.push_back(in_range);
+    }
+  }
+  Term formula = body.term;
+  if (!ranges.empty()) {
+    const Term guard =
+        ranges.size() == 1 ? ranges[0] : make_term(And, ranges, loc);
+    formula = make_term(forall ? Implies : And, { guard, formula }, loc);
+  }
+  args.push_back(formula);
+  return plain(make_term(forall ? Forall : Exists, args, loc));
 }
 
-Term Reader::make_numeral(const string & digits, const Location & loc)
+MoxiTerm Reader::make_numeral(const string & digits, const Location & loc)
 {
-  return make_number(digits, numeral_sort(loc), loc);
+  return plain(make_number(digits, numeral_sort(loc), loc));
 }
 
-Term Reader::make_decimal(const string & text, const Location & loc)
+MoxiTerm Reader::make_decimal(const string & text, const Location & loc)
 {
   // Solvers take a decimal as a fraction more readily than as is.
   const size_t point = text.find('.');
@@ -945,31 +1214,32 @@ Term Reader::make_decimal(const string & text, const Location & loc)
   string numerator = text.substr(0, point) + text.substr(point + 1);
   numerator.erase(0,
                   min(numerator.find_first_not_of('0'), numerator.size() - 1));
-  return make_number(numerator + "/" + denominator, real_sort(loc), loc);
+  return plain(make_number(numerator + "/" + denominator, real_sort(loc), loc));
 }
 
-Term Reader::make_binary(const string & bits, const Location & loc)
+MoxiTerm Reader::make_binary(const string & bits, const Location & loc)
 {
   try {
-    return solver_->make_term(bits, solver_->make_sort(BV, bits.size()), 2);
+    return plain(
+        solver_->make_term(bits, solver_->make_sort(BV, bits.size()), 2));
   }
   catch (const SmtException & e) {
     error(loc, "cannot make bit-vector #b" + bits + ": " + e.what());
   }
 }
 
-Term Reader::make_hexadecimal(const string & digits, const Location & loc)
+MoxiTerm Reader::make_hexadecimal(const string & digits, const Location & loc)
 {
   try {
-    return solver_->make_term(
-        digits, solver_->make_sort(BV, 4 * digits.size()), 16);
+    return plain(solver_->make_term(
+        digits, solver_->make_sort(BV, 4 * digits.size()), 16));
   }
   catch (const SmtException & e) {
     error(loc, "cannot make bit-vector #x" + digits + ": " + e.what());
   }
 }
 
-Term Reader::make_next(const string & name, const Location & loc)
+MoxiTerm Reader::make_next(const string & name, const Location & loc)
 {
   if (lookup_bound(name)) {
     error(loc, "the bound variable " + name + " cannot be primed");
@@ -987,10 +1257,10 @@ Term Reader::make_next(const string & name, const Location & loc)
           "the next-state variable " + name + "' cannot appear in "
               + formula_attribute_);
   }
-  return var->next;
+  return typed(var->next, var->sort);
 }
 
-Term Reader::make_identifier_term(const Identifier & id)
+MoxiTerm Reader::make_identifier_term(const Identifier & id)
 {
   if (!id.indices.empty()) {
     return make_indexed_constant(id);
@@ -1001,10 +1271,10 @@ Term Reader::make_identifier_term(const Identifier & id)
     }
     Identifier plain = id;
     plain.qualifier.reset();
-    const Sort sort = resolve_sort(*id.qualifier);
-    const Term term = make_identifier_term(plain);
+    const MoxiSort sort = resolve_sort(*id.qualifier);
+    const MoxiTerm term = make_identifier_term(plain);
     if (!has_sort(term, sort)) {
-      error(id.loc, id.name + " does not have sort " + sort->to_string());
+      error(id.loc, id.name + " does not have sort " + sort.to_string());
     }
     return term;
   }
@@ -1014,13 +1284,13 @@ Term Reader::make_identifier_term(const Identifier & id)
 
   const string & name = id.name;
   if (name == "true" || name == "false") {
-    return solver_->make_term(name == "true");
+    return plain(solver_->make_term(name == "true"));
   }
-  if (Term term = lookup_bound(name)) {
-    return term;
+  if (const MoxiTerm * term = lookup_bound(name)) {
+    return *term;
   }
   if (const Variable * var = lookup_variable(name)) {
-    return var->curr;
+    return typed(var->curr, var->sort);
   }
   auto value = enum_values_.find(name);
   if (value != enum_values_.end()) {
@@ -1028,14 +1298,14 @@ Term Reader::make_identifier_term(const Identifier & id)
   }
   auto constant = constant_names_.find(name);
   if (constant != constant_names_.end()) {
-    return constant->second->placeholder;
+    return typed(constant->second->placeholder, constant->second->sort);
   }
   auto macro = macros_.find(name);
   if (macro != macros_.end()) {
     if (!macro->second.params.empty()) {
       error(id.loc, "function " + name + " needs arguments");
     }
-    return macro->second.body;
+    return typed(macro->second.body, macro->second.result);
   }
   if (functions_.count(name) || is_predefined_function(name)) {
     error(id.loc, "function " + name + " needs arguments");
@@ -1048,7 +1318,7 @@ Term Reader::make_identifier_term(const Identifier & id)
   error(id.loc, "unknown symbol " + name);
 }
 
-Term Reader::make_indexed_constant(const Identifier & id)
+MoxiTerm Reader::make_indexed_constant(const Identifier & id)
 {
   if (!is_bv_literal_name(id.name) || id.indices.size() != 1 || id.primed
       || id.qualifier) {
@@ -1059,38 +1329,39 @@ Term Reader::make_indexed_constant(const Identifier & id)
     error(id.loc, "bit-vectors need a positive width");
   }
   try {
-    return solver_->make_term(id.name.substr(2), solver_->make_sort(BV, width));
+    return plain(
+        solver_->make_term(id.name.substr(2), solver_->make_sort(BV, width)));
   }
   catch (const SmtException & e) {
     error(id.loc, "cannot make bit-vector " + id.name + ": " + e.what());
   }
 }
 
-Term Reader::make_application(const Identifier & id,
-                              const TermVec & args,
-                              const Location & loc)
+MoxiTerm Reader::make_application(const Identifier & id,
+                                  const MoxiTermVec & args,
+                                  const Location & loc)
 {
   if (id.primed) {
     error(id.loc, "the primed symbol " + id.name + "' is not a function");
   }
   if (id.qualifier) {
-    const Sort sort = resolve_sort(*id.qualifier);
+    const MoxiSort sort = resolve_sort(*id.qualifier);
     if (id.name == "const" && id.indices.empty()) {
-      if (sort->get_sort_kind() != ARRAY) {
+      if (sort.sort->get_sort_kind() != ARRAY) {
         error(id.loc, "(as const S) needs an array sort S");
       }
       if (args.size() != 1) {
         error(loc, "a constant array takes a single value");
       }
-      if (!has_sort(args[0], sort->get_elemsort())) {
+      const MoxiSort element = element_sort(sort);
+      if (!has_sort(args[0], element)) {
         error(loc,
-              "a constant array of sort " + sort->to_string()
-                  + " needs a value of sort "
-                  + sort->get_elemsort()->to_string() + ", not "
-                  + args[0]->get_sort()->to_string());
+              "a constant array of sort " + sort.to_string()
+                  + " needs a value of sort " + element.to_string() + ", not "
+                  + args[0].sort().to_string());
       }
       try {
-        return solver_->make_term(args[0], sort);
+        return typed(solver_->make_term(args[0].term, sort.sort), sort);
       }
       catch (const SmtException & e) {
         error(loc, string("cannot make constant array: ") + e.what());
@@ -1099,11 +1370,11 @@ Term Reader::make_application(const Identifier & id,
     // Otherwise the sort only disambiguates, which the arguments do already.
     Identifier plain = id;
     plain.qualifier.reset();
-    const Term term = make_application(plain, args, loc);
+    const MoxiTerm term = make_application(plain, args, loc);
     if (!has_sort(term, sort)) {
       error(loc,
             "the application of " + id.name + " does not have sort "
-                + sort->to_string());
+                + sort.to_string());
     }
     return term;
   }
@@ -1125,16 +1396,29 @@ Term Reader::make_application(const Identifier & id,
                 + " arguments, not " + to_string(args.size()));
     }
     TermVec children{ f.symbol };
-    children.insert(children.end(), args.begin(), args.end());
-    return make_term(Apply, children, loc);
+    for (size_t i = 0; i < args.size(); ++i) {
+      // The solver checks the other arguments, but cannot tell an
+      // enumeration from the sort that encodes it.
+      if ((args[i].encoded || f.arg_sorts[i].involves_enumeration())
+          && !has_sort(args[i], f.arg_sorts[i])) {
+        error(loc,
+              "argument " + to_string(i + 1) + " of " + id.name + " has sort "
+                  + args[i].sort().to_string() + " instead of "
+                  + f.arg_sorts[i].to_string());
+      }
+      children.push_back(args[i].term);
+    }
+    // The function may give any value of the encoding sort, which stands
+    // for a value of the enumeration.
+    return clamp(typed(make_term(Apply, children, loc), f.result), loc);
   }
   return make_builtin(id.name, args, loc);
 }
 
-Term Reader::apply_macro(const string & name,
-                         const Macro & macro,
-                         TermVec args,
-                         const Location & loc)
+MoxiTerm Reader::apply_macro(const string & name,
+                             const Macro & macro,
+                             const MoxiTermVec & args,
+                             const Location & loc)
 {
   if (args.size() != macro.params.size()) {
     error(loc,
@@ -1143,26 +1427,26 @@ Term Reader::apply_macro(const string & name,
   }
   UnorderedTermMap substitution;
   for (size_t i = 0; i < args.size(); ++i) {
-    const Term & arg = args[i];
+    const MoxiTerm & arg = args[i];
     if (!has_sort(arg, macro.param_sorts[i])) {
       error(loc,
             "argument " + to_string(i + 1) + " of " + name + " has sort "
-                + arg->get_sort()->to_string() + " instead of "
-                + macro.param_sorts[i]->to_string());
+                + arg.sort().to_string() + " instead of "
+                + macro.param_sorts[i].to_string());
     }
-    substitution[macro.params[i]] = arg;
+    substitution[macro.params[i]] = arg.term;
   }
   try {
-    return solver_->substitute(macro.body, substitution);
+    return typed(solver_->substitute(macro.body, substitution), macro.result);
   }
   catch (const SmtException & e) {
     error(loc, "cannot apply " + name + ": " + e.what());
   }
 }
 
-Term Reader::make_indexed_application(const Identifier & id,
-                                      const TermVec & args,
-                                      const Location & loc)
+MoxiTerm Reader::make_indexed_application(const Identifier & id,
+                                          const MoxiTermVec & args,
+                                          const Location & loc)
 {
   auto it = indexed_builtins.find(id.name);
   if (it == indexed_builtins.end()) {
@@ -1182,6 +1466,11 @@ Term Reader::make_indexed_application(const Identifier & id,
     error(loc,
           id.name + " takes a single argument, not " + to_string(args.size()));
   }
+  if (args[0].encoded) {
+    error(loc,
+          "cannot apply " + id.name + " to an argument of sort "
+              + args[0].sort().to_string());
+  }
   if (id.name == "divisible") {
     if (!indices[0]) {
       error(id.loc, "divisible needs a positive index");
@@ -1189,17 +1478,17 @@ Term Reader::make_indexed_application(const Identifier & id,
     const Term divisor =
         solver_->make_term(to_string(indices[0]), int_sort(id.loc));
     const Term zero = solver_->make_term(int64_t{ 0 }, int_sort(id.loc));
-    return make_term(
-        Equal, { make_term(Mod, { args[0], divisor }, loc), zero }, loc);
+    return plain(make_term(
+        Equal, { make_term(Mod, { args[0].term, divisor }, loc), zero }, loc));
   }
   const Op op = num_indices == 2 ? Op(it->second, indices[0], indices[1])
                                  : Op(it->second, indices[0]);
-  return make_term(op, args, loc);
+  return plain(make_term(op, { args[0].term }, loc));
 }
 
-Term Reader::make_builtin(const string & name,
-                          TermVec args,
-                          const Location & loc)
+MoxiTerm Reader::make_builtin(const string & name,
+                              MoxiTermVec args,
+                              const Location & loc)
 {
   auto it = builtins().find(name);
   if (it == builtins().end()) {
@@ -1216,6 +1505,15 @@ Term Reader::make_builtin(const string & name,
           name + " cannot take " + to_string(args.size()) + " argument"
               + (args.size() == 1 ? "" : "s"));
   }
+  if (any_of(args.begin(), args.end(), [](const MoxiTerm & arg) {
+        return arg.encoded;
+      })) {
+    return make_builtin_of_enumerations(name, op, args, loc);
+  }
+  TermVec terms;
+  for (const MoxiTerm & arg : args) {
+    terms.push_back(arg.term);
+  }
 
   // In a logic with both integers and reals, an integer argument of an
   // operator that SMT-LIB declares as (op Real Real s) stands for a real
@@ -1226,10 +1524,10 @@ Term Reader::make_builtin(const string & name,
   // that SMT-LIB expands an n-ary one into.
   if (logic_has_int_ && logic_has_real_
       && (real_operators.count(op) || op == Equal || op == Distinct)
-      && (op == Div || any_of(args.begin(), args.end(), [](const Term & arg) {
+      && (op == Div || any_of(terms.begin(), terms.end(), [](const Term & arg) {
             return arg->get_sort()->get_sort_kind() == REAL;
           }))) {
-    for (Term & arg : args) {
+    for (Term & arg : terms) {
       if (arg->get_sort()->get_sort_kind() == INT) {
         arg = make_term(To_Real, { arg }, loc);
       }
@@ -1241,31 +1539,155 @@ Term Reader::make_builtin(const string & name,
     // take only values as the elements of constant arrays. It takes the sort
     // of the number, which a solver may not report, e.g. MathSAT makes 1.0 an
     // integer.
-    auto number = numbers_.find(args[0]);
+    auto number = numbers_.find(terms[0]);
     if (number != numbers_.end()) {
       const string & text = number->second.text;
-      return make_number(text[0] == '-' ? text.substr(1) : "-" + text,
-                         number->second.sort,
-                         loc);
+      return plain(make_number(text[0] == '-' ? text.substr(1) : "-" + text,
+                               number->second.sort,
+                               loc));
     }
   }
   // smt-switch applies an operator that SMT-LIB defines as :left-assoc,
   // :right-assoc, :chainable or :pairwise to any number of arguments, as
   // SMT-LIB defines it.
-  return make_term(op, args, loc);
+  return plain(make_term(op, terms, loc));
 }
 
-bool Reader::has_sort(const Term & term, const Sort & sort) const
+MoxiTerm Reader::make_builtin_of_enumerations(const string & name,
+                                              PrimOp op,
+                                              const MoxiTermVec & args,
+                                              const Location & loc)
 {
-  if (term->get_sort() == sort) {
+  // An enumeration has only the functions that MoXI defines for every sort,
+  // which the solver cannot tell from those of the sort that encodes it.
+  const string refusal =
+      "cannot apply " + name + " to arguments of sort " + describe_sorts(args);
+  TermVec terms;
+  for (const MoxiTerm & arg : args) {
+    terms.push_back(arg.term);
+  }
+  switch (op) {
+    case Equal:
+    case Distinct: {
+      const MoxiSort sort = args[0].sort();
+      for (const MoxiTerm & arg : args) {
+        if (!has_sort(arg, sort)) {
+          error(loc, refusal);
+        }
+      }
+      // = holds if each argument equals the next, and distinct if no two
+      // arguments are equal, by the equality of MoXI.
+      TermVec formulas;
+      for (size_t i = 0; i + 1 < args.size(); ++i) {
+        for (size_t j = i + 1; j < (op == Equal ? i + 2 : args.size()); ++j) {
+          const Term equal =
+              make_equality(args[i].term, args[j].term, sort, name, loc);
+          formulas.push_back(op == Equal ? equal
+                                         : make_term(Not, { equal }, loc));
+        }
+      }
+      return plain(formulas.size() == 1 ? formulas[0]
+                                        : make_term(And, formulas, loc));
+    }
+    case Ite:
+      if (!is_formula(args[0]) || !has_sort(args[2], args[1].sort())) {
+        error(loc, refusal);
+      }
+      return typed(make_term(Ite, terms, loc), args[1].sort());
+    case Select:
+    case Store: {
+      const MoxiSort array = args[0].sort();
+      if (array.sort->get_sort_kind() != ARRAY || !array.encoded
+          || !has_sort(args[1], array.encoded->args[0])
+          || (op == Store && !has_sort(args[2], array.encoded->args[1]))) {
+        error(loc, refusal);
+      }
+      if (op == Store) {
+        return typed(make_term(Store, terms, loc), array);
+      }
+      // A value outside the enumeration, which an array may hold, stands for
+      // one of its values.
+      return clamp(typed(make_term(Select, terms, loc), array.encoded->args[1]),
+                   loc);
+    }
+    default: error(loc, refusal);
+  }
+}
+
+Term Reader::make_equality(const Term & a,
+                           const Term & b,
+                           const MoxiSort & sort,
+                           const string & name,
+                           const Location & loc)
+{
+  const Enumeration * inexact = inexact_equality(sort);
+  if (!inexact) {
+    return make_term(Equal, { a, b }, loc);
+  }
+  // The solver's equality compares arrays indexed by an enumeration also at
+  // the other values of the sort that encodes it, and tells apart elements
+  // outside an enumeration that all stand for its first value. In MoXI,
+  // arrays are equal if their elements at each index are, so arrays indexed
+  // by an enumeration are compared at its values, one element at a time, as
+  // select reads them.
+  const MoxiSort & index = sort.encoded->args[0];
+  const MoxiSort & element = sort.encoded->args[1];
+  const Enumeration * indices =
+      index.encoded ? index.encoded->enumeration : nullptr;
+  if (!indices) {
+    // Other indices are too many to compare one at a time.
+    refuse_encoding(
+        *inexact,
+        name + " would tell apart equal arrays of sort " + sort.to_string(),
+        loc);
+  }
+  TermVec equalities;
+  for (const Term & value : indices->values) {
+    const MoxiTerm a_element =
+        clamp(typed(make_term(Select, { a, value }, loc), element), loc);
+    const MoxiTerm b_element =
+        clamp(typed(make_term(Select, { b, value }, loc), element), loc);
+    equalities.push_back(
+        make_equality(a_element.term, b_element.term, element, name, loc));
+  }
+  return equalities.size() == 1 ? equalities[0]
+                                : make_term(And, equalities, loc);
+}
+
+MoxiTerm Reader::clamp(const MoxiTerm & term, const Location & loc) const
+{
+  const Term in_range = range(term.sort(), term.term);
+  if (!in_range) {
+    return term;
+  }
+  return { make_term(
+               Ite,
+               { in_range, term.term, term.encoded->enumeration->values[0] },
+               loc),
+           term.encoded };
+}
+
+bool Reader::is_formula(const MoxiTerm & term) const
+{
+  // A solver that aliases Bool and (_ BitVec 1) gives an enumeration of two
+  // values that bit-vectors encode the sort Bool, too.
+  return !term.encoded && term.term->get_sort() == bool_sort_;
+}
+
+bool Reader::has_sort(const MoxiTerm & term, const MoxiSort & sort) const
+{
+  if (term.encoded || sort.encoded) {
+    return term.encoded == sort.encoded;
+  }
+  if (term.term->get_sort() == sort.sort) {
     return true;
   }
   // smt-switch's MathSAT and Yices2 backends give a real with an integer
   // value, e.g. 1.0, the sort Int, so an integer passes for a real with them.
   const SolverEnum se = solver_->get_solver_enum();
   return (se == MSAT || se == MSAT_INTERPOLATOR || se == YICES2)
-         && sort->get_sort_kind() == REAL
-         && term->get_sort()->get_sort_kind() == INT;
+         && sort.sort->get_sort_kind() == REAL
+         && term.term->get_sort()->get_sort_kind() == INT;
 }
 
 Term Reader::make_number(const string & text,

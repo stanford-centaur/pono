@@ -110,6 +110,16 @@ const std::unordered_map<std::string, JusticeTranslator> str2livenessalg({
     { "klive", KLIVENESS },
 });
 
+// The sort that the MoXI frontend encodes enumeration sorts as
+enum class MoxiEnumEncoding
+{
+  DT,    // datatypes
+  BV,    // bit-vectors
+  INT,   // integers
+  REAL,  // reals
+  AUTO,  // datatypes if the solver has them, else a sort of the logic
+};
+
 /*************************************** Options class
  * ************************************************/
 
@@ -130,6 +140,7 @@ class PonoOptions
         justice_(default_justice_),
         justice_translator_(default_justice_translator_),
         reset_bnd_(default_reset_bnd_),
+        moxi_enum_encoding_(default_moxi_enum_encoding_),
         smt_solver_(default_smt_solver_),
         smt_solver_opts_(default_smt_solver_opts_),
         smt_interpolator_(default_smt_interpolator_),
@@ -244,6 +255,7 @@ class PonoOptions
   unsigned long reset_bnd_;
   std::string clock_name_;
   std::string filename_;
+  MoxiEnumEncoding moxi_enum_encoding_;
   smt::SolverEnum smt_solver_;        ///< underlying smt solver
   StringMap smt_solver_opts_;         ///< options passed to smt solver
   smt::SolverEnum smt_interpolator_;  ///< smt solver for interpolation
@@ -402,6 +414,8 @@ class PonoOptions
   static const bool default_check_invar_ = false;
   static const bool default_check_trans_total_ = false;
   static const unsigned long default_reset_bnd_ = 1;
+  static const MoxiEnumEncoding default_moxi_enum_encoding_ =
+      MoxiEnumEncoding::DT;
   // TODO distinguish when solver is not set and choose a
   //      good solver for the provided engine automatically
   static const smt::SolverEnum default_smt_solver_ = smt::BZLA;

@@ -494,6 +494,33 @@ TEST_F(CliUnitTests, MoxiNamesSolverForEnums)
                        "\nunsat\n"));
 }
 
+// Another sort can encode enumeration sorts instead, e.g. bit-vectors for
+// Bitwuzla, which has them, or integers, which compare arrays indexed by an
+// enumeration at its values only.
+TEST_F(CliUnitTests, MoxiEncodesEnumsAsAnotherSort)
+{
+  const string file = input_path("moxi/enum_encodings.moxi");
+  EXPECT_TRUE(
+      contains(run_pono({ "--moxi-enum-as", "auto", "-e", "ind", file }).output,
+               "\nunsat\n"));
+  EXPECT_TRUE(contains(
+      run_pono({ "--moxi-enum-as", "bv", "-e", "ind", "-p", "7", file }).output,
+      "\nsat\n"));
+  EXPECT_TRUE(contains(run_pono({ "--moxi-enum-as",
+                                  "int",
+                                  "--smt-solver",
+                                  "cvc5",
+                                  "-e",
+                                  "ind",
+                                  "-p",
+                                  "8",
+                                  file })
+                           .output,
+                       "\nunsat\n"));
+  expect_rejected(run_pono({ "--moxi-enum-as", "nat", file }),
+                  "Unknown --moxi-enum-as option: nat");
+}
+
 // The trace names the variables of a subsystem after its instance, and
 // leaves out what pono generated.
 TEST_F(CliUnitTests, MoxiTraceNamesSubsystemVars)
