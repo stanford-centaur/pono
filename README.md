@@ -170,6 +170,23 @@ xdg-open build/html/index.html
 open build/html/index.html
 ```
 
+## Checking MoXI models
+
+Pono reads models in the [Model Exchange Interlingua (MoXI)](https://doi.org/10.1007/978-3-031-65627-9_10) from files ending in `.moxi`.
+It checks the query of one `check-system` command at a time: `--prop` selects the command, counting the `check-system` commands in the order of the file, and the command must have exactly one `:query`.
+The `:queries` attribute is not supported, as its queries must share the values of the declared constants and functions.
+Pono answers `sat` if the query is satisfiable, i.e., if a trace reaches each of its reachability conditions while keeping its assumptions, and `unsat` if no trace does.
+
+The default solver, Bitwuzla, supports neither integers nor reals, so models using them need another one:
+
+```bash
+./build/pono --smt-solver cvc5 -e ind --prop 1 tests/encoders/inputs/moxi/assumptions.moxi
+```
+
+Pono flattens subsystems into a single transition system, whose variables take the names the `check-system` command gives them; the local variables of a subsystem are named after its instance, e.g. `inst.var`.
+Enumeration sorts become datatypes of the solver, which cvc5 supports, but neither Bitwuzla nor MathSAT does.
+Queries with fairness conditions, which ask for infinite traces, are not supported yet.
+
 ## Generating BTOR2 from Verilog
 
 The best tool for creating BTOR2 from Verilog is [Yosys](https://github.com/YosysHQ/yosys). Yosys has an excellent manual [here](https://yosyshq.readthedocs.io/projects/yosys/en/latest/).
