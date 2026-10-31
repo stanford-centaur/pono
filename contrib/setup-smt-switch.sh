@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# v1.1.6-436-g043e962, on main
-smt_switch_version=043e96223abba69c5fae8323f5c2c5972386d273
+# v1.1.6-526-g5a2e621, on main
+smt_switch_version=5a2e6214b2c3196f533217adc6ff05874ab0af17
 
 # Keep the invocation directory to resolve relative path arguments against,
 # since they would otherwise be taken relative to the smt-switch checkout that
@@ -32,7 +32,7 @@ Dependency locations:
 --z3-dir=STR            use an existing Z3 installation
 
 Optional features / backends (default: off for all):
---python                build python bindings
+--python                build python bindings, installed into the active Python
 --with-btor             include Boolector
 --with-msat             include MathSAT which is under a custom non-BSD compliant license
 --with-yices2           include Yices2 which is under a custom non-BSD compliant license
@@ -122,7 +122,7 @@ fi
 conf_opts=()
 pono_opts=()
 solvers=(bitwuzla cvc5)
-num_of_libs=3 # base, bitwuzla, cvc5
+num_of_libs=4 # base, smtlib, bitwuzla, cvc5
 if [[ -n $bitwuzla_dir ]]; then
   conf_opts+=(--bitwuzla-dir="$bitwuzla_dir")
   pono_opts+=(--bitwuzla-dir="$bitwuzla_dir")

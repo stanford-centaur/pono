@@ -124,10 +124,9 @@ python3 -m venv env
 source ./env/bin/activate
 # Install Python dependencies.
 pip install Cython
-# This will download and build smt-switch with bitwuzla and cvc5 in deps/smt-switch.
+# This will download and build smt-switch with bitwuzla and cvc5 in deps/smt-switch,
+# and install its Python bindings in the virtualenv.
 ./contrib/setup-smt-switch.sh --python
-# Install the smt-switch Python bindings in the virtualenv.
-pip install ./deps/smt-switch/build/python
 # Download and build the btor2tools dependency.
 ./contrib/setup-btor2tools.sh
 # Configure and build Pono.
