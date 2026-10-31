@@ -83,8 +83,8 @@
 %nterm <pono::moxi::SortedVar> sorted_var
 %nterm <std::vector<pono::moxi::SortedVar>> sorted_var_list sorted_var_list1
 %nterm <pono::moxi::Identifier> identifier qual_identifier
-%nterm <smt::Term> term spec_constant
-%nterm <smt::TermVec> term_list1
+%nterm <pono::moxi::MoxiTerm> term spec_constant
+%nterm <pono::moxi::MoxiTermVec> term_list1
 %nterm <pono::moxi::VarBinding> var_binding
 %nterm <std::vector<pono::moxi::VarBinding>> var_binding_list1
 %nterm <pono::moxi::QueryExpr> query

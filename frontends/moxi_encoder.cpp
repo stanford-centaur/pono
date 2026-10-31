@@ -31,6 +31,9 @@ using namespace std;
 
 namespace pono {
 
+// pono's own to_string, for its options and results, would hide it.
+using std::to_string;
+
 /** @return the conjunction of the terms, true if there are none */
 static Term conjunction(const SmtSolver & solver, const TermVec & terms)
 {
@@ -42,8 +45,10 @@ static Term conjunction(const SmtSolver & solver, const TermVec & terms)
 
 MoxiEncoder::MoxiEncoder(const string & filename,
                          RelationalTransitionSystem & rts,
-                         size_t check_idx)
-    : rts_(rts), reader_(make_unique<moxi::Reader>(filename, rts.solver()))
+                         size_t check_idx,
+                         MoxiEnumEncoding enum_encoding)
+    : rts_(rts),
+      reader_(make_unique<moxi::Reader>(filename, rts.solver(), enum_encoding))
 {
   const vector<moxi::Check> & checks = reader_->checks();
   if (checks.empty()) {
@@ -111,14 +116,14 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
   vector<FlatVar *> actuals;
   for (const auto * group : { &check.inputs, &check.outputs, &check.locals }) {
     for (const moxi::Variable & var : *group) {
-      vars_.push_back({ var.name, var.sort, var.curr, var.next, false });
+      vars_.push_back({ var.name, &var.sort, var.curr, var.next, false });
       actuals.push_back(&vars_.back());
     }
   }
   vector<FlatVar *> constants;
   for (const moxi::Constant & constant : reader_->constants()) {
     vars_.push_back({ constant.name,
-                      constant.sort,
+                      &constant.sort,
                       constant.placeholder,
                       constant.placeholder,
                       true });
@@ -224,11 +229,16 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
       continue;
     }
     const bool is_state = var.frozen || var.in_state || var.next_in_step;
-    var.curr = make_variable(var.name, var.sort, is_state);
+    var.curr = make_variable(var.name, var.sort->sort, is_state);
     if (var.frozen) {
       rts_.assign_next(var.curr, var.curr);
     } else if (is_state) {
       var.next = rts_.next(var.curr);
+    }
+    // Unlike the invariant, the values of an enumeration hold in the last
+    // state, too, as a reachability condition over next-state variables sees.
+    if (const Term in_range = reader_->range(*var.sort, var.curr)) {
+      rts_.add_constraint(in_range);
     }
   }
 
@@ -343,7 +353,7 @@ void MoxiEncoder::flatten(const moxi::System & system,
     }
     for (const moxi::Variable & local : subsystem.system->locals) {
       vars_.push_back(
-          { name + local.name, local.sort, nullptr, nullptr, false });
+          { name + local.name, &local.sort, nullptr, nullptr, false });
       sub_actuals.push_back(&vars_.back());
     }
     flatten(*subsystem.system, sub_actuals, name);

@@ -2,6 +2,8 @@
 #include <fstream>
 #include <string>
 #include <tuple>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -36,33 +38,70 @@ bool equivalent(const SmtSolver & s, const Term & a, const Term & b)
   return result;
 }
 
-/** Each query with each solver that has the theories it needs. */
-vector<tuple<SolverEnum, MoxiQuery>> moxi_query_params()
+/** A query, the solver to check it with, and the sort that encodes the
+ *  enumerations. */
+struct MoxiQueryRun
 {
-  vector<tuple<SolverEnum, MoxiQuery>> params;
+  SolverEnum se;
+  MoxiQuery query;
+  MoxiEnumEncoding enum_encoding;
+};
+
+ostream & operator<<(ostream & os, const MoxiQueryRun & run)
+{
+  static const unordered_map<MoxiEnumEncoding, string> names{
+    { MoxiEnumEncoding::DT, "dt" },     { MoxiEnumEncoding::BV, "bv" },
+    { MoxiEnumEncoding::INT, "int" },   { MoxiEnumEncoding::REAL, "real" },
+    { MoxiEnumEncoding::AUTO, "auto" },
+  };
+  return os << run.query << " with " << run.se << ", enumerations as "
+            << names.at(run.enum_encoding);
+}
+
+/** Each query with each solver that has the theories it needs, and a query
+ *  over enumerations, which datatypes encode, also with each other sort
+ *  that can encode them instead. */
+vector<MoxiQueryRun> moxi_query_params()
+{
+  vector<MoxiQueryRun> params;
   for (const MoxiQuery & query : moxi_queries) {
-    for (const SolverEnum se : filter_solver_enums(query.theories)) {
-      if (!query.excluded.count(se)) {
-        params.emplace_back(se, query);
+    vector<pair<MoxiEnumEncoding, unordered_set<SolverAttribute>>> encodings{
+      { MoxiEnumEncoding::DT, query.theories }
+    };
+    if (query.theories.count(THEORY_DATATYPE)) {
+      for (const auto & [encoding, theory] :
+           { pair{ MoxiEnumEncoding::BV, THEORY_BV },
+             pair{ MoxiEnumEncoding::INT, THEORY_INT },
+             pair{ MoxiEnumEncoding::REAL, THEORY_REAL } }) {
+        unordered_set<SolverAttribute> theories = query.theories;
+        theories.erase(THEORY_DATATYPE);
+        theories.insert(theory);
+        encodings.emplace_back(encoding, theories);
+      }
+    }
+    for (const auto & [encoding, theories] : encodings) {
+      for (const SolverEnum se : filter_solver_enums(theories)) {
+        if (!query.excluded.count(se)) {
+          params.push_back({ se, query, encoding });
+        }
       }
     }
   }
   return params;
 }
 
-class MoxiQueryUnitTests
-    : public ::testing::Test,
-      public ::testing::WithParamInterface<tuple<SolverEnum, MoxiQuery>>
+class MoxiQueryUnitTests : public ::testing::Test,
+                           public ::testing::WithParamInterface<MoxiQueryRun>
 {
 };
 
 TEST_P(MoxiQueryUnitTests, Encode)
 {
-  const SolverEnum se = get<0>(GetParam());
-  const MoxiQuery & query = get<1>(GetParam());
-  SmtSolver s = create_solver(se);
+  const MoxiQuery & query = GetParam().query;
+  SmtSolver s = create_solver(GetParam().se);
   RelationalTransitionSystem rts(s);
-  MoxiEncoder encoder(moxi_path(query.file), rts, query.index);
+  MoxiEncoder encoder(
+      moxi_path(query.file), rts, query.index, GetParam().enum_encoding);
 
   // flags remember the reachability conditions, which pono need not monitor
   ASSERT_TRUE(rts.only_curr(encoder.prop()));
@@ -206,6 +245,40 @@ TEST_F(MoxiEncoderUnitTests, SharesSolverBetweenFiles)
   EXPECT_NO_THROW(MoxiEncoder(moxi_path("current.moxi"), current_rts));
 }
 
+// Unless the solver has datatypes, a sort of the logic encodes an
+// enumeration, or bit-vectors if the logic has none.
+TEST(MoxiEnumEncodingUnitTests, AutoPicksSortOfLogic)
+{
+  const string path = testing::TempDir() + "pono_test.moxi";
+  for (const auto & [logic, theory, kind] :
+       { tuple{ "QF_LIA", THEORY_INT, INT },
+         tuple{ "QF_LRA", THEORY_REAL, REAL },
+         tuple{ "QF_BVLIA", THEORY_BV, BV },
+         tuple{ "QF_UF", THEORY_BV, BV } }) {
+    {
+      ofstream file(path);
+      file << "(set-logic " << logic << ")"
+           << "(declare-enum-sort Color (red green blue))"
+           << "(define-system S :output ((c Color)))"
+           << "(check-system S :reachable (r (= c red)) :query (q (r)))\n";
+    }
+    for (const SolverEnum se : filter_solver_enums({ theory })) {
+      RelationalTransitionSystem rts(create_solver(se));
+      MoxiEncoder encoder(path, rts, 0, MoxiEnumEncoding::AUTO);
+      const Sort sort = rts.lookup("c")->get_sort();
+      if (solver_has_attribute(se, THEORY_DATATYPE)) {
+        EXPECT_EQ(sort->get_sort_kind(), DATATYPE) << logic << " " << se;
+      } else {
+        EXPECT_EQ(sort->get_sort_kind(), kind) << logic << " " << se;
+        if (kind == BV) {
+          EXPECT_EQ(sort->get_width(), 2) << logic << " " << se;
+        }
+      }
+    }
+  }
+  remove(path.c_str());
+}
+
 TEST_F(MoxiEncoderUnitTests, RejectsIndexOutOfRange)
 {
   RelationalTransitionSystem rts(s);
@@ -223,6 +296,7 @@ struct MoxiError
 {
   string text;
   string message;
+  MoxiEnumEncoding enum_encoding = MoxiEnumEncoding::DT;
 };
 
 ostream & operator<<(ostream & os, const MoxiError & error)
@@ -264,9 +338,8 @@ const vector<MoxiError> moxi_errors({
     { "(set-logic QF_BV) (define-fun f () (_ BitVec 3) (concat #b1 #b0 #b1))",
       "concat cannot take 3 arguments" },
     { "(define-fun f () Bool (to_bv3 true))", "unknown function to_bv3" },
-    // an integer stands for a real only as an argument of arithmetic
-    { "(set-logic ALL) (define-fun f () Bool (= 1.5 1))",
-      "cannot apply = to arguments of sort Real, Int" },
+    // an integer stands for a real only as an argument of arithmetic, =,
+    // distinct and !=
     { "(set-logic ALL) (define-fun f () Real (ite true 1.5 1))",
       "cannot apply ite to arguments of sort Bool, Real, Int" },
     { "(set-logic ALL) (declare-fun a () (Array Real Real))"
@@ -291,6 +364,76 @@ const vector<MoxiError> moxi_errors({
       "c does not have sort Real" },
     { "(set-logic ALL) (define-fun f () Real ((as + Real) 1 2))",
       "the application of + does not have sort Real" },
+    // an enumeration that another sort encodes keeps a sort of its own
+    { "(declare-enum-sort Color (red green)) (define-fun f () Int (+ red 1))",
+      "cannot apply + to arguments of sort Color, Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green)) (define-fun f () Bool (= red 1))",
+      "cannot apply = to arguments of sort Color, Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort A (a1 a2)) (declare-enum-sort B (b1 b2))"
+      "(define-fun f () Bool (distinct a1 b1))",
+      "cannot apply distinct to arguments of sort A, B",
+      MoxiEnumEncoding::BV },
+    { "(declare-enum-sort Color (red green))"
+      "(define-fun f () Color (ite true red 0))",
+      "cannot apply ite to arguments of sort Bool, Color, Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green))"
+      "(define-fun f () (_ BitVec 1) ((_ extract 0 0) red))",
+      "cannot apply extract to an argument of sort Color",
+      MoxiEnumEncoding::BV },
+    { "(declare-enum-sort Color (red green)) (define-fun f () Real red)",
+      "the definition of f has sort Color, but Real is declared",
+      MoxiEnumEncoding::REAL },
+    { "(declare-enum-sort Color (red green)) (declare-fun g (Int) Bool)"
+      "(define-fun f () Bool (g red))",
+      "argument 1 of g has sort Color instead of Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green)) (define-fun h ((x Int)) Int x)"
+      "(define-fun f () Int (h red))",
+      "argument 1 of h has sort Color instead of Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green))"
+      "(declare-const a (Array Color Int))"
+      "(define-fun f () Int (select a 0))",
+      "cannot apply select to arguments of sort (Array Color Int), Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green))"
+      "(define-fun f () (Array Int Color) ((as const (Array Int Color)) 0))",
+      "needs a value of sort Color, not Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green))"
+      "(define-system S :input ((c Color)) :init c)",
+      "the formula of :init has sort Color instead of Bool",
+      MoxiEnumEncoding::BV },
+    { "(declare-enum-sort A (a1 a2)) (declare-enum-sort B (b1 b2))"
+      "(define-system S :input ((x A))) (check-system S :input ((y B)))",
+      "variable y has sort B, but the variable x of system S it renames "
+      "has sort A",
+      MoxiEnumEncoding::INT },
+    // where values outside an enumeration would tell arrays apart
+    { "(declare-enum-sort Color (red green))"
+      "(declare-const a (Array Int Color)) (declare-const b (Array Int Color))"
+      "(define-fun f () Bool (= a b))",
+      "cannot encode enumeration Color as Int here, as = would tell apart "
+      "equal arrays of sort (Array Int Color) by values outside Color",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green blue))"
+      "(declare-const a (Array Int Color)) (declare-const b (Array Int Color))"
+      "(define-fun f () Bool (distinct a b))",
+      "cannot encode enumeration Color as (_ BitVec 2) here, as distinct "
+      "would tell apart equal arrays of sort (Array Int Color)",
+      MoxiEnumEncoding::BV },
+    { "(declare-enum-sort Color (red green))"
+      "(declare-fun g ((Array Color Int)) Bool)",
+      "as function g would tell apart equal arguments of sort "
+      "(Array Color Int) by values outside Color",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green))"
+      "(declare-const m (Array (Array Color Int) Bool))",
+      "as an array would tell apart equal indices of sort (Array Color Int)",
+      MoxiEnumEncoding::REAL },
     // operators of solvers that SMT-LIB does not have
     { "(set-logic QF_BV) (define-fun f () (_ BitVec 1) (bvredor #b10))",
       "unknown function bvredor" },
@@ -389,7 +532,7 @@ TEST_P(MoxiErrorUnitTests, Rejects)
   SmtSolver s = create_solver(CVC5);
   RelationalTransitionSystem rts(s);
   try {
-    MoxiEncoder encoder(path, rts);
+    MoxiEncoder encoder(path, rts, 0, GetParam().enum_encoding);
     ADD_FAILURE() << "the file was encoded:\n" << GetParam().text;
   }
   catch (const PonoException & e) {

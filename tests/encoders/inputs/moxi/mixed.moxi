@@ -1,6 +1,8 @@
 ; In AUFLIRA and AUFNIRA, an integer argument of +, -, *, /, <, <=, > and >=
-; stands for a real next to a real argument, and always for /. Other
-; operators, e.g. =, take no integer for a real.
+; stands for a real next to a real argument, and always for /. So does an
+; integer argument of =, distinct and != next to a real one, as cvc5 reads
+; them outside its strict mode. Other operators, e.g. ite, take no integer
+; for a real.
 (set-logic AUFLIRA)
 
 (define-system Halve
@@ -22,3 +24,17 @@
   :output ((x Real))
   :reachable (between (and (< 0 x) (< x (/ 1 2))))
   :query (reach_between (between)))
+
+; x = 1 after n = 2
+(check-system Halve
+  :input ((n Int))
+  :output ((x Real))
+  :reachable (one (and (= x 1) (distinct x 0) (!= x 2)))
+  :query (reach_one (one)))
+
+; x is a multiple of 1/2, so 2x = 1 wherever 0 < x < 1
+(check-system Halve
+  :input ((n Int))
+  :output ((x Real))
+  :reachable (not_half (and (< 0 x) (< x 1) (distinct (* 2 x) 1)))
+  :query (reach_not_half (not_half)))

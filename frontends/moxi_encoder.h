@@ -25,12 +25,14 @@
 #include <vector>
 
 #include "core/rts.h"
+#include "options/options.h"
 #include "smt-switch/smt.h"
 
 namespace pono {
 
 namespace moxi {
 struct Check;
+struct MoxiSort;
 struct Query;
 struct System;
 class Reader;
@@ -77,6 +79,13 @@ class Reader;
  *
  *  Queries with fairness conditions ask for infinite traces and are not
  *  supported yet.
+ *
+ *  An enumeration sort is a datatype, or another sort, e.g. Int, whose values
+ *  0, 1, ... stand for those of the enumeration. Then a variable of the
+ *  enumeration takes only these values, in every state, including the last
+ *  one, and arrays indexed by the enumeration are compared at these values
+ *  only. Where the solver would still tell apart arrays that are equal in
+ *  MoXI, the reader refuses the file.
  */
 class MoxiEncoder
 {
@@ -87,10 +96,12 @@ class MoxiEncoder
    *  @param rts the transition system to encode the query into
    *  @param check_idx the check-system command, counting them in the order
    *         of the file
+   *  @param enum_encoding the sort to encode enumeration sorts as
    */
   MoxiEncoder(const std::string & filename,
               RelationalTransitionSystem & rts,
-              std::size_t check_idx = 0);
+              std::size_t check_idx = 0,
+              MoxiEnumEncoding enum_encoding = MoxiEnumEncoding::DT);
 
   ~MoxiEncoder();
 
@@ -106,7 +117,7 @@ class MoxiEncoder
   struct FlatVar
   {
     std::string name;
-    smt::Sort sort;
+    const moxi::MoxiSort * sort;  ///< held by the reader
     /** the placeholders of its current and next values in the formulas of
      *  the check-system, and of a constant in all formulas; null for the
      *  local variables of subsystems */

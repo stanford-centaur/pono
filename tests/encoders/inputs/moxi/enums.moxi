@@ -29,8 +29,7 @@
   :output ((picked_none Bool) (stored_none Bool))
   :local ((m (Array Int Color)))
   :init (and (not picked_none) (not stored_none))
-  :trans (and (= m' m)
-              (= picked_none'
+  :trans (and (= picked_none'
                  (and (distinct (pick i) red)
                       (distinct (pick i) green)
                       (distinct (pick i) blue)))

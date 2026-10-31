@@ -418,8 +418,10 @@ int main(int argc, char ** argv)
         // A MoXI query brings its own assumptions into the transition
         // system, so the encoder selects a check-system command, which has a
         // single query, rather than a property.
-        MoxiEncoder moxi_enc(
-            pono_options.filename_, rts, pono_options.prop_idx_);
+        MoxiEncoder moxi_enc(pono_options.filename_,
+                             rts,
+                             pono_options.prop_idx_,
+                             pono_options.moxi_enum_encoding_);
         prop = moxi_enc.prop();
       } else {
         TermVec propvec;
