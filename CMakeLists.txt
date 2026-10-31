@@ -147,7 +147,7 @@ if(WITH_MSAT_IC3IA)
   find_package(IC3IA REQUIRED)
 endif()
 
-set(SmtSwitch_FIND_COMPONENTS bitwuzla cvc5)
+set(SmtSwitch_FIND_COMPONENTS bitwuzla cvc5 smtlib)
 if(WITH_BOOLECTOR)
   list(APPEND SmtSwitch_FIND_COMPONENTS btor)
 endif()
@@ -351,6 +351,8 @@ if(WITH_COREIR)
 endif()
 
 target_link_libraries(pono-lib PUBLIC SmtSwitch::smt-switch)
+# the SMT-LIB reader, which the VMT frontend extends
+target_link_libraries(pono-lib PUBLIC SmtSwitch::smt-switch-smtlib)
 target_link_libraries(pono-lib PUBLIC Btor2Tools::btor2parser)
 target_link_libraries(pono-lib PUBLIC GMPXX::gmpxx)
 # PUBLIC because the installed utils/logger.h includes <fmt/format.h>. The

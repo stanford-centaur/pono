@@ -20,6 +20,7 @@
 #include <cassert>
 
 #include "smt-switch/msat_solver.h"
+#include "smt-switch/msat_term.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
@@ -50,16 +51,9 @@ ProverResult MsatIC3IA::prove()
   shared_ptr<MsatSolver> msat_solver =
       static_pointer_cast<MsatSolver>(create_solver_for(
           MSAT, MSAT_IC3IA, false, false, false, options_.smt_solver_opts_));
-  msat_env env = msat_solver->get_msat_env();
-  // MsatTerm shares ownership of its environment, but the solver only hands
-  // out the environment itself. msat_solver keeps it alive for as long as the
-  // terms wrapping ic3ia's results are used, so they share a copy of the
-  // handle that does not own it.
-  // TODO: consider adding an accessor to smt-switch's MsatSolver that hands
-  // out the environment as its terms share it, so that these terms keep it
-  // alive themselves and need no copy.
-  shared_ptr<msat_env> shared_env = make_shared<msat_env>(env);
-  ::ic3ia::TransitionSystem ic3ia_ts(env);
+  // shared with the terms wrapping ic3ia's results, which keep it alive
+  shared_ptr<msat_env> env = msat_solver->get_msat_env();
+  ::ic3ia::TransitionSystem ic3ia_ts(*env);
 
   TermTranslator to_msat_solver(msat_solver);
   TermTranslator to_ts_solver(solver_);
@@ -139,7 +133,7 @@ ProverResult MsatIC3IA::prove()
         clause = solver_->make_term(
             Or,
             clause,
-            to_ts_solver.transfer_term(make_shared<MsatTerm>(shared_env, l)));
+            to_ts_solver.transfer_term(make_shared<MsatTerm>(env, l)));
       }
       invar_ = solver_->make_term(And, invar_, clause);
     }
@@ -147,7 +141,7 @@ ProverResult MsatIC3IA::prove()
     return ProverResult::TRUE;
   } else {
     assert(res == MSAT_FALSE);
-    compute_witness(shared_env, ic3, to_ts_solver);
+    compute_witness(env, ic3, to_ts_solver);
     return ProverResult::FALSE;
   }
 }
