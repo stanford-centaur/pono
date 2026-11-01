@@ -53,7 +53,6 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const SafetyProperty & p,
                                                const SmtSolver & solver,
                                                PonoOptions opt)
     : super(p, RelationalTransitionSystem(solver), solver, opt),
-      has_finite_index_sort_(ts.has_finite_index_sort()),
       conc_ts_(ts),
       abs_ts_(super::prover_interface_ts()),
       abs_unroller_(abs_ts_, "{@}"),
@@ -63,8 +62,7 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const SafetyProperty & p,
            ts.solver() == super::solver_
                ? p.prop()
                : super::to_prover_solver_.transfer_term(p.prop(), BOOL),
-           super::options_.cegp_timed_axiom_red_,
-           has_finite_index_sort_),
+           super::options_.cegp_timed_axiom_red_),
       pm_(abs_ts_),
       reached_k_(-1),
       num_added_axioms_(0)
@@ -269,6 +267,9 @@ void CegProphecyArrays<Prover_T>::initialize()
   if (!contains_arrays) {
     throw PonoException("Ran CegProphecyArrays on system without arrays.");
   }
+  // not known on construction: an enclosing CEGAR loop, e.g., CegarOpsUf,
+  // fills conc_ts_ only when it initializes
+  has_finite_index_sort_ = conc_ts_.has_finite_index_sort();
 }
 
 template <class Prover_T>
