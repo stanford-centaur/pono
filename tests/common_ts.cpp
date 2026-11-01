@@ -24,11 +24,13 @@ using namespace std;
 
 namespace pono_tests {
 
-void counter_system(TransitionSystem & ts, const Term & max_val)
+void counter_system(TransitionSystem & ts,
+                    const Term & max_val,
+                    const string & name)
 {
   assert(max_val);
   Sort sort = max_val->get_sort();
-  Term x = ts.make_statevar("x", sort);
+  Term x = ts.make_statevar(name, sort);
   SortKind sk = sort->get_sort_kind();
   PrimOp plus_op = (sk == BV) ? BVAdd : Plus;
   PrimOp lt_op = (sk == BV) ? BVUlt : Lt;
