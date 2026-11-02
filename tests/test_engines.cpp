@@ -48,10 +48,12 @@ class EngineTest
     Sort bvsort8 = ts->make_sort(BV, 8);
     Term max_val = ts->make_term(7, bvsort8);
 
-    // populate TS with basic resetting counter system
-    counter_system(*ts, max_val);
+    // populate TS with basic resetting counter system;
+    // name the variable x[0], which Term::to_string() quotes, to check if
+    // its unrolled copies are registered in the translator cache
+    counter_system(*ts, max_val, "x[0]");
 
-    Term x = ts->named_terms().at("x");
+    Term x = ts->named_terms().at("|x[0]|");
 
     Term true_prop = ts->make_term(BVUle, x, ts->make_term(7, bvsort8));
     true_p = new SafetyProperty(ts->solver(), true_prop);
