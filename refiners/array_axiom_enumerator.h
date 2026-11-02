@@ -79,8 +79,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   ArrayAxiomEnumerator(ArrayAbstractor & aa,
                        Unroller & un,
                        const smt::Term & prop,
-                       bool red_axioms,
-                       bool has_finite_index_sort = false);
+                       bool red_axioms);
 
   typedef AxiomEnumerator super;
 
@@ -381,7 +380,8 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
 
   bool reduce_axioms_unsatcore_;  ///< reduce generated axioms with an unsat
                                   ///< core if set to true
-  bool has_finite_index_sort_;    ///< lambda axioms will be omitted if true
+  bool has_finite_index_sort_ = false;  ///< lambda axioms will be omitted if
+                                        ///< true, set by initialize()
 
   std::size_t bound_;  ///< the bound of the current abstract trace
   smt::UnorderedTermMap
