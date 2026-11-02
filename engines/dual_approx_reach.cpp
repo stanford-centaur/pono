@@ -71,6 +71,12 @@ void DualApproxReach::initialize()
     }
   }
 
+  // register symbols at time 0 (`step()` registers those at later times),
+  // which backward interpolants are over;
+  // an unregistered symbol is looked up by its printed name,
+  // which misses if the name needs quoting
+  update_term_map(0);
+
   concrete_cex_ = false;
   forward_seq_.clear();
   backward_seq_.clear();
