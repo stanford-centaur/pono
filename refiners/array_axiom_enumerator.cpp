@@ -138,13 +138,8 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
 ArrayAxiomEnumerator::ArrayAxiomEnumerator(ArrayAbstractor & aa,
                                            Unroller & un,
                                            const Term & prop,
-                                           bool red_axioms,
-                                           bool has_finite_index_sort)
-    : super(aa.abs_ts()),
-      aa_(aa),
-      un_(un),
-      reduce_axioms_unsatcore_(red_axioms),
-      has_finite_index_sort_(has_finite_index_sort)
+                                           bool red_axioms)
+    : super(aa.abs_ts()), aa_(aa), un_(un), reduce_axioms_unsatcore_(red_axioms)
 {
   if (reduce_axioms_unsatcore_) {
     solver_->set_opt("produce-unsat-assumptions", "true");
@@ -160,6 +155,9 @@ void ArrayAxiomEnumerator::initialize()
   initialized_ = true;
 
   collect_arrays_and_indices();
+  // not known on construction: an enclosing CEGAR loop, e.g., CegarOpsUf,
+  // fills the concrete system only when it initializes
+  has_finite_index_sort_ = aa_.conc_ts().has_finite_index_sort();
   if (!has_finite_index_sort_) {
     create_lambda_indices();
   }
