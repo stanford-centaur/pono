@@ -1,17 +1,24 @@
+#include <tuple>
 #include <utility>
+#include <vector>
 
 #include "core/fts.h"
 #include "core/rts.h"
+#include "engines/bmc.h"
+#include "engines/interpolantmc.h"
+#include "engines/kinduction.h"
 #include "gtest/gtest.h"
 #include "modifiers/array_abstractor.h"
 #include "modifiers/history_modifier.h"
 #include "modifiers/implicit_predicate_abstractor.h"
 #include "modifiers/liveness_to_safety_translator.h"
+#include "modifiers/mod_ts_prop.h"
 #include "modifiers/prophecy_modifier.h"
 #include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
+#include "utils/ts_analysis.h"
 
 using namespace pono;
 using namespace smt;
@@ -329,8 +336,350 @@ TEST_P(ModifierUnitTests, LivenessToSafetyTranslatorHierarchicalName)
   EXPECT_EQ(loop_name.find('|'), string::npos);
 }
 
+TEST_P(ModifierUnitTests, EliminateFloorAndDivWithoutIntegers)
+{
+  // a system w/o integers has nothing to replace and is left as it is
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  rts.set_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
+  rts.assign_next(x, rts.make_term(BVAdd, x, rts.make_term(1, bvsort)));
+  Term prop = rts.make_term(BVUlt, x, rts.make_term(10, bvsort));
+  Term init = rts.init();
+  Term trans = rts.trans();
+  eliminate_floor_and_div(rts, prop);
+  EXPECT_EQ(rts.init(), init);
+  EXPECT_EQ(rts.trans(), trans);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedModifierUnitTests,
                          ModifierUnitTests,
                          testing::ValuesIn(available_solver_enums()));
+
+// the base of the suites below, each instantiated with the solvers to test,
+// such as cvc5 and MathSAT: a suite builds a system with div, mod or floor on
+// one of them and checks that BMC finds the same counterexample in it, or
+// k-induction proves it at the same bound, before and after the elimination
+class EliminateFloorAndDivTest : public ::testing::Test
+{
+ protected:
+  // whether a term contains integer div or mod, or floor
+  static bool has_div_mod(const Term & t)
+  {
+    UnorderedOpSet ops;
+    get_ops(t, ops);
+    return ops.count(Op(IntDiv)) || ops.count(Op(Mod)) || ops.count(Op(To_Int));
+  }
+
+  // starts rts, empty, on a new solver of kind se
+  void start_system(SolverEnum se)
+  {
+    solver_enum = se;
+    s = create_solver(se);
+    intsort = s->make_sort(INT);
+    rts = RelationalTransitionSystem(s);
+  }
+
+  // makes rts the system of DivModTests: x counts up from 0, and y is the
+  // previous x mod 3
+  void build_div_mod_system()
+  {
+    x = rts.make_statevar("x", intsort);
+    y = rts.make_statevar("y", intsort);
+    three = s->make_term(3, intsort);
+    Term zero = s->make_term(0, intsort);
+    rts.set_init(s->make_term(
+        And, s->make_term(Equal, x, zero), s->make_term(Equal, y, zero)));
+    rts.assign_next(x, s->make_term(Plus, x, s->make_term(1, intsort)));
+    rts.assign_next(y, s->make_term(Mod, x, three));
+  }
+
+  // makes rts the system of FloorTests: r counts up from 0 in steps of 1/2,
+  // and f is the previous floor(r)
+  void build_floor_system()
+  {
+    Sort realsort = s->make_sort(REAL);
+    r = rts.make_statevar("r", realsort);
+    f = rts.make_statevar("f", intsort);
+    rts.set_init(
+        s->make_term(And,
+                     s->make_term(Equal, r, s->make_term(0, realsort)),
+                     s->make_term(Equal, f, s->make_term(0, intsort))));
+    Term half =
+        s->make_term(Div, s->make_term(1, realsort), s->make_term(2, realsort));
+    rts.assign_next(r, s->make_term(Plus, r, half));
+    rts.assign_next(f, s->make_term(To_Int, r));
+  }
+
+  // a fresh solver of the kind under test, for a prover: each prover declares
+  // its own symbols, which a second one on the same solver would clash with
+  SmtSolver fresh_solver() const { return create_solver(solver_enum); }
+
+  // a copy of rts and prop with div, mod and floor eliminated
+  pair<RelationalTransitionSystem, Term> eliminated(
+      Term prop, bool allow_new_inputvars = true) const
+  {
+    RelationalTransitionSystem elim = rts;
+    eliminate_floor_and_div(elim, prop, allow_new_inputvars);
+    return { elim, prop };
+  }
+
+  // the counterexample that BMC finds for prop in ts within 10 steps, as the
+  // values of the variables of ts in each step, or none if there is none
+  vector<UnorderedTermMap> bmc_cex(const TransitionSystem & ts,
+                                   const Term & prop) const
+  {
+    Bmc bmc({ s, prop }, ts, fresh_solver());
+    vector<UnorderedTermMap> cex;
+    if (bmc.check_until(10) == ProverResult::FALSE) {
+      EXPECT_TRUE(bmc.witness(cex));
+    }
+    return cex;
+  }
+
+  // the least bound at which k-induction proves prop in ts, or -1 if there is
+  // none up to 10
+  int kind_proof_bound(const TransitionSystem & ts, const Term & prop) const
+  {
+    for (int k = 0; k <= 10; k++) {
+      KInduction kind({ s, prop }, ts, fresh_solver());
+      if (kind.check_until(k) == ProverResult::TRUE) {
+        return k;
+      }
+    }
+    return -1;
+  }
+
+  // checks that BMC finds a counterexample to prop in the original rts, and
+  // the same one after elimination. The counterexample must be unique, as it
+  // is in the systems built for these tests: init fixes each variable and its
+  // update is a function of the state.
+  void expect_same_cex(const Term & prop, bool allow_new_inputvars = true) const
+  {
+    auto [elim, elim_prop] = eliminated(prop, allow_new_inputvars);
+    vector<UnorderedTermMap> cex = bmc_cex(rts, prop);
+    ASSERT_FALSE(cex.empty());
+    vector<UnorderedTermMap> elim_cex = bmc_cex(elim, elim_prop);
+    ASSERT_EQ(elim_cex.size(), cex.size());
+    for (size_t i = 0; i < cex.size(); i++) {
+      for (const auto & v : rts.statevars()) {
+        EXPECT_EQ(elim_cex[i].at(v)->to_string(), cex[i].at(v)->to_string())
+            << v << " in step " << i;
+      }
+    }
+  }
+
+  // checks that k-induction proves prop in the original rts, and at the same
+  // bound after elimination
+  void expect_same_kind_proof_bound(const Term & prop) const
+  {
+    auto [elim, elim_prop] = eliminated(prop);
+    int k = kind_proof_bound(rts, prop);
+    ASSERT_GE(k, 0);
+    EXPECT_EQ(kind_proof_bound(elim, elim_prop), k);
+  }
+
+  SolverEnum solver_enum;
+  SmtSolver s;
+  Sort intsort;
+  RelationalTransitionSystem rts;
+  Term x, y, three;  // in the system of DivModTests
+  Term r, f;         // in the system of FloorTests
+};
+
+class DivModTests : public EliminateFloorAndDivTest,
+                    public ::testing::WithParamInterface<SolverEnum>
+{
+ protected:
+  void SetUp() override
+  {
+    start_system(GetParam());
+    build_div_mod_system();
+  }
+};
+
+TEST_P(DivModTests, NoneLeft)
+{
+  // also a div over next-state variables, and a mod in the property
+  Term next_x = rts.next(x);
+  rts.constrain_trans(
+      s->make_term(Le, s->make_term(IntDiv, next_x, three), next_x));
+  Term prop = s->make_term(Lt, s->make_term(Mod, x, three), three);
+  ASSERT_TRUE(has_div_mod(rts.trans()));
+  ASSERT_TRUE(has_div_mod(prop));
+
+  eliminate_floor_and_div(rts, prop);
+  EXPECT_FALSE(has_div_mod(rts.init()));
+  EXPECT_FALSE(has_div_mod(rts.trans()));
+  EXPECT_FALSE(has_div_mod(prop));
+  // x, y and one new variable q for (div x 3): (mod x 3) becomes x - 3*q, and
+  // (div x' 3) becomes q', the next-state copy of q
+  EXPECT_EQ(rts.statevars().size(), 3);
+}
+
+TEST_P(DivModTests, CurrentAndNextState)
+{
+  // z' is (div (+ x y') 3), over both current- and next-state variables, so
+  // it gets a variable of its own rather than the next-state copy of the one
+  // for (div (+ x y) 3). z is 1 first in step 3.
+  Term z = rts.make_statevar("z", intsort);
+  rts.constrain_init(s->make_term(Equal, z, s->make_term(0, intsort)));
+  rts.constrain_trans(s->make_term(
+      Equal,
+      rts.next(z),
+      s->make_term(IntDiv, s->make_term(Plus, x, rts.next(y)), three)));
+  Term prop = s->make_term(Lt, z, s->make_term(1, intsort));
+
+  auto [elim, elim_prop] = eliminated(prop);
+  EXPECT_FALSE(has_div_mod(elim.trans()));
+  // x, y, z and a new state variable for (div x 3), and an input variable for
+  // (div (+ x y') 3), as its bounds constrain only the transition
+  EXPECT_EQ(elim.statevars().size(), 4);
+  EXPECT_EQ(elim.inputvars().size(), 1);
+  expect_same_cex(prop);
+
+  // a state variable for (div (+ x y') 3) instead, if no new input variables
+  // are allowed, as with --promote-inputvars
+  auto [elim_sv, elim_sv_prop] = eliminated(prop, false);
+  EXPECT_EQ(elim_sv.statevars().size(), 5);
+  EXPECT_TRUE(elim_sv.inputvars().empty());
+  expect_same_cex(prop, false);
+}
+
+TEST_P(DivModTests, Safe)
+{
+  expect_same_kind_proof_bound(s->make_term(Lt, y, three));
+}
+
+TEST_P(DivModTests, Unsafe)
+{
+  // y is 2 first in step 3
+  expect_same_cex(s->make_term(Lt, y, s->make_term(2, intsort)));
+}
+
+TEST_P(DivModTests, NegatedDivisor)
+{
+  // a negated literal, which cvc5 and Z3 keep as (- 3)
+  Term prop = s->make_term(
+      Lt, s->make_term(Mod, x, s->make_term(Negate, three)), three);
+  eliminate_floor_and_div(rts, prop);
+  EXPECT_FALSE(has_div_mod(prop));
+}
+
+TEST_P(DivModTests, ZeroDivisor)
+{
+  // (- 3 3) and (- 0) have no symbols but are 0, so div and mod by them must
+  // be kept: c*q <= t < c*q + |c| has no solution for c = 0.
+  Term zero = s->make_term(0, intsort);
+  Term prop = s->make_term(
+      And,
+      s->make_term(
+          Le, s->make_term(IntDiv, x, s->make_term(Minus, three, three)), x),
+      s->make_term(Le, s->make_term(Mod, x, s->make_term(Negate, zero)), x));
+  UnorderedOpSet before, after;
+  get_ops(prop, before);
+  eliminate_floor_and_div(rts, prop);
+  get_ops(prop, after);
+  EXPECT_EQ(after.count(Op(IntDiv)), before.count(Op(IntDiv)));
+  EXPECT_EQ(after.count(Op(Mod)), before.count(Op(Mod)));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ParameterizedDivModTests,
+    DivModTests,
+    testing::ValuesIn(filter_solver_enums({ THEORY_INT })));
+
+class FloorTests : public EliminateFloorAndDivTest,
+                   public ::testing::WithParamInterface<SolverEnum>
+{
+ protected:
+  void SetUp() override
+  {
+    start_system(GetParam());
+    build_floor_system();
+  }
+};
+
+TEST_P(FloorTests, NoneLeft)
+{
+  Term prop = s->make_term(Le, s->make_term(To_Real, f), r);
+  ASSERT_TRUE(has_div_mod(rts.trans()));
+  auto [elim, elim_prop] = eliminated(prop);
+  EXPECT_FALSE(has_div_mod(elim.init()));
+  EXPECT_FALSE(has_div_mod(elim.trans()));
+}
+
+TEST_P(FloorTests, Safe)
+{
+  expect_same_kind_proof_bound(s->make_term(Le, s->make_term(To_Real, f), r));
+}
+
+TEST_P(FloorTests, Unsafe)
+{
+  // f is 2 first in step 5, the floor of r = 2 in step 4
+  expect_same_cex(s->make_term(Lt, f, s->make_term(2, intsort)));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ParameterizedFloorTests,
+    FloorTests,
+    testing::ValuesIn(filter_solver_enums({ THEORY_INT, THEORY_REAL })));
+
+// the systems of DivModTests and FloorTests, proved by interpolation with an
+// interpolator under test as well: MathSAT's interpolator fails on floor,
+// which smt-switch uses to encode div and mod for MathSAT
+class DivModInterpTests
+    : public EliminateFloorAndDivTest,
+      public ::testing::WithParamInterface<tuple<SolverEnum, SolverEnum>>
+{
+ protected:
+  void SetUp() override { start_system(get<0>(GetParam())); }
+
+  // checks that interpolation proves prop after elimination, with an
+  // invariant that holds in the original rts as well once the one new
+  // variable in it is replaced by the term the variable stands for
+  void expect_valid_imc_invariant(const Term & prop,
+                                  const Term & replaced) const
+  {
+    auto [elim, elim_prop] = eliminated(prop);
+    UnorderedTermMap var_to_term;
+    for (const auto & v : elim.statevars()) {
+      if (!rts.is_curr_var(v)) {
+        var_to_term[v] = replaced;
+      }
+    }
+    ASSERT_EQ(var_to_term.size(), 1);
+
+    PonoOptions opts;
+    opts.smt_interpolator_ = get<1>(GetParam());
+    InterpolantMC imc({ s, elim_prop }, elim, fresh_solver(), opts);
+    ASSERT_EQ(imc.check_until(10), ProverResult::TRUE);
+    Term invar = s->substitute(imc.invar(), var_to_term);
+    EXPECT_TRUE(check_invar(rts, prop, invar));
+  }
+};
+
+TEST_P(DivModInterpTests, DivMod)
+{
+  build_div_mod_system();
+  expect_valid_imc_invariant(s->make_term(Lt, y, three),
+                             s->make_term(IntDiv, x, three));
+}
+
+TEST_P(DivModInterpTests, Floor)
+{
+  if (get<1>(GetParam()) == CVC5_INTERPOLATOR) {
+    GTEST_SKIP() << "cvc5's interpolator gives up on this system";
+  }
+  build_floor_system();
+  expect_valid_imc_invariant(s->make_term(Le, s->make_term(To_Real, f), r),
+                             s->make_term(To_Int, r));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ParameterizedDivModInterpTests,
+    DivModInterpTests,
+    testing::Combine(
+        testing::ValuesIn(filter_solver_enums({ THEORY_INT, THEORY_REAL })),
+        testing::ValuesIn(filter_interpolator_enums({ THEORY_INT }))));
 
 }  // namespace pono_tests
