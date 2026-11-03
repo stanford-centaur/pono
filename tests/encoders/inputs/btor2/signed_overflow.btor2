@@ -1,0 +1,42 @@
+1 sort bitvec 4
+2 sort bitvec 1
+3 sort bitvec 5
+4 sort bitvec 8
+5 input 1 a
+6 input 1 b
+; Each signed overflow flag must hold exactly when the result of the operation,
+; computed exactly on the sign-extended operands, does not equal the
+; sign extension of its low 4 bits.
+7 sext 3 5 1
+8 sext 3 6 1
+9 add 3 7 8
+10 slice 1 9 3 0
+11 sext 3 10 1
+12 neq 2 9 11
+13 saddo 2 5 6
+14 neq 2 13 12
+15 bad 14
+16 sub 3 7 8
+17 slice 1 16 3 0
+18 sext 3 17 1
+19 neq 2 16 18
+20 ssubo 2 5 6
+21 neq 2 20 19
+22 bad 21
+23 sext 4 5 4
+24 sext 4 6 4
+25 mul 4 23 24
+26 slice 1 25 3 0
+27 sext 4 26 4
+28 neq 2 25 27
+29 smulo 2 5 6
+30 neq 2 29 28
+31 bad 30
+; Division overflows only for -8 / -1, whose exact quotient 8 needs 5 bits.
+32 sdiv 3 7 8
+33 slice 1 32 3 0
+34 sext 3 33 1
+35 neq 2 32 34
+36 sdivo 2 5 6
+37 neq 2 36 35
+38 bad 37

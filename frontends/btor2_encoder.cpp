@@ -641,7 +641,7 @@ void BTOR2Encoder::parse(const std::string filename)
       Term t1_top = solver_->make_term(Op(Extract, width - 1, width - 1), t1);
       Term sum_top = solver_->make_term(Op(Extract, width - 1, width - 1), sum);
       terms_[bt2_line->id] =
-          solver_->make_term(Equal,
+          solver_->make_term(And,
                              solver_->make_term(Equal, t0_top, t1_top),
                              solver_->make_term(Distinct, t0_top, sum_top));
     } else if (bt2_line->tag == BTOR2_TAG_sdivo) {
@@ -681,14 +681,15 @@ void BTOR2Encoder::parse(const std::string filename)
           solver_->make_term(0, solver_->make_sort(BV, orig_width)));
     } else if (bt2_line->tag == BTOR2_TAG_smulo) {
       // from Hacker's Delight
-      // overflow if hi(x*y) != (lo(x*y) >>s (width-1))
+      // overflow if hi(x*y) != (lo(x*y) >>s (width-1)), where x*y is the
+      // double-width product of the sign-extended operands
       Term t0 = bool_to_bv(termargs[0]);
       Term t1 = bool_to_bv(termargs[1]);
 
       uint64_t orig_width = t0->get_sort()->get_width();
 
-      t0 = solver_->make_term(Op(Zero_Extend, orig_width), t0);
-      t1 = solver_->make_term(Op(Zero_Extend, orig_width), t1);
+      t0 = solver_->make_term(Op(Sign_Extend, orig_width), t0);
+      t1 = solver_->make_term(Op(Sign_Extend, orig_width), t1);
 
       Term prod = solver_->make_term(BVMul, t0, t1);
       Term hi =
