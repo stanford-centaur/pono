@@ -14,6 +14,8 @@
 **
 **/
 
+#include <string>
+
 #include "core/ts.h"
 #include "smt-switch/smt.h"
 
@@ -23,7 +25,10 @@ namespace pono_tests {
  *  and then resets
  *  @param ts the transition system to add to (assumed to be empty)
  *  @param max_val the value to count up to before resetting
+ *  @param name the name of the state variable
  */
-void counter_system(pono::TransitionSystem & ts, const smt::Term & max_val);
+void counter_system(pono::TransitionSystem & ts,
+                    const smt::Term & max_val,
+                    const std::string & name = "x");
 
 }  // namespace pono_tests
