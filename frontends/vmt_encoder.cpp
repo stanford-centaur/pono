@@ -30,8 +30,11 @@ VMTEncoder::VMTEncoder(std::string filename, RelationalTransitionSystem & rts)
     : super(rts.get_solver()), filename_(filename), rts_(rts)
 {
   set_logic_all();
-  [[maybe_unused]] int res = parse(filename_);
-  assert(!res);  // 0 means success
+  // the reader prints where the error is and returns nonzero, having read
+  // the file only up to it
+  if (parse(filename_)) {
+    throw PonoException("Failed to parse VMT file " + filename_);
+  }
 }
 
 void VMTEncoder::new_symbol(const std::string & name, const smt::Sort & sort)
