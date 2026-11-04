@@ -34,6 +34,29 @@ namespace pono {
  */
 TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, smt::Term & prop);
 
+/** Replaces floor (to_int), and integer div and mod by nonzero integer
+ *  literals such as 3 or (- 3), in a relational transition system and its
+ *  property with fresh integer variables, which linear constraints tie
+ *  to the terms they replace:
+ *  q <= u < q + 1 for floor(u), and c*q <= t < c*q + |c| for (div t c),
+ *  where (mod t c) becomes t - c*q. Some interpolators fail on these
+ *  operators, e.g., MathSAT on floor, which is how smt-switch gives it div
+ *  and mod.
+ *
+ *  NOTE: init and trans get the replaced terms, but the constraints that
+ *  the system also keeps separately do not.
+ *
+ *  @param ts the relational transition system to modify in place
+ *  @param prop the property to modify in place
+ *  @param allow_new_inputvars whether a term over input variables, or over
+ *         both current- and next-state variables, gets an input variable
+ *         rather than a state variable: its bounds constrain only the
+ *         transition it occurs in
+ */
+void eliminate_floor_and_div(TransitionSystem & ts,
+                             smt::Term & prop,
+                             bool allow_new_inputvars = true);
+
 // optimization to assume the property in the pre-state
 // although confusing, this is sound as long as you always check
 // for a property violation over the next-state variables

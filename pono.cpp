@@ -133,6 +133,11 @@ ProverResult check_prop(PonoOptions pono_options,
   }
   assert(ts.only_curr(prop));
 
+  if (pono_options.eliminate_floor_and_div_) {
+    // new input variables would undo the promotion above, which IC3SA needs
+    eliminate_floor_and_div(ts, prop, !pono_options.promote_inputvars_);
+  }
+
   if (pono_options.assume_prop_) {
     // NOTE: crucial that pseudo_init_prop and add_prop_monitor passes are
     // before this pass. Can't assume the non-delayed prop and also

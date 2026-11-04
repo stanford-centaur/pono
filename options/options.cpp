@@ -87,6 +87,7 @@ enum optionIndex
   CEG_BV_ARITH_AS_FREE_SYMBOL,
   CEG_BV_ARITH_MIN_BW,
   PROMOTE_INPUTVARS,
+  ELIMINATE_FLOOR_AND_DIV,
   SYGUS_OP_LVL,
   SYGUS_TERM_MODE,
   IC3SA_INITIAL_TERMS_LVL,
@@ -541,6 +542,14 @@ const option::Descriptor usage[] = {
     "promote-inputvars",
     Arg::None,
     "  --promote-inputvars \tpromote all input variables to state variables" },
+  { ELIMINATE_FLOOR_AND_DIV,
+    0,
+    "",
+    "eliminate-floor-and-div",
+    Arg::None,
+    "  --eliminate-floor-and-div \treplace floor (to_int), and integer div and "
+    "mod by integer literals, with variables and linear constraints "
+    "(relational systems only)" },
   { SYGUS_OP_LVL,
     0,
     "",
@@ -1028,6 +1037,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           ceg_bv_arith_min_bw_ = std::stoul(opt.arg);
           break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
+        case ELIMINATE_FLOOR_AND_DIV: eliminate_floor_and_div_ = true; break;
         case SYGUS_OP_LVL:
           sygus_use_operator_abstraction_ = std::stoul(opt.arg);
           break;
