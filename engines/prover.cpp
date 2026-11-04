@@ -102,6 +102,17 @@ Term BaseProver::to_orig_ts(Term t)
 
 TransitionSystem & BaseProver::prover_interface_ts() { return ts_; }
 
+bool BaseProver::is_trans_total() const
+{
+  try {
+    return (options_.check_trans_total_ && ts_.is_right_total())
+           || (ts_.is_functional() && ts_.constraints().empty());
+  }
+  catch (SmtException &) {
+    return false;
+  }
+}
+
 bool BaseProver::witness(vector<UnorderedTermMap> & out)
 {
   if (!witness_.size()) {
