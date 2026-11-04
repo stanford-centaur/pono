@@ -19,6 +19,7 @@
 #include "engines/interp_seq_mc.h"
 
 #include <cassert>
+#include <string>
 
 #include "smt-switch/exceptions.h"
 #include "smt-switch/utils.h"
@@ -198,8 +199,9 @@ bool InterpSeqMC::step(int i)
     } else if (r.is_sat() && !bmc_res.is_sat()) {
       throw PonoException("Internal error: Expecting satisfiable result");
     } else {
-      throw PonoException("Interpolation failed due to: "
-                          + r.get_explanation());
+      const std::string & why = r.get_explanation();
+      throw PonoException("Interpolation failed"
+                          + (why.empty() ? "" : " (" + why + ")"));
     }
     return false;
   }

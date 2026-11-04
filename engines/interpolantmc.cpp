@@ -18,6 +18,7 @@
 
 #include <cassert>
 #include <ctime>
+#include <string>
 
 #include "smt-switch/exceptions.h"
 #include "smt-switch/utils.h"
@@ -202,6 +203,11 @@ bool InterpolantMC::step(const int i)
         logger.log(3, "Using interpolant: {}", Ri);
         R = solver_->make_term(Or, R, Ri);
       }
+    } else if (r.is_unknown()) {
+      // TODO: figure out if makes sense to increase bound and try again
+      const std::string & why = r.get_explanation();
+      throw PonoException("Interpolant generation failed"
+                          + (why.empty() ? "" : " (" + why + ")"));
     } else if (interp_count == 0) {
       // found a concrete counter example
       // replay it in the solver with model generation
@@ -217,9 +223,6 @@ bool InterpolantMC::step(const int i)
         throw PonoException("Internal error: Expecting satisfiable result");
       }
       return false;
-    } else if (r.is_unknown()) {
-      // TODO: figure out if makes sense to increase bound and try again
-      throw PonoException("Interpolant generation failed.");
     }
   }
   assert(solver_->get_context_level() == start_context_level_ + 1);

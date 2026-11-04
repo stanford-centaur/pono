@@ -33,6 +33,7 @@
 #include <cassert>
 #include <cstddef>
 #include <random>
+#include <string>
 
 #include "core/prop.h"
 #include "core/refineresult.h"
@@ -284,6 +285,13 @@ RefineResult IC3IA::refine()
   if (r.is_sat()) {
     // this is a real counterexample, so the property is false
     return RefineResult::REFINE_NONE;
+  }
+  if (r.is_unknown()) {
+    // refinement goes on with the interpolants that the failure left
+    const std::string & why = r.get_explanation();
+    logger.log(1,
+               "IC3IA: interpolation failed{}",
+               why.empty() ? "" : " (" + why + ")");
   }
 
   // record the length of this counterexample
