@@ -102,10 +102,13 @@ const vector<MoxiQuery> moxi_queries({
       2,
       { smt::THEORY_DATATYPE },
       pono::ProverResult::TRUE },
+    // Boolector cannot substitute into the application of pick, as the encoder
+    // does for the reachability condition.
     { "enum_encodings.moxi",
       3,
       { smt::THEORY_DATATYPE },
-      pono::ProverResult::TRUE },
+      pono::ProverResult::TRUE,
+      { smt::BTOR } },
     { "enum_encodings.moxi",
       4,
       { smt::THEORY_DATATYPE },
@@ -118,10 +121,12 @@ const vector<MoxiQuery> moxi_queries({
       6,
       { smt::THEORY_DATATYPE },
       pono::ProverResult::TRUE },
+    // Not Boolector, as for query 3: the reachability condition applies pick.
     { "enum_encodings.moxi",
       7,
       { smt::THEORY_DATATYPE },
-      pono::ProverResult::FALSE },
+      pono::ProverResult::FALSE,
+      { smt::BTOR } },
     { "enum_encodings.moxi",
       8,
       { smt::THEORY_DATATYPE },
