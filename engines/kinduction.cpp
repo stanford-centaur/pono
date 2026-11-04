@@ -424,7 +424,12 @@ bool KInduction::final_base_case_check(const int & cur_bound)
       1, "", "checking base case a posteriori at bound: {}", cur_bound);
   Term query;
   sel_assumption_.clear();
-  if (is_trans_total()) {
+  const bool trans_total = is_trans_total();
+  kind_log_msg(2,
+               "    ",
+               "transition relation is {}right-total",
+               trans_total ? "" : "NOT ");
+  if (trans_total) {
     // enable initial state predicate but NOT its negated instances
     // disable negated bad state terms
     // DISABLE simple path --- maybe we could keep it if UNSAT
@@ -475,20 +480,6 @@ bool KInduction::final_base_case_check(const int & cur_bound)
     return true;
   } else {
     throw PonoException("Final base case check returned unknown");
-  }
-}
-
-bool KInduction::is_trans_total() const
-{
-  try {
-    bool ret = (options_.check_trans_total_ && ts_.is_right_total())
-               || (ts_.is_functional() && ts_.constraints().empty());
-    kind_log_msg(
-        2, "    ", "transition relation is {}right-total", ret ? "" : "NOT ");
-    return ret;
-  }
-  catch (SmtException &) {
-    return false;
   }
 }
 

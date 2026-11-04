@@ -64,6 +64,23 @@ class InterpolantMC : public SafetyProver
                      const smt::Term & reached,
                      const int & interp_count);
 
+  /**
+   * @brief Make the step of the suffix from time k: trans@k if the transition
+   * relation is right-total, and otherwise bad@k \/ trans@k, as a path to a
+   * bad state needs a step only before it reaches the bad state.
+   *
+   * Unless the transition relation is right-total, a bad state need not have
+   * a successor. With the latter steps, transB_ /\ bad@i holds from exactly
+   * the states that reach a bad state within the suffix up to time i, like
+   * bad@1 \/ (trans@1 /\ (bad@2 \/ (trans@2 /\ ...))), as a path that
+   * reaches a bad state earlier can stay in it. So every interpolant excludes
+   * the bad states, and the fixed point implies the property.
+   *
+   * @param k the time of the state that the step leaves
+   * @return the step from time k to time k+1
+   */
+  smt::Term suffix_step(int k);
+
   // configurable options
   const bool use_frontier_simpl_;
   const InterpPropsEnum interp_props_;
@@ -79,10 +96,14 @@ class InterpolantMC : public SafetyProver
   // set to true when a concrete_cex is found
   bool concrete_cex_ = false;
 
+  bool trans_total_ = false;  ///< whether ts_ is known to be right-total
+
   smt::Term init0_;
   smt::Term transA_;
-  smt::Term transB_;
-  smt::Term bad_disjuncts_;  ///< a disjunction of bads in the suffix
+  smt::Term transB_;  ///< the steps of the suffix, see suffix_step()
+  /// a disjunction of bads in the suffix, or only its last bad if the
+  /// transition relation is not right-total, see suffix_step()
+  smt::Term bad_disjuncts_;
 
 #ifndef NDEBUG
   std::uint32_t total_interp_call_count_ = 0;

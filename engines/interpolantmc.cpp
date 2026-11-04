@@ -86,6 +86,16 @@ void InterpolantMC::initialize()
   }
 
   concrete_cex_ = false;
+  trans_total_ = is_trans_total();
+  logger.log(2,
+             "Interp: transition relation is {}right-total",
+             trans_total_ ? "" : "NOT ");
+  if (!trans_total_
+      && interp_props_ == InterpPropsEnum::INTERP_FIRST_AND_LAST_PROPS) {
+    logger.log(0,
+               "Warning: --interp-props first-and-last only works with a "
+               "right-total transition relation (see --check-trans-total).");
+  }
   init0_ = unroller_.at_time(ts_.init(), 0);
   transA_ = unroller_.at_time(ts_.trans(), 0);
   transB_ = solver_->make_term(true);
@@ -150,7 +160,12 @@ bool InterpolantMC::step(const int i)
   }
 
   Term bad_i = unroller_.at_time(bad_, timestep(i));
-  if (interp_props_ == InterpPropsEnum::INTERP_FIRST_AND_LAST_PROPS) {
+  if (!trans_total_) {
+    // A path that reaches a bad state earlier can stay in it until i, as the
+    // steps of the suffix allow any successor of a bad state; see
+    // suffix_step().
+    bad_disjuncts_ = bad_i;
+  } else if (interp_props_ == InterpPropsEnum::INTERP_FIRST_AND_LAST_PROPS) {
     // Only take the first and last properties; the rest are skipped.
     bad_disjuncts_ = solver_->make_term(Or, unroller_.at_time(bad_, 1), bad_i);
   } else {  // interp_props_ == InterpPropsEnum::INTERP_ALL_PROPS
@@ -232,20 +247,27 @@ bool InterpolantMC::step(const int i)
   if (unroll_eagerly_) {
     // The k-th interpolant itp_k computed at bound i:
     // - represents a k-step overapproxiation from init, and
-    // - ensures that state in itp_k cannot reach bad states in i-1 steps.
+    // - ensures that state in itp_k cannot reach bad states within i-1 steps.
     // Therefore, the safe bound can be extended to interp_count + i - 1.
     for (int j = 0; j < interp_count; ++j) {
-      transB_ = solver_->make_term(
-          And, transB_, unroller_.at_time(ts_.trans(), timestep(i + j)));
+      transB_ = solver_->make_term(And, transB_, suffix_step(i + j));
     }
     reached_k_ = interp_count + i - 1;
   } else {
-    transB_ = solver_->make_term(
-        And, transB_, unroller_.at_time(ts_.trans(), timestep(i)));
+    transB_ = solver_->make_term(And, transB_, suffix_step(i));
     reached_k_ = i;
   }
 
   return false;
+}
+
+Term InterpolantMC::suffix_step(int k)
+{
+  Term trans_k = unroller_.at_time(ts_.trans(), timestep(k));
+  if (trans_total_) {
+    return trans_k;
+  }
+  return solver_->make_term(Or, unroller_.at_time(bad_, timestep(k)), trans_k);
 }
 
 bool InterpolantMC::step_0()
