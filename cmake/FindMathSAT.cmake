@@ -4,8 +4,8 @@ FindMathSAT
 
 Finds the MathSAT 5 SMT solver (https://mathsat.fbk.eu). MathSAT is
 distributed as a prebuilt archive and ships no CMake package config files, so
-this module locates it directly. pono needs direct access to MathSAT's C API
-to set solver options.
+this module locates it directly. IC3IA needs direct access to MathSAT's C
+API.
 
 smt-switch's package locates MathSAT for its own backend with a module of the
 same name, which leaves a ``MathSAT::mathsat`` that already exists alone. The

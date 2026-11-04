@@ -11,6 +11,9 @@ headers stay in the source tree and the library in its build directory,
 neither of which is a location ``find_package()`` searches under a prefix.
 Both lookups therefore need explicit ``HINTS``.
 
+ic3ia calls MathSAT's C API, so this module also finds MathSAT, with
+``FindMathSAT``.
+
 Hints
 ^^^^^
 
@@ -19,17 +22,20 @@ Hints
   ``build/libic3ia.a``. ``contrib/setup-ic3ia.sh`` produces one in
   ``deps/ic3ia``.
 
+``MathSAT_ROOT``
+  The MathSAT install prefix, as for ``FindMathSAT``.
+
 Imported Targets
 ^^^^^^^^^^^^^^^^^
 
 ``IC3IA::ic3ia``
-  The ic3ia library, if found.
+  The ic3ia library, linking ``MathSAT::mathsat``, if both were found.
 
 Result Variables
 ^^^^^^^^^^^^^^^^^
 
 ``IC3IA_FOUND``
-  True if the ic3ia library and headers were found.
+  True if the ic3ia library and headers, and MathSAT, were found.
 #]=======================================================================]
 
 # These are cached (as find_path()/find_library() results always are), but a
@@ -45,10 +51,13 @@ find_path(IC3IA_INCLUDE_DIR NAMES ic3ia/ic3.h HINTS "${IC3IA_ROOT}/..")
 unset(IC3IA_LIBRARY CACHE)
 find_library(IC3IA_LIBRARY NAMES ic3ia HINTS "${IC3IA_ROOT}/build")
 
+# not quiet, so that a missing MathSAT says how to get one
+find_package(MathSAT)
+
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
   IC3IA
-  REQUIRED_VARS IC3IA_LIBRARY IC3IA_INCLUDE_DIR
+  REQUIRED_VARS IC3IA_LIBRARY IC3IA_INCLUDE_DIR MathSAT_FOUND
   REASON_FAILURE_MESSAGE
     "Try running contrib/setup-ic3ia.sh, or set --ic3ia-dir to a built ic3ia source tree."
 )
@@ -60,6 +69,7 @@ if(IC3IA_FOUND AND NOT TARGET IC3IA::ic3ia)
     PROPERTIES
       IMPORTED_LOCATION "${IC3IA_LIBRARY}"
       INTERFACE_INCLUDE_DIRECTORIES "${IC3IA_INCLUDE_DIR}"
+      INTERFACE_LINK_LIBRARIES MathSAT::mathsat
   )
 endif()
 

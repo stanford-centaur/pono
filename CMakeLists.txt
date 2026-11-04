@@ -138,11 +138,6 @@ if(WITH_COREIR)
   find_package(CoreIR REQUIRED)
 endif()
 
-if(WITH_MSAT OR WITH_MSAT_IC3IA)
-  # pono needs direct access to MathSAT for setting solver options.
-  find_package(MathSAT REQUIRED)
-endif()
-
 if(WITH_MSAT_IC3IA)
   find_package(IC3IA REQUIRED)
 endif()
@@ -335,11 +330,6 @@ endif()
 
 if(WITH_Z3)
   target_link_libraries(pono-lib PRIVATE SmtSwitch::smt-switch-z3)
-endif()
-
-# pono sets MathSAT options through its C API, as does IC3IA.
-if(WITH_MSAT OR WITH_MSAT_IC3IA)
-  target_link_libraries(pono-lib PUBLIC MathSAT::mathsat)
 endif()
 
 if(WITH_MSAT_IC3IA)
