@@ -7,6 +7,7 @@
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
 #include "utils/exceptions.h"
+#include "utils/str_util.h"
 
 using namespace pono;
 using namespace smt;
@@ -90,6 +91,24 @@ TEST_P(UnrollerUnitTests, GetTime)
 
   // a term with no variables is at no particular time
   EXPECT_THROW(u.get_curr_time(rts.make_term(3, bvsort)), PonoException);
+}
+
+TEST_P(UnrollerUnitTests, HierarchicalName)
+{
+  // Regression test: var_at_time() names each copy by appending the time to
+  // Term::to_string(), which needs desanitizing for names that require
+  // SMT-LIB `|...|` quoting, such as "mod.sig[3]". Otherwise the copy is
+  // named "|mod.sig[3]|@1", which is not SMT-LIB compliant.
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("mod.sig[3]", bvsort);
+
+  Unroller u(rts);
+  Term x1 = u.at_time(x, 1);
+  string name;
+  ASSERT_NO_THROW(name = x1->to_string());
+  EXPECT_EQ(name_desanitize(name), "mod.sig[3]@1");
+  EXPECT_EQ(1, u.get_var_time(x1));
+  EXPECT_EQ(x, u.untime(x1));
 }
 
 TEST_P(UnrollerUnitTests, StagedUnrolling)
