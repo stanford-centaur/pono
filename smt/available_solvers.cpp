@@ -192,17 +192,17 @@ SmtSolver create_solver_for(SolverEnum se,
     // These will be managed by the solver object
     // don't need to destroy
     StringMap opts(solver_opts);  // user-specified options take precedence
-    opts.emplace("model_generation", "true");
     if (!full_model && e == IC3IA_ENGINE) {
       // only need boolean model
       opts.emplace("bool_model_generation", "true");
-      opts.emplace("model_generation", "false");
       // Reasoning from open-source IC3IA code (by Alberto Griggio):
       // Turn off propagation of toplevel information. This is just overhead in
       // an IC3 context (where the solver is called hundreds of thousands of
       // times). Moreover, using it makes "lightweight" model generation (see
       // below) not effective
       opts.emplace("preprocessor.toplevel_propagation", "false");
+    } else {
+      opts.emplace("model_generation", "true");
     }
     msat_config cfg = get_msat_config_for_ic3(opts);
     msat_env env = msat_create_env(cfg);

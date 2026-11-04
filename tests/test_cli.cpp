@@ -263,6 +263,23 @@ TEST_F(CliUnitTests, SmvTraceLeavesOutGeneratedSignals)
   EXPECT_TRUE(omits(run.output, pono::generated_prefix));
 }
 
+#ifdef WITH_MSAT
+// IC3IA asks MathSAT for Boolean models only, which give a variable no value
+// of its own, so a witness has to ask for full models instead. Without them
+// the trace names each timed copy, as in "counter : counter@0".
+TEST_F(CliUnitTests, MsatIc3iaTraceHasValues)
+{
+  const PonoRun run = run_pono({ "--witness",
+                                 "-e",
+                                 "ic3ia",
+                                 "--smt-solver",
+                                 "msat",
+                                 input_path("smv/counter_bitvector.smv") });
+  EXPECT_TRUE(contains(run.output, "counter : "));
+  EXPECT_TRUE(omits(run.output, "counter@"));
+}
+#endif
+
 // A design that names a variable the way pono names its own would have that
 // variable left out of every trace, so the name is refused instead.
 TEST_F(CliUnitTests, Btor2RejectsADesignNamedLikeGenerated)
