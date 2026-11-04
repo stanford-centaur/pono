@@ -521,6 +521,23 @@ TEST_F(CliUnitTests, MoxiEncodesEnumsAsAnotherSort)
                   "Unknown --moxi-enum-as option: nat");
 }
 
+// Without a stutter step that repeats states, k-induction proves the query
+// even without simple-path checks.
+TEST_F(CliUnitTests, MoxiDropsStutter)
+{
+  vector<string> args{ "--smt-solver",
+                       "cvc5",
+                       "-e",
+                       "ind",
+                       "--no-kind-simple-path-check",
+                       "-k",
+                       "5",
+                       input_path("moxi/stutter_swap.moxi") };
+  EXPECT_TRUE(contains(run_pono(args).output, "\nunknown\n"));
+  args.insert(args.begin(), "--moxi-drop-stutter");
+  EXPECT_TRUE(contains(run_pono(args).output, "\nunsat\n"));
+}
+
 // The trace names the variables of a subsystem after its instance, and
 // leaves out what pono generated.
 TEST_F(CliUnitTests, MoxiTraceNamesSubsystemVars)

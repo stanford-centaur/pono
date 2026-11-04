@@ -1,0 +1,14 @@
+; The system can only stutter, like the translation of a CHC-COMP task whose
+; error states are initial, so the condition holds at the first step. Without
+; the stutter term, no step is left.
+(set-logic QF_LIA)
+
+(define-system Stop
+  :output ((n Int) (m Int))
+  :init true
+  :trans (or false (and (= n' n) (= m' m))))
+
+(check-system Stop
+  :output ((n Int) (m Int))
+  :reachable (equal (= n m))
+  :query (initially_equal (equal)))

@@ -421,7 +421,8 @@ int main(int argc, char ** argv)
         MoxiEncoder moxi_enc(pono_options.filename_,
                              rts,
                              pono_options.prop_idx_,
-                             pono_options.moxi_enum_encoding_);
+                             pono_options.moxi_enum_encoding_,
+                             pono_options.moxi_drop_stutter_);
         prop = moxi_enc.prop();
       } else {
         TermVec propvec;

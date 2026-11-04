@@ -38,13 +38,14 @@ bool equivalent(const SmtSolver & s, const Term & a, const Term & b)
   return result;
 }
 
-/** A query, the solver to check it with, and the sort that encodes the
- *  enumerations. */
+/** A query, the solver to check it with, the sort that encodes the
+ *  enumerations, and whether to drop a stutter term. */
 struct MoxiQueryRun
 {
   SolverEnum se;
   MoxiQuery query;
   MoxiEnumEncoding enum_encoding;
+  bool drop_stutter = false;
 };
 
 ostream & operator<<(ostream & os, const MoxiQueryRun & run)
@@ -55,12 +56,14 @@ ostream & operator<<(ostream & os, const MoxiQueryRun & run)
     { MoxiEnumEncoding::AUTO, "auto" },
   };
   return os << run.query << " with " << run.se << ", enumerations as "
-            << names.at(run.enum_encoding);
+            << names.at(run.enum_encoding)
+            << (run.drop_stutter ? ", stutter dropped" : "");
 }
 
-/** Each query with each solver that has the theories it needs, and a query
- *  over enumerations, which datatypes encode, also with each other sort
- *  that can encode them instead. */
+/** Each query with each solver that has the theories it needs, a query of a
+ *  stutter_*.moxi file also with its stutter term dropped, which must not
+ *  change the result, and a query over enumerations, which datatypes encode,
+ *  also with each other sort that can encode them instead. */
 vector<MoxiQueryRun> moxi_query_params()
 {
   vector<MoxiQueryRun> params;
@@ -83,6 +86,10 @@ vector<MoxiQueryRun> moxi_query_params()
       for (const SolverEnum se : filter_solver_enums(theories)) {
         if (!query.excluded.count(se)) {
           params.push_back({ se, query, encoding });
+          // Only the stutter_*.moxi files have a stutter term to drop.
+          if (query.file.rfind("stutter_", 0) == 0) {
+            params.push_back({ se, query, encoding, true });
+          }
         }
       }
     }
@@ -100,10 +107,12 @@ TEST_P(MoxiQueryUnitTests, Encode)
   const MoxiQuery & query = GetParam().query;
   SmtSolver s = create_solver(GetParam().se);
   RelationalTransitionSystem rts(s);
-  MoxiEncoder encoder(
-      moxi_path(query.file), rts, query.index, GetParam().enum_encoding);
+  MoxiEncoder encoder(moxi_path(query.file),
+                      rts,
+                      query.index,
+                      GetParam().enum_encoding,
+                      GetParam().drop_stutter);
 
-  // flags remember the reachability conditions, which pono need not monitor
   ASSERT_TRUE(rts.only_curr(encoder.prop()));
   SafetyProperty p(s, encoder.prop());
   KInduction kind(p, rts, s);
@@ -233,6 +242,51 @@ TEST_F(MoxiEncoderUnitTests, CurrentReplacesInit)
                         s2->make_term(3, s2->make_sort(INT))),
           s2->make_term(Not,
                         current_rts.lookup(generated_name("reached_0"))))));
+}
+
+// A stutter step lets a path repeat a state, so k-induction without
+// simple-path checks proves no more than 1-induction. x != 1 is 2-inductive
+// in Swap, as two swaps restore x, but not 1-inductive.
+TEST_F(MoxiEncoderUnitTests, DroppedStutterLetsPathsSkipSimplicity)
+{
+  PonoOptions opts;
+  opts.kind_no_simple_path_check_ = true;
+  for (const bool drop : { false, true }) {
+    // a solver each, as it cannot have two variables of the same name
+    SmtSolver solver = create_solver(CVC5);
+    RelationalTransitionSystem rts(solver);
+    MoxiEncoder encoder(
+        moxi_path("stutter_swap.moxi"), rts, 0, MoxiEnumEncoding::DT, drop);
+    SafetyProperty p(solver, encoder.prop());
+    KInduction kind(p, rts, solver, opts);
+    EXPECT_EQ(kind.check_until(5),
+              drop ? ProverResult::TRUE : ProverResult::UNKNOWN);
+  }
+}
+
+// The stutter term is not dropped for a condition over a step, for a system
+// with subsystems, and if the disjunct with the most stutter equalities does
+// not keep a state variable. Nor is it without the request.
+TEST_F(MoxiEncoderUnitTests, DropsStutterOnlyWhereItCan)
+{
+  const vector<tuple<string, size_t, bool>> queries{
+    { "stutter_count.moxi", 0, true },  { "stutter_count.moxi", 2, true },
+    { "stutter_step.moxi", 0, true },   { "stutter_stop.moxi", 0, true },
+    { "stutter_count.moxi", 3, false }, { "stutter_partial.moxi", 0, false },
+    { "stutter_follow.moxi", 0, false }
+  };
+  for (const auto & [file, index, expect_dropped] : queries) {
+    for (const bool drop : { false, true }) {
+      // a solver each, as it cannot have two variables of the same name
+      SmtSolver solver = create_solver(CVC5);
+      RelationalTransitionSystem rts(solver);
+      MoxiEncoder encoder(
+          moxi_path(file), rts, index, MoxiEnumEncoding::DT, drop);
+      EXPECT_EQ(encoder.stutter_dropped(), drop && expect_dropped)
+          << file << " query " << index << (drop ? " with" : " without")
+          << " the request";
+    }
+  }
 }
 
 // The symbols standing for variables while a file is read are apart from
