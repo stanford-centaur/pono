@@ -66,7 +66,8 @@ TEST_P(MakeTransTotalTests, CounterTrue)
           sort->get_sort_kind() == BV ? BVUrem : Mod, x, ts.make_term(2, sort)),
       ts.make_term(0, sort));
   make_trans_total(ts, prop);
-  ASSERT_TRUE(ts.is_right_total());
+  // check the system, not the result make_trans_total keeps
+  ASSERT_TRUE(ts.is_right_total(/*reuse_cached=*/false));
   ASSERT_TRUE(ts.constraints().empty());
   KInduction kind(SafetyProperty{ ts.solver(), prop }, ts, ts.solver());
   ProverResult r = kind.check_until(20);
@@ -77,7 +78,8 @@ TEST_P(MakeTransTotalTests, CounterFalse)
 {
   Term prop = ts.make_term(Not, ts.make_term(Equal, x, ts.make_term(8, sort)));
   make_trans_total(ts, prop);
-  ASSERT_TRUE(ts.is_right_total());
+  // check the system, not the result make_trans_total keeps
+  ASSERT_TRUE(ts.is_right_total(/*reuse_cached=*/false));
   ASSERT_TRUE(ts.constraints().empty());
   KInduction kind(SafetyProperty{ ts.solver(), prop }, ts, ts.solver());
   ProverResult r = kind.check_until(20);

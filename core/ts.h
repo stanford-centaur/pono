@@ -48,6 +48,10 @@ class TransitionSystem
 
   friend void swap(TransitionSystem & ts1, TransitionSystem & ts2);
 
+  // records in the right-totality cache that the system it returns is
+  // right-total
+  friend void make_trans_total(TransitionSystem & ts, smt::Term & prop);
+
   /** Copy constructor, which operator= below also uses to make its
    *  by-value parameter.
    */
@@ -357,11 +361,12 @@ class TransitionSystem
    * The result is kept with the transition relation and the variables the
    * query was built from, and returned again while they stay the same, also
    * by copies of the system.
+   *
+   * @param reuse_cached false to run the query even if a result is kept,
+   *        e.g., to check a result recorded without one; the new result is
+   *        then kept instead
    */
-  bool is_right_total() const;
-
-  /* Same as @ref is_right_total(), but uses the given solver type */
-  bool is_right_total(const smt::SolverEnum se) const;
+  bool is_right_total(bool reuse_cached = true) const;
 
   /** @return true if a state or input variable is an array with a finite index
    * sort. */
@@ -694,6 +699,9 @@ class TransitionSystem
   };
 
   mutable std::shared_ptr<const RightTotalCheckResult> right_total_check_cache_;
+
+  /** Keeps right_total as the result for the system as it is now */
+  void cache_right_total(bool right_total) const;
 };
 
 }  // namespace pono

@@ -229,10 +229,11 @@ void make_trans_total(TransitionSystem & ts, Term & prop)
                          new_ts.make_term(Not, new_ts.next(valid))));
     static_cast<RelationalTransitionSystem &>(new_ts).set_trans(new_trans);
   }
-  assert(new_ts.is_right_total());
 
   // update ts and prop
   ts = new_ts;
+  // right-total by construction, so is_right_total() needs no query
+  ts.cache_right_total(true);
   prop = ts.make_term(Implies, valid, prop);
 }
 

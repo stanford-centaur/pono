@@ -140,8 +140,7 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
   if (other_ts.right_total_check_cache_) {
     if (const auto result =
             other_ts.right_total_check_cache_->lookup(other_ts)) {
-      right_total_check_cache_ =
-          std::make_shared<RightTotalCheckResult>(*this, *result);
+      cache_right_total(*result);
     }
   }
 }
@@ -741,13 +740,13 @@ bool TransitionSystem::contains(const Term & term,
   return true;
 }
 
-bool TransitionSystem::is_right_total() const
+bool TransitionSystem::is_right_total(bool reuse_cached) const
 {
   if (is_functional() && constraints_.empty()) {
     // functional transition systems without constraints are always right-total
     return true;
   }
-  if (right_total_check_cache_) {
+  if (reuse_cached && right_total_check_cache_) {
     if (const auto result = right_total_check_cache_->lookup(*this)) {
       return *result;
     }
@@ -820,9 +819,14 @@ bool TransitionSystem::is_right_total() const
                        + r.to_string());
   }
   const bool right_total = r.is_unsat();
+  cache_right_total(right_total);
+  return right_total;
+}
+
+void TransitionSystem::cache_right_total(bool right_total) const
+{
   right_total_check_cache_ =
       std::make_shared<RightTotalCheckResult>(*this, right_total);
-  return right_total;
 }
 
 TransitionSystem::RightTotalCheckResult::RightTotalCheckResult(
