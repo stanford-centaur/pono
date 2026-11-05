@@ -114,6 +114,19 @@ TEST_P(TSUnitTests, RTS_IsRightTotal_HierarchicalName)
   EXPECT_TRUE(right_total);
 }
 
+TEST_P(TSUnitTests, RTS_IsRightTotal_InputsOnly)
+{
+  // Without state variables, the right-totality query quantifies only the
+  // inputs, and trans is right-total iff some input satisfies it.
+  RelationalTransitionSystem rts(s);
+  Term i = rts.make_inputvar("i", bvsort);
+  Term zero = s->make_term(0, bvsort);
+  rts.constrain_trans(rts.make_term(Distinct, i, zero));
+  EXPECT_TRUE(rts.is_right_total());
+  rts.constrain_trans(rts.make_term(Equal, i, zero));
+  EXPECT_FALSE(rts.is_right_total());
+}
+
 TEST_P(TSUnitTests, PromoteInputvar_HierarchicalName)
 {
   // Regression test: promote_inputvar() builds the next-state symbol's name
