@@ -117,18 +117,18 @@ TEST_P(TSUnitTests, RTS_IsRightTotal_HierarchicalName)
 TEST_P(TSUnitTests, RTS_IsRightTotal_FollowsChanges)
 {
   // is_right_total() keeps its result, which must not outlive the
-  // transition relation it is for, in the system or in its copies.
+  // transition relation it is for, in the system or in its copies. The
+  // equality for x' lets the quantified queries be decided by eliminating x'.
   RelationalTransitionSystem rts(s);
   Term x = rts.make_statevar("x", bvsort);
-  Term x_next = rts.next(x);
-  rts.constrain_trans(rts.make_term(BVUge, x_next, x));
+  rts.constrain_trans(rts.make_term(Equal, rts.next(x), x));
   EXPECT_TRUE(rts.is_right_total());
   TransitionSystem copy = rts;
   SmtSolver other_solver = create_solver(GetParam(), GetParam() == BTOR);
   TermTranslator tt(other_solver);
   TransitionSystem translated(rts, tt);
-  // x = 255 has no successor
-  rts.constrain_trans(rts.make_term(BVUgt, x_next, x));
+  // x = 0 has no successor
+  rts.constrain_trans(rts.make_term(Distinct, x, s->make_term(0, bvsort)));
   EXPECT_FALSE(rts.is_right_total());
   EXPECT_TRUE(copy.is_right_total());
   EXPECT_TRUE(translated.is_right_total());
