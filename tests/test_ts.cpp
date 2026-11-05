@@ -114,6 +114,30 @@ TEST_P(TSUnitTests, RTS_IsRightTotal_HierarchicalName)
   EXPECT_TRUE(right_total);
 }
 
+TEST_P(TSUnitTests, RTS_IsRightTotal_FollowsChanges)
+{
+  // is_right_total() keeps its result, which must not outlive the
+  // transition relation it is for, in the system or in its copies.
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  Term x_next = rts.next(x);
+  rts.constrain_trans(rts.make_term(BVUge, x_next, x));
+  EXPECT_TRUE(rts.is_right_total());
+  TransitionSystem copy = rts;
+  SmtSolver other_solver = create_solver(GetParam(), GetParam() == BTOR);
+  TermTranslator tt(other_solver);
+  TransitionSystem translated(rts, tt);
+  // x = 255 has no successor
+  rts.constrain_trans(rts.make_term(BVUgt, x_next, x));
+  EXPECT_FALSE(rts.is_right_total());
+  EXPECT_TRUE(copy.is_right_total());
+  EXPECT_TRUE(translated.is_right_total());
+  copy = rts;
+  EXPECT_FALSE(copy.is_right_total());
+  TransitionSystem translated_after(rts, tt);
+  EXPECT_FALSE(translated_after.is_right_total());
+}
+
 TEST_P(TSUnitTests, PromoteInputvar_HierarchicalName)
 {
   // Regression test: promote_inputvar() builds the next-state symbol's name

@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -71,7 +73,8 @@ class TransitionSystem
   virtual ~TransitionSystem() = default;
 
   /** Equality comparison between TransitionSystems
-   *  compares each member variable
+   *  compares each member variable, except the result kept by
+   *  is_right_total()
    *  @param other the transition system to compare to
    *  @return true iff all member variables are equivalent
    */
@@ -350,6 +353,10 @@ class TransitionSystem
    * The query may be expensive as it involves quantifiers.
    * Uses the solver type in the current TransitionSystem if it supports
    * quantifiers; otherwise cvc5.
+   *
+   * The result is kept with the transition relation and the variables the
+   * query was built from, and returned again while they stay the same, also
+   * by copies of the system.
    */
   bool is_right_total() const;
 
@@ -662,6 +669,31 @@ class TransitionSystem
 
   /* Returns true iff all the symbols in the formula are known */
   virtual bool known_symbols(const smt::Term & term) const;
+
+ private:
+  /** The result of a right-totality query, with the parts of the system it
+   *  was built from. It is reused only while they stay the same, so the
+   *  methods that change the system need not reset it. It never changes, so
+   *  copies of the system share it.
+   */
+  class RightTotalCheckResult
+  {
+   public:
+    /** Records the result for the system ts as it is now */
+    RightTotalCheckResult(const TransitionSystem & ts, bool right_total);
+
+    /** @return the result if it is for the system ts as it is now */
+    std::optional<bool> lookup(const TransitionSystem & ts) const;
+
+   private:
+    const smt::Term trans_;
+    const smt::UnorderedTermSet statevars_;
+    const smt::UnorderedTermSet no_state_updates_;
+    const smt::UnorderedTermSet inputvars_;
+    const bool right_total_;
+  };
+
+  mutable std::shared_ptr<const RightTotalCheckResult> right_total_check_cache_;
 };
 
 }  // namespace pono

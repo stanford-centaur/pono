@@ -47,6 +47,7 @@ void swap(TransitionSystem & ts1, TransitionSystem & ts2)
   std::swap(ts1.functional_, ts2.functional_);
   std::swap(ts1.deterministic_, ts2.deterministic_);
   std::swap(ts1.constraints_, ts2.constraints_);
+  std::swap(ts1.right_total_check_cache_, ts2.right_total_check_cache_);
 }
 
 TransitionSystem & TransitionSystem::operator=(TransitionSystem other)
@@ -134,6 +135,15 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
 
   functional_ = other_ts.functional_;
   deterministic_ = other_ts.deterministic_;
+
+  // a result for the other system holds for its transferred copy
+  if (other_ts.right_total_check_cache_) {
+    if (const auto result =
+            other_ts.right_total_check_cache_->lookup(other_ts)) {
+      right_total_check_cache_ =
+          std::make_shared<RightTotalCheckResult>(*this, *result);
+    }
+  }
 }
 
 bool TransitionSystem::operator==(const TransitionSystem & other) const
@@ -737,6 +747,11 @@ bool TransitionSystem::is_right_total() const
     // functional transition systems without constraints are always right-total
     return true;
   }
+  if (right_total_check_cache_) {
+    if (const auto result = right_total_check_cache_->lookup(*this)) {
+      return *result;
+    }
+  }
 
   // unable to get printing/logging and other settings from TS
   // use default for now
@@ -804,7 +819,31 @@ bool TransitionSystem::is_right_total() const
     throw SmtException("Expecting sat/unsat from right-total check, but got "
                        + r.to_string());
   }
-  return r.is_unsat();
+  const bool right_total = r.is_unsat();
+  right_total_check_cache_ =
+      std::make_shared<RightTotalCheckResult>(*this, right_total);
+  return right_total;
+}
+
+TransitionSystem::RightTotalCheckResult::RightTotalCheckResult(
+    const TransitionSystem & ts, bool right_total)
+    : trans_(ts.trans_),
+      statevars_(ts.statevars_),
+      no_state_updates_(ts.no_state_updates_),
+      inputvars_(ts.inputvars_),
+      right_total_(right_total)
+{
+}
+
+std::optional<bool> TransitionSystem::RightTotalCheckResult::lookup(
+    const TransitionSystem & ts) const
+{
+  if (trans_ == ts.trans_ && statevars_ == ts.statevars_
+      && no_state_updates_ == ts.no_state_updates_
+      && inputvars_ == ts.inputvars_) {
+    return right_total_;
+  }
+  return std::nullopt;
 }
 
 bool TransitionSystem::only_curr(const Term & term) const
