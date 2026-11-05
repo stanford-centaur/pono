@@ -28,6 +28,7 @@
 #include <cstddef>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -338,6 +339,12 @@ RefineResult IC3SA::refine()
     Result interp_res =
         interpolator_->get_sequence_interpolants(formulae, out_interpolants);
     assert(!interp_res.is_sat());
+    if (interp_res.is_unknown()) {
+      const std::string & why = interp_res.get_explanation();
+      logger.log(1,
+                 "IC3SA: interpolation failed{}",
+                 why.empty() ? "" : " (" + why + ")");
+    }
 
     for (auto const & I : out_interpolants) {
       if (!I) {
