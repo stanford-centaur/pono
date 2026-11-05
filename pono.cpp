@@ -288,13 +288,15 @@ int main(int argc, char ** argv)
     // HACK bool_model_generation for IC3IA breaks CegProphecyArrays
     // longer term fix will use a different solver in CegProphecyArrays,
     // but for now just force full model generation in that case
+    // witnesses need full models too
 
-    SmtSolver s = create_solver_for(pono_options.smt_solver_,
-                                    pono_options.engine_,
-                                    false,
-                                    pono_options.ceg_prophecy_arrays_,
-                                    pono_options.printing_smt_solver_,
-                                    pono_options.smt_solver_opts_);
+    SmtSolver s = create_solver_for(
+        pono_options.smt_solver_,
+        pono_options.engine_,
+        false,
+        pono_options.ceg_prophecy_arrays_ || pono_options.witness_,
+        pono_options.printing_smt_solver_,
+        pono_options.smt_solver_opts_);
 
     if (pono_options.logging_smt_solver_) {
       s = make_shared<LoggingSolver>(s);

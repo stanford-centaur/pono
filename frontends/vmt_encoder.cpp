@@ -29,7 +29,7 @@ namespace pono {
 VMTEncoder::VMTEncoder(std::string filename, RelationalTransitionSystem & rts)
     : super(rts.get_solver()), filename_(filename), rts_(rts)
 {
-  set_logic_all();
+  set_logic("ALL");
   parse(filename_);
 }
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# v1.1.6-586-g36574f5, on tmp/btor-symbol-name-before-1228
-smt_switch_version=36574f5174c6956dc497f75c4f375f1391c37e70
+smt_switch_version=f9f285bdd365da513fbe6a209ead0e3fa8eec964 # v1.1.6-592-gf9f285b
 
 # Keep the invocation directory to resolve relative path arguments against,
 # since they would otherwise be taken relative to the smt-switch checkout that
