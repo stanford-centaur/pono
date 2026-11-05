@@ -304,7 +304,7 @@ bool DualApproxReach::global_strengthen()
   if (!int_r.is_unsat()) {
     throw PonoException(
         "DAR: global strengthening failed, "
-        "expect UNSAT interpolation query, got "
+        "expected UNSAT interpolation query, got "
         + int_r.to_string()
         + (int_r.is_unknown() && !int_r.get_explanation().empty()
                ? " (" + int_r.get_explanation() + ")"
@@ -353,7 +353,7 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
     if (!r.is_unsat()) {
       throw PonoException(
           "DAR: pairwise strengthening failed, "
-          "expect UNSAT interpolation query, got "
+          "expected UNSAT interpolation query, got "
           + r.to_string()
           + (r.is_unknown() && !r.get_explanation().empty()
                  ? " (" + r.get_explanation() + ")"
@@ -388,7 +388,7 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
     if (!r.is_unsat()) {
       throw PonoException(
           "DAR: pairwise strengthening failed, "
-          "expect UNSAT interpolation query, got "
+          "expected UNSAT interpolation query, got "
           + r.to_string()
           + (r.is_unknown() && !r.get_explanation().empty()
                  ? " (" + r.get_explanation() + ")"
