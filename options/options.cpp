@@ -89,6 +89,7 @@ enum optionIndex
   CEG_BV_ARITH_MIN_BW,
   PROMOTE_INPUTVARS,
   ELIMINATE_FLOOR_AND_DIV,
+  FUNCTIONALIZE,
   SYGUS_OP_LVL,
   SYGUS_TERM_MODE,
   IC3SA_INITIAL_TERMS_LVL,
@@ -560,6 +561,13 @@ const option::Descriptor usage[] = {
     "  --eliminate-floor-and-div \treplace floor (to_int), and integer div and "
     "mod by integer literals, with variables and linear constraints "
     "(relational systems only)" },
+  { FUNCTIONALIZE,
+    0,
+    "",
+    "functionalize",
+    Arg::None,
+    "  --functionalize \tturn a relational transition system into a "
+    "functional one (done for ic3sa and sygus-pdr anyway)" },
   { SYGUS_OP_LVL,
     0,
     "",
@@ -1049,6 +1057,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
         case ELIMINATE_FLOOR_AND_DIV: eliminate_floor_and_div_ = true; break;
+        case FUNCTIONALIZE: functionalize_ = true; break;
         case SYGUS_OP_LVL:
           sygus_use_operator_abstraction_ = std::stoul(opt.arg);
           break;

@@ -263,6 +263,37 @@ TEST_F(CliUnitTests, SmvTraceLeavesOutGeneratedSignals)
   EXPECT_TRUE(omits(run.output, pono::generated_prefix));
 }
 
+// The SMV encoder builds a relational system, which IC3SA checks after
+// functionalizing it. The variables that this adds stay out of the trace.
+TEST_F(CliUnitTests, SmvIc3saChecksFunctionalizedSystem)
+{
+  const PonoRun refuted = run_pono(
+      { "--witness", "-e", "ic3sa", input_path("smv/counter_bitvector.smv") });
+  EXPECT_TRUE(contains(refuted.output, "Property 0 is FALSE"));
+  EXPECT_TRUE(contains(refuted.output, "counter : "));
+  EXPECT_TRUE(omits(refuted.output, pono::generated_prefix));
+
+  // TRANS implications constrain the counter, so valid checks them
+  const PonoRun proven = run_pono(
+      { "--check-invar", "-e", "ic3sa", input_path("smv/simple_counter.smv") });
+  EXPECT_TRUE(contains(proven.output, "Invariant Check PASSED"));
+  EXPECT_TRUE(contains(proven.output, "Property 0 is TRUE"));
+}
+
+TEST_F(CliUnitTests, SmvFunctionalizeKeepsCexTrace)
+{
+  const PonoRun run = run_pono({ "--functionalize",
+                                 "-e",
+                                 "bmc",
+                                 "--witness",
+                                 "-k",
+                                 "5",
+                                 input_path("smv/counter_bitvector.smv") });
+  EXPECT_TRUE(contains(run.output, "Property 0 is FALSE"));
+  EXPECT_TRUE(contains(run.output, "counter : "));
+  EXPECT_TRUE(omits(run.output, pono::generated_prefix));
+}
+
 #ifdef WITH_MSAT
 // IC3IA asks MathSAT for Boolean models only, which give a variable no value
 // of its own, so a witness has to ask for full models instead. Without them
