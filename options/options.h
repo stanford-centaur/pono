@@ -141,6 +141,7 @@ class PonoOptions
         justice_translator_(default_justice_translator_),
         reset_bnd_(default_reset_bnd_),
         moxi_enum_encoding_(default_moxi_enum_encoding_),
+        moxi_drop_stutter_(default_moxi_drop_stutter_),
         smt_solver_(default_smt_solver_),
         smt_solver_opts_(default_smt_solver_opts_),
         smt_interpolator_(default_smt_interpolator_),
@@ -257,6 +258,7 @@ class PonoOptions
   std::string clock_name_;
   std::string filename_;
   MoxiEnumEncoding moxi_enum_encoding_;
+  bool moxi_drop_stutter_;
   smt::SolverEnum smt_solver_;        ///< underlying smt solver
   StringMap smt_solver_opts_;         ///< options passed to smt solver
   smt::SolverEnum smt_interpolator_;  ///< smt solver for interpolation
@@ -419,6 +421,7 @@ class PonoOptions
   static const unsigned long default_reset_bnd_ = 1;
   static const MoxiEnumEncoding default_moxi_enum_encoding_ =
       MoxiEnumEncoding::DT;
+  static const bool default_moxi_drop_stutter_ = false;
   // TODO distinguish when solver is not set and choose a
   //      good solver for the provided engine automatically
   static const smt::SolverEnum default_smt_solver_ = smt::BZLA;

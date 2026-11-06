@@ -77,6 +77,34 @@ class Reader;
  *  set, so a counterexample ends in that last state, which may violate the
  *  invariant.
  *
+ *  A stutter step goes from a state to the same state. It may be added to a
+ *  system to make it deadlock-free, as MoXI requires: the transition
+ *  relation becomes a disjunction of the original transition relation and a
+ *  stutter term, which is a conjunction of equalities (= v' v), e.g.
+ *  (and (= x' x) (= y' y)) for a system with the variables x and y. We call
+ *  such an equality a stutter equality, and say that it keeps the variable
+ *  v. The stutter term has one for each variable, so that its steps are
+ *  stutter steps, which the encoding allows from each state that satisfies
+ *  the invariant and the assumptions.
+ *
+ *  With the experimental option --moxi-drop-stutter, the encoder reverses
+ *  this: if the transition relation is a disjunction with a stutter term,
+ *  it drops that term. As a stutter step reaches no new state, the property
+ *  then fails in a state that satisfies the invariant and the assumptions
+ *  and in which each reachability condition holds or held before: from such
+ *  a state, the stutter step would complete the trace that the query asks
+ *  for. A counterexample therefore ends in this state; the stutter step
+ *  that would follow only repeats it.
+ *
+ *  The stutter term is dropped only for a query whose formulas have no
+ *  next-state variables and for a system without subsystems, which would
+ *  constrain the stutter step. Of the disjuncts that consist of stutter
+ *  equalities, the encoder takes the one that keeps the most variables as
+ *  the stutter term if it keeps each variable that becomes a state variable.
+ *  It need not keep the variables that become inputs, which take values of
+ *  their own in each step anyway. Otherwise the transition relation stays
+ *  as it is.
+ *
  *  Queries with fairness conditions ask for infinite traces and are not
  *  supported yet.
  *
@@ -97,20 +125,29 @@ class MoxiEncoder
    *  @param check_idx the check-system command, counting them in the order
    *         of the file
    *  @param enum_encoding the sort to encode enumeration sorts as
+   *  @param drop_stutter whether to drop a stutter term from the transition
+   *         relation where the query allows it
    */
   MoxiEncoder(const std::string & filename,
               RelationalTransitionSystem & rts,
               std::size_t check_idx = 0,
-              MoxiEnumEncoding enum_encoding = MoxiEnumEncoding::DT);
+              MoxiEnumEncoding enum_encoding = MoxiEnumEncoding::DT,
+              bool drop_stutter = false);
 
   ~MoxiEncoder();
 
   /** @return the property, which fails exactly if the query is satisfiable.
-   *  It refers only to the flags of the reachability conditions. */
+   *  It refers only to current-state variables: the flags of the
+   *  reachability conditions and, with the stutter term dropped, the
+   *  conditions, the invariant and the assumptions. */
   const smt::Term & prop() const { return prop_; }
 
   /** @return the name of the encoded query */
   const std::string & query_name() const { return query_name_; }
+
+  /** @return whether the stutter term was dropped, in which case a
+   *  counterexample lacks the stutter step out of its last state */
+  bool stutter_dropped() const { return stutter_dropped_; }
 
  private:
   /** A variable of the flattened system. */
@@ -163,6 +200,8 @@ class MoxiEncoder
 
   RelationalTransitionSystem & rts_;
   std::unique_ptr<moxi::Reader> reader_;
+  bool drop_stutter_;
+  bool stutter_dropped_ = false;
   std::string query_name_;
   smt::Term prop_;
 

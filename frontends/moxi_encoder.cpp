@@ -35,7 +35,7 @@ namespace pono {
 using std::to_string;
 
 /** @return the conjunction of the terms, true if there are none */
-static Term conjunction(const SmtSolver & solver, const TermVec & terms)
+static Term make_conjunction(const SmtSolver & solver, const TermVec & terms)
 {
   if (terms.empty()) {
     return solver->make_term(true);
@@ -43,12 +43,160 @@ static Term conjunction(const SmtSolver & solver, const TermVec & terms)
   return terms.size() == 1 ? terms[0] : solver->make_term(And, terms);
 }
 
+/** @return the disjunction of the terms, false if there are none */
+static Term make_disjunction(const SmtSolver & solver, const TermVec & terms)
+{
+  if (terms.empty()) {
+    return solver->make_term(false);
+  }
+  return terms.size() == 1 ? terms[0] : solver->make_term(Or, terms);
+}
+
+/** Finds the disjunct of the transition relation of a system that is a
+ *  conjunction of the most stutter equalities (= v' v), counting a single one
+ *  as a conjunction. The sides of an equality may come in either order.
+ *  @param solver the solver that built the relation
+ *  @param system the system, which has a transition relation
+ *  @param rest set to the disjunction of the other disjuncts
+ *  @param kept set to the positions of the variables it keeps, as
+ *         System::variable counts them
+ *  @return the disjunct, null if there is none
+ */
+static Term find_disjunct_with_most_stutter_equalities(
+    const SmtSolver & solver,
+    const moxi::System & system,
+    Term & rest,
+    unordered_set<size_t> & kept)
+{
+  unordered_map<Term, size_t> curr_pos;
+  unordered_map<Term, size_t> next_pos;
+  for (size_t i = 0; i < system.num_variables(); ++i) {
+    curr_pos[system.variable(i).curr] = i;
+    next_pos[system.variable(i).next] = i;
+  }
+  // whether the terms are the current and the next value of a variable,
+  // i.e., an equality of them is a stutter equality that keeps the variable,
+  // whose position it then adds
+  auto keeps = [&](const Term & curr,
+                   const Term & next,
+                   unordered_set<size_t> & positions) {
+    const auto c = curr_pos.find(curr);
+    const auto n = next_pos.find(next);
+    if (c == curr_pos.end() || n == next_pos.end() || c->second != n->second) {
+      return false;
+    }
+    positions.insert(c->second);
+    return true;
+  };
+
+  kept.clear();
+  // These also split nested disjunctions and conjunctions, as MathSAT builds
+  // them out of binary ones.
+  TermVec disjuncts;
+  disjunctive_partition(system.trans, disjuncts);
+  // the disjunct of stutter equalities that keeps the most variables so far
+  size_t best = disjuncts.size();
+  for (size_t d = 0; d < disjuncts.size(); ++d) {
+    unordered_set<size_t> positions;
+    bool only_stutter_equalities = true;
+    TermVec conjuncts;
+    conjunctive_partition(disjuncts[d], conjuncts);
+    // Solvers may order the sides of an equality either way.
+    for (const Term & conjunct : conjuncts) {
+      const TermVec sides(conjunct->begin(), conjunct->end());
+      only_stutter_equalities = conjunct->get_op().prim_op == Equal
+                                && sides.size() == 2
+                                && (keeps(sides[0], sides[1], positions)
+                                    || keeps(sides[1], sides[0], positions));
+      if (!only_stutter_equalities) {
+        break;
+      }
+    }
+    if (only_stutter_equalities && positions.size() > kept.size()) {
+      best = d;
+      kept = std::move(positions);
+    }
+  }
+  if (best == disjuncts.size()) {
+    return nullptr;
+  }
+  TermVec others;
+  for (size_t d = 0; d < disjuncts.size(); ++d) {
+    if (d != best) {
+      others.push_back(disjuncts[d]);
+    }
+  }
+  rest = make_disjunction(solver, others);
+  return disjuncts[best];
+}
+
+/** Finds a candidate for the stutter term of the check-system's transition
+ *  relation, as find_disjunct_with_most_stutter_equalities does, unless no
+ *  stutter term can be dropped: if the system has subsystems, which would
+ *  constrain the stutter step, or if a formula of the query has next-state
+ *  variables. Whether the candidate keeps each variable that becomes a state
+ *  variable, and is thus the stutter term, is checked later in
+ *  MoxiEncoder::encode, once the references of all formulas have decided
+ *  which variables become state variables.
+ *  @param solver the solver that built the relation
+ *  @param check the check-system command, whose system has a transition
+ *         relation
+ *  @param query the query of the command
+ *  @param rest set as find_disjunct_with_most_stutter_equalities does
+ *  @param kept set as find_disjunct_with_most_stutter_equalities does
+ *  @return the candidate, null if there is none or no stutter term can be
+ *          dropped
+ */
+static Term find_stutter_candidate(const SmtSolver & solver,
+                                   const moxi::Check & check,
+                                   const moxi::Query & query,
+                                   Term & rest,
+                                   unordered_set<size_t> & kept)
+{
+  const string & name = check.system->name;
+  if (!check.system->subsystems.empty()) {
+    logger.log(1,
+               "No stutter term of system {} can be dropped, as its"
+               " subsystems constrain the stutter step",
+               name);
+    return nullptr;
+  }
+  UnorderedTermSet next_values;
+  for (const auto * group : { &check.inputs, &check.outputs, &check.locals }) {
+    for (const moxi::Variable & var : *group) {
+      next_values.insert(var.next);
+    }
+  }
+  for (const size_t i : query.formulas) {
+    UnorderedTermSet refs;
+    get_free_symbolic_consts(check.formulas[i].term, refs);
+    for (const Term & ref : refs) {
+      if (next_values.find(ref) != next_values.end()) {
+        logger.log(1,
+                   "No stutter term of system {} can be dropped, as query {}"
+                   " has next-state variables",
+                   name,
+                   query.name);
+        return nullptr;
+      }
+    }
+  }
+  const Term stutter_candidate = find_disjunct_with_most_stutter_equalities(
+      solver, *check.system, rest, kept);
+  if (!stutter_candidate) {
+    logger.log(1, "System {} has no stutter term to drop", name);
+  }
+  return stutter_candidate;
+}
+
 MoxiEncoder::MoxiEncoder(const string & filename,
                          RelationalTransitionSystem & rts,
                          size_t check_idx,
-                         MoxiEnumEncoding enum_encoding)
+                         MoxiEnumEncoding enum_encoding,
+                         bool drop_stutter)
     : rts_(rts),
-      reader_(make_unique<moxi::Reader>(filename, rts.solver(), enum_encoding))
+      reader_(make_unique<moxi::Reader>(filename, rts.solver(), enum_encoding)),
+      drop_stutter_(drop_stutter)
 {
   const vector<moxi::Check> & checks = reader_->checks();
   if (checks.empty()) {
@@ -131,6 +279,19 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
   }
   flatten(*check.system, actuals, "");
 
+  // A candidate for the stutter term of the checked system's transition
+  // relation, the other disjuncts, and the positions of the variables it
+  // keeps. Whether it keeps each variable that becomes a state variable, and
+  // is thus the stutter term, is known once the state variables are. As a
+  // candidate needs a system without subsystems, the check-system is then
+  // the only instance.
+  Term trans_rest;
+  unordered_set<size_t> kept;
+  const Term stutter_candidate =
+      drop_stutter_ && check.system->trans
+          ? find_stutter_candidate(solver, check, query, trans_rest, kept)
+          : nullptr;
+
   // A variable has to be a state if a formula that holds in each state
   // refers to it, or if a formula refers to its next value. Otherwise only
   // the transitions refer to it, which lets it be an input.
@@ -167,8 +328,12 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
       if (system.inv) {
         get_free_symbolic_consts(system.inv, refs.state);
       }
-      if (system.trans) {
-        get_free_symbolic_consts(system.trans, refs.step);
+      // The candidate's references are left out, as if it were dropped, so
+      // that the variables it keeps become state variables only if other
+      // formulas need them to be. If it is not dropped, they are added below.
+      if (const Term system_trans =
+              stutter_candidate ? trans_rest : system.trans) {
+        get_free_symbolic_consts(system_trans, refs.step);
       }
     }
     for (size_t i = 0; i < instance.actuals.size(); ++i) {
@@ -224,6 +389,36 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
     }
   }
 
+  // The candidate is the stutter term if it keeps each variable that becomes
+  // a state variable, while the inputs it does not keep take values of their
+  // own in each step anyway. Without subsystems, the variables of the
+  // check-system are all there are besides constants. If the candidate does
+  // not keep a state variable, it is not dropped.
+  const FlatVar * changed = nullptr;
+  for (size_t i = 0; stutter_candidate && !changed && i < actuals.size(); ++i) {
+    const FlatVar & var = *actuals[i];
+    if ((var.in_state || var.next_in_step) && kept.find(i) == kept.end()) {
+      changed = &var;
+    }
+  }
+  if (changed) {
+    logger.log(1,
+               "System {} has no stutter term to drop, as the disjunct with"
+               " the most stutter equalities does not keep {}",
+               check.system->name,
+               changed->name);
+    // The references above leave out the candidate's, as refs.step comes
+    // from trans_rest. The candidate stays in the transition relation,
+    // though, and refers to the current and next values of the variables it
+    // keeps, so each of these variables becomes a state variable.
+    for (const size_t k : kept) {
+      actuals[k]->in_step = actuals[k]->next_in_step = true;
+    }
+  }
+  // the stutter term that is dropped, if any
+  const Term stutter = changed ? nullptr : stutter_candidate;
+  stutter_dropped_ = stutter != nullptr;
+
   for (FlatVar & var : vars_) {
     if (var.frozen && !var.in_state && !var.in_step) {
       continue;
@@ -266,8 +461,8 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
     if (system.init && !current) {
       init.push_back(solver->substitute(system.init, to_rts));
     }
-    if (system.trans) {
-      trans.push_back(solver->substitute(system.trans, to_rts));
+    if (const Term system_trans = stutter ? trans_rest : system.trans) {
+      trans.push_back(solver->substitute(system_trans, to_rts));
     }
     if (system.inv) {
       inv.push_back(solver->substitute(system.inv, to_rts));
@@ -291,16 +486,16 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
   if (current) {
     rts_.constrain_init(encoded(current->term));
   } else if (!init.empty()) {
-    rts_.constrain_init(conjunction(solver, init));
+    rts_.constrain_init(make_conjunction(solver, init));
   }
   if (!trans.empty()) {
-    rts_.constrain_trans(conjunction(solver, trans));
+    rts_.constrain_trans(make_conjunction(solver, trans));
   }
   // As in n-satisfiability, the invariant and the assumptions hold in each
   // state that a step leaves, but not in the last state of a trace, which
   // only completes the step to it.
   if (!inv.empty()) {
-    rts_.constrain_trans(conjunction(solver, inv));
+    rts_.constrain_trans(make_conjunction(solver, inv));
   }
   for (const moxi::CheckFormula * assumption : assumptions) {
     rts_.constrain_trans(encoded(assumption->term));
@@ -316,16 +511,44 @@ void MoxiEncoder::encode(const moxi::Check & check, const moxi::Query & query)
   if (conditions.empty()) {
     conditions.push_back(solver->make_term(true));
   }
+  // Without the stutter term, the property fails in a state where each
+  // condition holds or held before, and which a stutter step can leave, as
+  // it satisfies the invariant and the assumptions. Over single states, the
+  // conditions hold at a step exactly if they hold in the state it leaves,
+  // so a single condition needs no flag.
+  // TODO: A counterexample then ends in that state, without the stutter
+  // step out of it, which a witness of the query under n-satisfiability
+  // has. It may need to be extended by repeating its last state.
   TermVec reached;
+  if (stutter) {
+    // The invariant is over single states, and so are the assumptions, as
+    // the stutter term is dropped only if none has next-state variables.
+    // Their variables are thus state variables, and so are those of the
+    // conditions, so the property refers to current-state variables only.
+    reached = inv;
+    for (const moxi::CheckFormula * assumption : assumptions) {
+      reached.push_back(encoded(assumption->term));
+    }
+  }
   for (size_t i = 0; i < conditions.size(); ++i) {
+    if (stutter && conditions.size() == 1) {
+      reached.push_back(conditions[i]);
+      continue;
+    }
     const Term flag = rts_.make_generated_statevar("reached_" + to_string(i),
                                                    solver->make_sort(BOOL));
     rts_.constrain_init(solver->make_term(Not, flag));
     const Term held = solver->make_term(Or, flag, conditions[i]);
     rts_.constrain_trans(solver->make_term(Equal, rts_.next(flag), held));
-    reached.push_back(flag);
+    // The flag counts a condition once a step has left a state where it held.
+    // Without the stutter term, the stutter step out of the current state is
+    // implied, so a condition counts in the current state already.
+    reached.push_back(stutter ? held : flag);
   }
-  prop_ = solver->make_term(Not, conjunction(solver, reached));
+  prop_ = solver->make_term(Not, make_conjunction(solver, reached));
+  if (stutter) {
+    logger.log(1, "Dropped the stutter term of system {}", check.system->name);
+  }
 
   logger.log(1,
              "Encoded query {} of the check-system for system {}",

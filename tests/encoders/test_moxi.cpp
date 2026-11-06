@@ -38,13 +38,14 @@ bool equivalent(const SmtSolver & s, const Term & a, const Term & b)
   return result;
 }
 
-/** A query, the solver to check it with, and the sort that encodes the
- *  enumerations. */
+/** A query, the solver to check it with, the sort that encodes the
+ *  enumerations, and whether to drop a stutter term. */
 struct MoxiQueryRun
 {
   SolverEnum se;
   MoxiQuery query;
-  MoxiEnumEncoding enum_encoding;
+  MoxiEnumEncoding enum_encoding = MoxiEnumEncoding::DT;
+  bool drop_stutter = false;
 };
 
 ostream & operator<<(ostream & os, const MoxiQueryRun & run)
@@ -54,13 +55,17 @@ ostream & operator<<(ostream & os, const MoxiQueryRun & run)
     { MoxiEnumEncoding::INT, "int" },   { MoxiEnumEncoding::REAL, "real" },
     { MoxiEnumEncoding::AUTO, "auto" },
   };
-  return os << run.query << " with " << run.se << ", enumerations as "
-            << names.at(run.enum_encoding);
+  os << run.query << " with " << run.se;
+  if (run.enum_encoding != MoxiEnumEncoding::DT) {
+    os << ", enumerations as " << names.at(run.enum_encoding);
+  }
+  return os << (run.drop_stutter ? ", stutter dropped" : "");
 }
 
-/** Each query with each solver that has the theories it needs, and a query
- *  over enumerations, which datatypes encode, also with each other sort
- *  that can encode them instead. */
+/** Each query with each solver that has the theories it needs, a query of a
+ *  stutter_*.moxi file also with its stutter term dropped, which must not
+ *  change the result, and a query over enumerations, which datatypes encode,
+ *  also with each other sort that can encode them instead. */
 vector<MoxiQueryRun> moxi_query_params()
 {
   vector<MoxiQueryRun> params;
@@ -68,6 +73,7 @@ vector<MoxiQueryRun> moxi_query_params()
     vector<pair<MoxiEnumEncoding, unordered_set<SolverAttribute>>> encodings{
       { MoxiEnumEncoding::DT, query.theories }
     };
+    // Only enumerations need datatypes, which encode them by default.
     if (query.theories.count(THEORY_DATATYPE)) {
       for (const auto & [encoding, theory] :
            { pair{ MoxiEnumEncoding::BV, THEORY_BV },
@@ -83,6 +89,10 @@ vector<MoxiQueryRun> moxi_query_params()
       for (const SolverEnum se : filter_solver_enums(theories)) {
         if (!query.excluded.count(se)) {
           params.push_back({ se, query, encoding });
+          // Only the stutter_*.moxi files have a stutter term to drop.
+          if (query.file.rfind("stutter_", 0) == 0) {
+            params.push_back({ se, query, encoding, true });
+          }
         }
       }
     }
@@ -100,10 +110,12 @@ TEST_P(MoxiQueryUnitTests, Encode)
   const MoxiQuery & query = GetParam().query;
   SmtSolver s = create_solver(GetParam().se);
   RelationalTransitionSystem rts(s);
-  MoxiEncoder encoder(
-      moxi_path(query.file), rts, query.index, GetParam().enum_encoding);
+  MoxiEncoder encoder(moxi_path(query.file),
+                      rts,
+                      query.index,
+                      GetParam().enum_encoding,
+                      GetParam().drop_stutter);
 
-  // flags remember the reachability conditions, which pono need not monitor
   ASSERT_TRUE(rts.only_curr(encoder.prop()));
   SafetyProperty p(s, encoder.prop());
   KInduction kind(p, rts, s);
@@ -114,16 +126,23 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedSolverMoxiQueryUnitTests,
                          MoxiQueryUnitTests,
                          testing::ValuesIn(moxi_query_params()));
 
-class MoxiEncoderUnitTests : public ::testing::Test
+/** Encodes inputs with each solver that has integers and bit-vectors, which
+ *  the inputs of these tests use. */
+class MoxiEncoderUnitTests : public ::testing::Test,
+                             public ::testing::WithParamInterface<SolverEnum>
 {
  protected:
-  // cvc5 comes with every build and has all the theories the inputs use.
-  void SetUp() override { s = create_solver(CVC5); }
+  void SetUp() override { s = create_solver(GetParam()); }
 
   SmtSolver s;
 };
 
-TEST_F(MoxiEncoderUnitTests, SelectsCheckSystem)
+/** Encodes inputs over bit-vectors only, with each solver that has them. */
+class MoxiEncoderBvUnitTests : public MoxiEncoderUnitTests
+{
+};
+
+TEST_P(MoxiEncoderBvUnitTests, SelectsCheckSystem)
 {
   RelationalTransitionSystem rts(s);
   MoxiEncoder encoder(moxi_path("checks.moxi"), rts, 1);
@@ -132,7 +151,7 @@ TEST_F(MoxiEncoderUnitTests, SelectsCheckSystem)
 
 // Only the command with the :queries attribute is rejected; moxi_queries
 // checks the others of the file.
-TEST_F(MoxiEncoderUnitTests, RejectsQueriesAttribute)
+TEST_P(MoxiEncoderBvUnitTests, RejectsQueriesAttribute)
 {
   RelationalTransitionSystem rts(s);
   try {
@@ -147,7 +166,7 @@ TEST_F(MoxiEncoderUnitTests, RejectsQueriesAttribute)
   }
 }
 
-TEST_F(MoxiEncoderUnitTests, NamesSubsystemVarsAfterInstance)
+TEST_P(MoxiEncoderBvUnitTests, NamesSubsystemVarsAfterInstance)
 {
   RelationalTransitionSystem rts(s);
   MoxiEncoder encoder(moxi_path("subsystems.moxi"), rts);
@@ -169,7 +188,7 @@ TEST_F(MoxiEncoderUnitTests, NamesSubsystemVarsAfterInstance)
 
 // A variable that only the transitions refer to, unprimed, need not be a
 // state, which depends on the query as its assumptions refer to variables too.
-TEST_F(MoxiEncoderUnitTests, MakesInputsOfTransOnlyVars)
+TEST_P(MoxiEncoderUnitTests, MakesInputsOfTransOnlyVars)
 {
   RelationalTransitionSystem free_rts(s);
   MoxiEncoder free(moxi_path("assumptions.moxi"), free_rts, 0);
@@ -177,20 +196,20 @@ TEST_F(MoxiEncoderUnitTests, MakesInputsOfTransOnlyVars)
   EXPECT_TRUE(free_rts.is_curr_var(free_rts.lookup("s")));
 
   // a solver of its own, as it cannot have two variables of the same name
-  RelationalTransitionSystem assumed_rts(create_solver(CVC5));
+  RelationalTransitionSystem assumed_rts(create_solver(GetParam()));
   MoxiEncoder assumed(moxi_path("assumptions.moxi"), assumed_rts, 1);
   EXPECT_TRUE(assumed_rts.is_curr_var(assumed_rts.lookup("i")));
 }
 
 // Primed, an input refers to its next value, so it has to be a state.
-TEST_F(MoxiEncoderUnitTests, MakesStatesOfPrimedInputs)
+TEST_P(MoxiEncoderUnitTests, MakesStatesOfPrimedInputs)
 {
   RelationalTransitionSystem rts(s);
   MoxiEncoder encoder(moxi_path("assumptions.moxi"), rts, 3);
   EXPECT_TRUE(rts.is_curr_var(rts.lookup("b")));
 }
 
-TEST_F(MoxiEncoderUnitTests, KeepsDeclaredConstants)
+TEST_P(MoxiEncoderUnitTests, KeepsDeclaredConstants)
 {
   RelationalTransitionSystem rts(s);
   MoxiEncoder encoder(moxi_path("constants.moxi"), rts);
@@ -202,7 +221,7 @@ TEST_F(MoxiEncoderUnitTests, KeepsDeclaredConstants)
 // A :current formula that the query lists replaces the initial conditions of
 // the system and of its subsystems, rather than joining them. Initially, the
 // reachability condition has not held yet.
-TEST_F(MoxiEncoderUnitTests, CurrentReplacesInit)
+TEST_P(MoxiEncoderUnitTests, CurrentReplacesInit)
 {
   RelationalTransitionSystem init_rts(s);
   MoxiEncoder init(moxi_path("current.moxi"), init_rts, 0);
@@ -220,7 +239,7 @@ TEST_F(MoxiEncoderUnitTests, CurrentReplacesInit)
                          init_rts.lookup(generated_name("reached_0"))) })));
 
   // a solver of its own, as it cannot have two variables of the same name
-  SmtSolver s2 = create_solver(CVC5);
+  SmtSolver s2 = create_solver(GetParam());
   RelationalTransitionSystem current_rts(s2);
   MoxiEncoder current(moxi_path("current.moxi"), current_rts, 1);
   EXPECT_TRUE(equivalent(
@@ -235,9 +254,54 @@ TEST_F(MoxiEncoderUnitTests, CurrentReplacesInit)
                         current_rts.lookup(generated_name("reached_0"))))));
 }
 
+// A stutter step lets a path repeat a state, so k-induction without
+// simple-path checks proves no more than 1-induction. x != 1 is 2-inductive
+// in Swap, as two swaps restore x, but not 1-inductive.
+TEST_P(MoxiEncoderUnitTests, DroppedStutterLetsPathsSkipSimplicity)
+{
+  PonoOptions opts;
+  opts.kind_no_simple_path_check_ = true;
+  for (const bool drop : { false, true }) {
+    // a solver each, as it cannot have two variables of the same name
+    SmtSolver solver = create_solver(GetParam());
+    RelationalTransitionSystem rts(solver);
+    MoxiEncoder encoder(
+        moxi_path("stutter_swap.moxi"), rts, 0, MoxiEnumEncoding::DT, drop);
+    SafetyProperty p(solver, encoder.prop());
+    KInduction kind(p, rts, solver, opts);
+    EXPECT_EQ(kind.check_until(5),
+              drop ? ProverResult::TRUE : ProverResult::UNKNOWN);
+  }
+}
+
+// The stutter term is not dropped for a condition over a step, for a system
+// with subsystems, and if the disjunct with the most stutter equalities does
+// not keep a state variable. Nor is it without the request.
+TEST_P(MoxiEncoderUnitTests, DropsStutterOnlyWhereItCan)
+{
+  const vector<tuple<string, size_t, bool>> queries{
+    { "stutter_count.moxi", 0, true },  { "stutter_count.moxi", 2, true },
+    { "stutter_step.moxi", 0, true },   { "stutter_stop.moxi", 0, true },
+    { "stutter_count.moxi", 3, false }, { "stutter_partial.moxi", 0, false },
+    { "stutter_follow.moxi", 0, false }
+  };
+  for (const auto & [file, index, expect_dropped] : queries) {
+    for (const bool drop : { false, true }) {
+      // a solver each, as it cannot have two variables of the same name
+      SmtSolver solver = create_solver(GetParam());
+      RelationalTransitionSystem rts(solver);
+      MoxiEncoder encoder(
+          moxi_path(file), rts, index, MoxiEnumEncoding::DT, drop);
+      EXPECT_EQ(encoder.stutter_dropped(), drop && expect_dropped)
+          << file << " query " << index << (drop ? " with" : " without")
+          << " the request";
+    }
+  }
+}
+
 // The symbols standing for variables while a file is read are apart from
 // those of any other file.
-TEST_F(MoxiEncoderUnitTests, SharesSolverBetweenFiles)
+TEST_P(MoxiEncoderUnitTests, SharesSolverBetweenFiles)
 {
   RelationalTransitionSystem counter_rts(s);
   MoxiEncoder counter(moxi_path("counter.moxi"), counter_rts);
@@ -279,7 +343,7 @@ TEST(MoxiEnumEncodingUnitTests, AutoPicksSortOfLogic)
   remove(path.c_str());
 }
 
-TEST_F(MoxiEncoderUnitTests, RejectsIndexOutOfRange)
+TEST_P(MoxiEncoderBvUnitTests, RejectsIndexOutOfRange)
 {
   RelationalTransitionSystem rts(s);
   try {
@@ -290,6 +354,15 @@ TEST_F(MoxiEncoderUnitTests, RejectsIndexOutOfRange)
     EXPECT_NE(string(e.what()).find("out of range"), string::npos) << e.what();
   }
 }
+
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverMoxiEncoderUnitTests,
+                         MoxiEncoderUnitTests,
+                         testing::ValuesIn(filter_solver_enums({ THEORY_INT,
+                                                                 THEORY_BV })));
+
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverMoxiEncoderBvUnitTests,
+                         MoxiEncoderBvUnitTests,
+                         testing::ValuesIn(filter_solver_enums({ THEORY_BV })));
 
 /** A malformed MoXI file, with part of the message rejecting it. */
 struct MoxiError

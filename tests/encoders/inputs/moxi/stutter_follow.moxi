@@ -1,0 +1,21 @@
+; The subsystem constrains the stutter step, so the stutter term is not
+; dropped: h holds the previous x, so no stutter step leaves x = 2, where
+; h = 1.
+(set-logic QF_LIA)
+
+(define-system Hold
+  :input ((v Int))
+  :output ((h Int))
+  :trans (= h' v))
+
+; counts x from 0 up to 2
+(define-system Follow
+  :output ((x Int) (h Int))
+  :init (= x 0)
+  :trans (or (and (<= 0 x) (< x 2) (= x' (+ x 1))) (and (= x' x) (= h' h)))
+  :subsys (follower (Hold x h)))
+
+(check-system Follow
+  :output ((x Int) (h Int))
+  :reachable (two (= x 2))
+  :query (follows (two)))
