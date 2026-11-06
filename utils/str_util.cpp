@@ -225,7 +225,14 @@ std::string generated_name(const std::string & role)
 
 std::string generated_name(const std::string & role, const std::string & origin)
 {
-  return generated_prefix + role + "_" + origin;
+  // A printed term carries the bars of the symbols in it, e.g.
+  // (bvadd |a| |i|). No SMT-LIB symbol may contain | or \, quoted or not, and
+  // Bitwuzla refuses to print one with a |, so both are left out.
+  std::string name = generated_prefix + role + "_";
+  for (char c : origin) {
+    if (c != '|' && c != '\\') name += c;
+  }
+  return name;
 }
 
 std::string generated_next_name(const std::string & origin)
