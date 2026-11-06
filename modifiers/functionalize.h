@@ -29,7 +29,13 @@ namespace pono {
  *  possible: a conjunct x' = f(X, I) of T, with the sides in either order,
  *  gives the state variable x the update x' := f instead of an input. Here f
  *  may also refer to the next-state variables of other state variables that
- *  get an update so, which are replaced by their updates.
+ *  get an update so, which are replaced by their updates. Where such
+ *  conjuncts define next-state variables by each other in a cycle, or by one
+ *  that no such conjunct defines, a fresh auxiliary input x_in becomes the
+ *  update of one variable x of the cycle, or of that variable, x' := x_in,
+ *  so that the other conjuncts define updates. The conjuncts that would have
+ *  defined x go to R below. A cycle so needs one input instead of one for
+ *  each of its variables.
  *
  *  The conjuncts R of T that define no update are encoded relationally, as a
  *  transition relation is encoded as a circuit (see Sect. 5.2.1 of

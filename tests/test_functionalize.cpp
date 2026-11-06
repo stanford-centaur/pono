@@ -204,16 +204,21 @@ TEST_P(FunctionalizeTests, RoundTripGetsSameFunctionalSystem)
 }
 
 // Equalities that define next-state variables by each other depend on each
-// other, so they define no update, and valid checks them.
-TEST_P(FunctionalizeTests, LeavesCycleOfEqualitiesToValid)
+// other, until an input becomes the update of one of the variables. A chain
+// of equalities that leads into the cycle needs no input of its own.
+TEST_P(FunctionalizeTests, CutsCycleOfEqualities)
 {
   RelationalTransitionSystem rts(s);
+  Term u = rts.make_statevar("u", bvsort);
   Term x = rts.make_statevar("x", bvsort);
   Term y = rts.make_statevar("y", bvsort);
   Term z = rts.make_statevar("z", bvsort);
+  rts.constrain_init(rts.make_term(Equal, u, bv(1)));
   for (const Term & v : { x, y, z }) {
     rts.constrain_init(rts.make_term(Equal, v, bv(0)));
   }
+  rts.constrain_trans(rts.make_term(
+      Equal, rts.next(u), rts.make_term(BVAdd, rts.next(x), bv(1))));
   rts.constrain_trans(rts.make_term(
       Equal, rts.next(x), rts.make_term(BVAdd, rts.next(y), rts.next(z))));
   rts.constrain_trans(rts.make_term(
@@ -223,16 +228,58 @@ TEST_P(FunctionalizeTests, LeavesCycleOfEqualitiesToValid)
 
   TransitionSystem fts = functionalize(rts);
   EXPECT_EQ(fts.state_updates().at(z), rts.make_term(BVAdd, z, bv(1)));
-  // inputs choose the next values of x and y, and valid checks the cycle
-  EXPECT_EQ(fts.inputvars().size(), 2);
-  EXPECT_TRUE(fts.is_input_var(fts.state_updates().at(x)));
-  EXPECT_TRUE(fts.is_input_var(fts.state_updates().at(y)));
+  // an input chooses the next value of x or y, which defines the other one,
+  // and valid checks the equality for the first
+  EXPECT_EQ(fts.inputvars().size(), 1);
+  EXPECT_NE(fts.is_input_var(fts.state_updates().at(x)),
+            fts.is_input_var(fts.state_updates().at(y)));
+  EXPECT_FALSE(fts.is_input_var(fts.state_updates().at(u)));
   EXPECT_EQ(fts.constraints().size(), 1);
 
-  Term sum = rts.make_term(Equal, x, rts.make_term(BVAdd, y, z));
-  KInduction kind(SafetyProperty(s, sum), fts, prover_solver(KIND));
+  Term follows =
+      rts.make_term(And,
+                    rts.make_term(Equal, x, rts.make_term(BVAdd, y, z)),
+                    rts.make_term(Equal, u, rts.make_term(BVAdd, x, bv(1))));
+  KInduction kind(SafetyProperty(s, follows), fts, prover_solver(KIND));
   EXPECT_EQ(kind.check_until(10), TRUE);
   for (int64_t value : { 7, 200 }) {
+    Term prop = rts.make_term(Distinct, x, bv(value));
+    EXPECT_EQ(get_cex_len(fts, prop), get_cex_len(rts, prop))
+        << "reaching " << value;
+  }
+
+  // without new inputs, a state variable without an update cuts the cycle
+  TransitionSystem no_inputs = functionalize(rts, false);
+  EXPECT_TRUE(no_inputs.inputvars().empty());
+  EXPECT_EQ(no_inputs.statevars_with_no_update().size(), 1);
+  Term prop = rts.make_term(Distinct, x, bv(7));
+  EXPECT_EQ(get_cex_len(no_inputs, prop), get_cex_len(rts, prop));
+}
+
+// An equality that depends on a next-state variable no equality defines is
+// resolved by the input that the variable gets anyway.
+TEST_P(FunctionalizeTests, CutsAtVariableNoEqualityDefines)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  Term y = rts.make_statevar("y", bvsort);
+  rts.constrain_init(rts.make_term(Equal, x, bv(1)));
+  rts.constrain_init(rts.make_term(Equal, y, bv(0)));
+  rts.constrain_trans(rts.make_term(
+      Equal, rts.next(x), rts.make_term(BVAdd, rts.next(y), bv(1))));
+  rts.constrain_trans(rts.make_term(BVUlt, rts.next(y), bv(5)));
+
+  TransitionSystem fts = functionalize(rts);
+  EXPECT_EQ(fts.inputvars().size(), 1);
+  EXPECT_TRUE(fts.is_input_var(fts.state_updates().at(y)));
+  EXPECT_FALSE(fts.is_input_var(fts.state_updates().at(x)));
+  // valid checks the bound on y
+  EXPECT_EQ(fts.constraints().size(), 1);
+
+  Term follows = rts.make_term(Equal, x, rts.make_term(BVAdd, y, bv(1)));
+  KInduction kind(SafetyProperty(s, follows), fts, prover_solver(KIND));
+  EXPECT_EQ(kind.check_until(10), TRUE);
+  for (int64_t value : { 5, 6 }) {
     Term prop = rts.make_term(Distinct, x, bv(value));
     EXPECT_EQ(get_cex_len(fts, prop), get_cex_len(rts, prop))
         << "reaching " << value;

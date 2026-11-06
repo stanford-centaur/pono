@@ -17,6 +17,7 @@
 #include "modifiers/functionalize.h"
 
 #include <algorithm>
+#include <cassert>
 #include <unordered_map>
 #include <vector>
 
@@ -62,6 +63,22 @@ TermVec trans_without_constraints(const TransitionSystem & ts)
   return conjuncts;
 }
 
+/** Makes the variable x_in that chooses the next value of a state variable x.
+ *  @param fts the system to add it to
+ *  @param sv the state variable x
+ *  @param allow_new_inputvars whether x_in is an input, or else a state
+ *         variable without an update
+ *  @return x_in
+ */
+Term make_choice_var(TransitionSystem & fts,
+                     const Term & sv,
+                     bool allow_new_inputvars)
+{
+  return allow_new_inputvars
+             ? fts.make_generated_inputvar("in", sv, sv->get_sort())
+             : fts.make_generated_statevar("in", sv, sv->get_sort());
+}
+
 /** A conjunct next_var = update_expression of a transition relation, read as
  *  a definition of the update of the next-state variable next_var. It
  *  depends on the next-state variables in update_expression, and gives the
@@ -75,6 +92,8 @@ struct StateUpdateDefinition
   TermVec dependencies;    ///< the next-state variables in update_expression
   size_t num_unresolved;   ///< how many of the dependencies are unresolved,
                            ///< at most dependencies.size()
+  size_t scan_from;        ///< an index into dependencies: all dependencies
+                           ///< before it are resolved
 };
 
 /** Takes the updates that conjuncts of a transition relation define. A
@@ -90,19 +109,31 @@ struct StateUpdateDefinition
  *  dependency less, and is ready once it has none left. So each conjunct is
  *  visited once, whatever the order of the conjuncts, and each update is
  *  substituted once.
- *  Definitions that depend on each other in a cycle, or on a next-state
- *  variable that no conjunct defines, stay unresolved.
+ *
+ *  Definitions left unresolved depend on each other in a cycle, or on a
+ *  next-state variable that no conjunct defines. To reduce the number of
+ *  auxiliary variables, a fresh variable x_in that chooses the next value of
+ *  x then becomes the update of only one variable x' of a cycle, or of the
+ *  variable without a definition, which would get one anyway. The
+ *  definitions that depend on x' can then be resolved. Finding the fewest
+ *  variables to cut is NP-hard, so they are chosen greedily.
  *
  *  @param ts the transition system
+ *  @param fts the system to add the variables that choose next values to
+ *  @param allow_new_inputvars whether these are inputs, see make_choice_var
  *  @param conjuncts conjuncts of its transition relation
  *  @param rest gets the conjuncts that define no update
  *  @return the updates, by next-state variable
  */
 UnorderedTermMap take_updates(const TransitionSystem & ts,
+                              TransitionSystem & fts,
+                              bool allow_new_inputvars,
                               const TermVec & conjuncts,
                               TermVec & rest)
 {
   vector<StateUpdateDefinition> definitions;
+  // the first definition of each next-state variable
+  unordered_map<Term, size_t> first_definition;
   // the definitions that depend on each next-state variable
   unordered_map<Term, vector<size_t>> dependents;
   // the definitions that got ready, in that order
@@ -139,41 +170,101 @@ UnorderedTermMap take_updates(const TransitionSystem & ts,
       if (dependencies.empty()) {
         ready.push_back(d);
       }
+      first_definition.emplace(sides[j], d);
       definitions.push_back(
-          { i, sides[j], sides[1 - j], dependencies, dependencies.size() });
+          { i, sides[j], sides[1 - j], dependencies, dependencies.size(), 0 });
     }
   }
 
   const SmtSolver & solver = ts.solver();
   UnorderedTermMap updates;
-  // whether each conjunct gave an update, as the others go to `rest`
-  vector<bool> gave_update(conjuncts.size(), false);
-  for (size_t k = 0; k < ready.size(); ++k) {
-    const StateUpdateDefinition & definition = definitions[ready[k]];
-    if (updates.find(definition.next_var) != updates.end()) {
-      continue;  // a second equality for the same variable goes to `rest`
-    }
-    // only the updates of the dependencies, as a solver may go through the
-    // whole map on each substitution (e.g., Bitwuzla)
-    UnorderedTermMap substitution;
-    for (const Term & next : definition.dependencies) {
-      substitution[next] = updates.at(next);
-    }
-    updates[definition.next_var] =
-        substitution.empty()
-            ? definition.update_expression
-            : solver->substitute(definition.update_expression, substitution);
-    gave_update[definition.conjunct_id] = true;
-    // The update resolves the variable for each definition that depends on
-    // it: that definition has one unresolved dependency less, and is ready
-    // once it has none left.
-    const auto it = dependents.find(definition.next_var);
+  // Gives a next-state variable its update, which resolves it for each
+  // definition that depends on it: that definition has one unresolved
+  // dependency less, and is ready once it has none left.
+  auto resolve = [&](const Term & next, const Term & update) {
+    updates[next] = update;
+    const auto it = dependents.find(next);
     if (it != dependents.end()) {
       for (size_t d : it->second) {
         if (--definitions[d].num_unresolved == 0) {
           ready.push_back(d);
         }
       }
+    }
+  };
+  // whether each conjunct gave an update, as the others go to `rest`
+  vector<bool> gave_update(conjuncts.size(), false);
+  size_t num_taken = 0;
+  // takes the updates of the definitions that got ready since the last time
+  auto take_ready = [&]() {
+    for (; num_taken < ready.size(); ++num_taken) {
+      const StateUpdateDefinition & definition = definitions[ready[num_taken]];
+      if (updates.find(definition.next_var) != updates.end()) {
+        continue;  // a second equality for the same variable goes to `rest`
+      }
+      // only the updates of the dependencies, as a solver may go through the
+      // whole map on each substitution (e.g., Bitwuzla)
+      UnorderedTermMap substitution;
+      for (const Term & next : definition.dependencies) {
+        substitution[next] = updates.at(next);
+      }
+      resolve(
+          definition.next_var,
+          substitution.empty()
+              ? definition.update_expression
+              : solver->substitute(definition.update_expression, substitution));
+      gave_update[definition.conjunct_id] = true;
+    }
+  };
+  take_ready();
+
+  // A definition left unresolved depends on a cycle of definitions, or on a
+  // variable without one, directly or through other definitions. To find
+  // where to cut, a path starts at its variable and goes on to a variable
+  // without an update that the first definition of the last variable depends
+  // on, until that one is on the path already, closing a cycle, or has no
+  // definition. That variable x' then gets the update x' := x_in, where the
+  // fresh variable x_in chooses the next value of x (see make_choice_var), so
+  // that the definitions that depend on x' may get ready, and the path drops
+  // the variables that got an update. E.g., for a' = b' + 1, b' = c' + 1 and
+  // c' = b' - 1, the path a' -> b' -> c' -> b' closes a cycle at b', so
+  // b' := b_in, and then a' := b_in + 1 and c' := b_in - 1, while
+  // b' = c' + 1 goes to `rest`. Each variable joins the path once, and every
+  // variable with a definition gets an update.
+  TermVec path;
+  UnorderedTermSet on_path;
+  for (const StateUpdateDefinition & start : definitions) {
+    if (updates.find(start.next_var) == updates.end()) {
+      path.push_back(start.next_var);
+      on_path.insert(start.next_var);
+    }
+    while (!path.empty()) {
+      const Term last = path.back();
+      if (updates.find(last) != updates.end()) {
+        path.pop_back();
+        on_path.erase(last);
+        continue;
+      }
+      // As last has no update, its first definition was not ready, so it still
+      // depends on a variable without an update. Updates stay, so the
+      // dependencies skipped as having one are skipped for good.
+      StateUpdateDefinition & definition =
+          definitions[first_definition.at(last)];
+      assert(definition.num_unresolved > 0);
+      while (updates.find(definition.dependencies[definition.scan_from])
+             != updates.end()) {
+        ++definition.scan_from;
+      }
+      const Term next = definition.dependencies[definition.scan_from];
+      if (on_path.find(next) == on_path.end()
+          && first_definition.find(next) != first_definition.end()) {
+        path.push_back(next);
+        on_path.insert(next);
+        continue;
+      }
+      // next closes a cycle or has no definition, so it is cut here
+      resolve(next, make_choice_var(fts, ts.curr(next), allow_new_inputvars));
+      take_ready();
     }
   }
 
@@ -210,10 +301,10 @@ TransitionSystem functionalize(const TransitionSystem & ts,
   // updates a relational system records are not used, as setting its
   // transition relation anew does not drop them.
   TermVec rest;  // the conjuncts that define no update
-  UnorderedTermMap next_values =
-      take_updates(ts, trans_without_constraints(ts), rest);
+  UnorderedTermMap next_values = take_updates(
+      ts, fts, allow_new_inputvars, trans_without_constraints(ts), rest);
 
-  // In `rest`, an input chooses each next value that no conjunct defined. A
+  // In `rest`, x_in chooses each next value that no conjunct defined. A
   // state variable whose next-state variable does not occur in `rest` either
   // takes any value in the next state that the constraints allow, as one
   // without an update does.
@@ -231,11 +322,7 @@ TransitionSystem functionalize(const TransitionSystem & ts,
     if (next_values.find(next) != next_values.end()) {
       fts.assign_next(sv, next_values.at(next));
     } else if (rest_symbols.find(next) != rest_symbols.end()) {
-      // x_in, which chooses the next value of x
-      const Term choice =
-          allow_new_inputvars
-              ? fts.make_generated_inputvar("in", sv, sv->get_sort())
-              : fts.make_generated_statevar("in", sv, sv->get_sort());
+      const Term choice = make_choice_var(fts, sv, allow_new_inputvars);
       fts.assign_next(sv, choice);
       next_values[next] = choice;
     }
