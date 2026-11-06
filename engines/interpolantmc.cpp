@@ -217,24 +217,32 @@ bool InterpolantMC::step(const int i)
         logger.log(3, "Using interpolant: {}", Ri);
         R = solver_->make_term(Or, R, Ri);
       }
-    } else if (r.is_unknown()) {
-      // TODO: figure out if makes sense to increase bound and try again
-      throw PonoException("Interpolant generation failed.");
     } else if (interp_count == 0) {
-      // found a concrete counter example
+      // R is still init0_, so the query is the BMC query at bound i:
       // replay it in the solver with model generation
-      concrete_cex_ = true;
-
+      // note that we also replay it when interpolation fails
+      // (i.e., r.is_unknown()), because the query may still be satisfiable
+      // and the solver may find a model where the interpolator gave up;
+      // if the replay finds no counterexample, the failure is reported below
       Term solver_trans = solver_->make_term(And, transA_, transB_);
       solver_->push();
       solver_->assert_formula(solver_->make_term(
           And, init0_, solver_->make_term(And, solver_trans, bad_i)));
 
       Result replay_res = solver_->check_sat();
-      if (!replay_res.is_sat()) {
+      if (replay_res.is_sat()) {
+        // found a concrete counter example
+        concrete_cex_ = true;
+        return false;
+      }
+      solver_->pop();
+      if (r.is_sat()) {
         throw PonoException("Internal error: Expecting satisfiable result");
       }
-      return false;
+    }
+    if (r.is_unknown()) {
+      // TODO: figure out if makes sense to increase bound and try again
+      throw PonoException("Interpolant generation failed.");
     }
   }
   assert(solver_->get_context_level() == start_context_level_ + 1);
