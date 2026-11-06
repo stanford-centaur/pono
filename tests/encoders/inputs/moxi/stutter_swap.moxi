@@ -1,0 +1,16 @@
+; x != 1 is 2-inductive, as two swaps restore x, but not 1-inductive. With
+; the stutter term, a state with y = 1 can stutter any number of times before
+; it swaps to x = 1, so k-induction without simple-path checks proves the
+; query only without the stutter term.
+(set-logic QF_LIA)
+
+; swaps x and y, or keeps both
+(define-system Swap
+  :output ((x Int) (y Int))
+  :init (and (= x 0) (= y 2))
+  :trans (or (and (= x' y) (= y' x)) (and (= y' y) (= x x'))))
+
+(check-system Swap
+  :output ((x Int) (y Int))
+  :reachable (one (= x 1))
+  :query (never_one (one)))

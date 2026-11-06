@@ -1,0 +1,64 @@
+; A query is n-satisfiable only if the last state where its reachability
+; conditions hold has a successor, which need not satisfy the invariant or the
+; one-state assumptions.
+(set-logic QF_LIA)
+
+(define-system Stuck
+  :output ((x Int))
+  :init (= x 0)
+  :trans false)
+
+; x = 0 holds initially, but no step leaves the initial state
+(check-system Stuck
+  :output ((x Int))
+  :reachable (start (= x 0))
+  :query (stuck (start)))
+
+; even a query without reachability conditions asks for a step
+(check-system Stuck
+  :output ((x Int))
+  :assumption (any true)
+  :query (no_step (any)))
+
+; deadlocks only below 0, where it cannot get from its initial state
+(define-system Count
+  :input ((i Int))
+  :output ((x Int))
+  :init (= x 0)
+  :trans (and (>= x 0) (= x' (+ x 1))))
+
+; no next input satisfies the assumption once x = 2
+(check-system Count
+  :input ((i Int))
+  :output ((x Int))
+  :assumption (blocked (=> (= x 2) (and (= i' 0) (= i' 1))))
+  :reachable (two (= x 2))
+  :query (no_input (blocked two)))
+
+; the successor with x = 2 violates the one-state assumption
+(check-system Count
+  :input ((i Int))
+  :output ((x Int))
+  :assumption (below (< x 2))
+  :reachable (next_two (= x' 2))
+  :query (past_assumption (below next_two)))
+
+; a state that only the initiality condition makes reachable deadlocks
+(check-system Count
+  :input ((i Int))
+  :output ((x Int))
+  :current (negative (= x (- 1)))
+  :reachable (minus_one (= x (- 1)))
+  :query (from_negative (negative minus_one)))
+
+(define-system Bounded
+  :output ((x Int))
+  :init (= x 0)
+  :trans (= x' (+ x 1))
+  :inv (< x 3))
+
+; the successor with x = 3 violates the invariant
+(check-system Bounded
+  :output ((x Int))
+  :reachable (next_three (= x' 3))
+  :query (past_invariant (next_three)))

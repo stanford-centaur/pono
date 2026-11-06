@@ -1,0 +1,15 @@
+; The invariant rules out a step from x = 2, including the stutter step, so
+; x = 2 is reached at no step, with or without the stutter term.
+(set-logic QF_LIA)
+
+; counts x from 0 up to 2
+(define-system Bounded
+  :output ((x Int))
+  :init (= x 0)
+  :trans (or (and (<= 0 x) (< x 2) (= x' (+ x 1))) (= x' x))
+  :inv (< x 2))
+
+(check-system Bounded
+  :output ((x Int))
+  :reachable (two (= x 2))
+  :query (invariant_below (two)))

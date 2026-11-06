@@ -1,0 +1,80 @@
+; An enumeration has only its own values, whatever sort encodes it: in each
+; state, also in the last one, which only next-state variables refer to; as an
+; input; as a declared constant; as the result of a function; and as an
+; element of an array. Two bits encode the four values of Dir exactly. Arrays
+; indexed by an enumeration are equal if their elements at its values are.
+(set-logic QF_AUFBV)
+
+(declare-enum-sort Color (red green blue))
+(declare-enum-sort Dir (north east south west))
+(declare-enum-sort Unit (only))
+(declare-const k Color)
+(declare-fun pick ((_ BitVec 2)) Color)
+
+; Nothing constrains the variables.
+(define-system Free
+  :input ((i Color) (b (_ BitVec 2)))
+  :output ((c Color) (d Dir) (u Unit) (m (Array (_ BitVec 2) Color))
+           (x (Array Color (_ BitVec 2))) (y (Array Color (_ BitVec 2)))
+           (e (Array Color Color)) (f (Array Color Color))))
+
+(check-system Free
+  :reachable (last (and (!= c' red) (!= c' green) (!= c' blue)))
+  :query (none_last (last)))
+
+(check-system Free
+  :reachable (input (and (!= i red) (!= i green) (!= i blue)))
+  :query (none_input (input)))
+
+(check-system Free
+  :reachable (constant (and (!= k red) (!= k green) (!= k blue)))
+  :query (none_constant (constant)))
+
+(check-system Free
+  :reachable (picked (and (!= (pick b) red)
+                          (!= (pick b) green)
+                          (!= (pick b) blue)))
+  :query (none_picked (picked)))
+
+(check-system Free
+  :reachable (stored (and (!= (select m b) red)
+                          (!= (select m b) green)
+                          (!= (select m b) blue)))
+  :query (none_stored (stored)))
+
+(check-system Free
+  :reachable (dir (and (!= d north) (!= d east) (!= d south) (!= d west)))
+  :query (none_dir (dir)))
+
+(check-system Free
+  :reachable (unit (!= u only))
+  :query (none_unit (unit)))
+
+(check-system Free
+  :reachable (each (and (= c' blue) (= i green) (= k red) (= (pick b) blue)
+                        (= (select m b) green) (= d west) (= u only)))
+  :query (some_each (each)))
+
+(check-system Free
+  :reachable (apart (and (= (select x red) (select y red))
+                         (= (select x green) (select y green))
+                         (= (select x blue) (select y blue))
+                         (distinct x y)))
+  :query (none_apart (apart)))
+
+(check-system Free
+  :reachable (overwritten
+               (= ((as const (Array Color (_ BitVec 2))) #b00)
+                  (store (store (store ((as const (Array Color (_ BitVec 2)))
+                                         #b01)
+                                       red #b00)
+                                green #b00)
+                         blue #b00)))
+  :query (some_overwritten (overwritten)))
+
+(check-system Free
+  :reachable (apart_elements (and (= (select e red) (select f red))
+                                  (= (select e green) (select f green))
+                                  (= (select e blue) (select f blue))
+                                  (distinct e f)))
+  :query (none_apart_elements (apart_elements)))

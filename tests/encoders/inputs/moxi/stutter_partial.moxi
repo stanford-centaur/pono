@@ -1,0 +1,13 @@
+; The last disjunct keeps x but lets y change, so it is no stutter term and is
+; not dropped: it reaches y = 1.
+(set-logic QF_LIA)
+
+(define-system Partial
+  :output ((x Int) (y Int))
+  :init (and (= x 0) (= y 0))
+  :trans (or (and (= x' (+ x 1)) (= y' y)) (= x' x)))
+
+(check-system Partial
+  :output ((x Int) (y Int))
+  :reachable (one (= y 1))
+  :query (changes_y (one)))

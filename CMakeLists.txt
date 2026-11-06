@@ -172,6 +172,20 @@ flex_target(
   ${CMAKE_CURRENT_BINARY_DIR}/smvlexer.cpp
 )
 
+# Generate the MoXI parser using Flex/Bison
+bison_target(
+  MoXIParser
+  ${PROJECT_SOURCE_DIR}/frontends/moxiparser.y
+  ${CMAKE_CURRENT_BINARY_DIR}/moxiparser.cpp
+  DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/moxiparser.h
+)
+
+flex_target(
+  MoXIScanner
+  ${PROJECT_SOURCE_DIR}/frontends/moxiparser.l
+  ${CMAKE_CURRENT_BINARY_DIR}/moxilexer.cpp
+)
+
 # Warnings the Flex and Bison skeletons raise about their own output, which
 # the rules in smvparser.l and smvparser.y cannot influence. The positive
 # forms are what get probed: a compiler without the warning reports the -Wno-
@@ -201,7 +215,27 @@ set_source_files_properties(
   PROPERTIES COMPILE_OPTIONS "${parser_warnings}"
 )
 
+# The MoXI lexer is a reentrant C scanner rather than a C++ one, so its
+# skeleton raises warnings of its own. The null pointer is the current buffer
+# that yyrestart has just made sure exists, and the unreachable breaks follow
+# the actions that report an error by throwing.
+pono_filter_supported_flags(
+  moxi_lexer_warnings
+  -Wnull-dereference # a path the flex skeleton cannot take
+  -Wunreachable-code-break # a break after an action that throws
+)
+list(TRANSFORM moxi_lexer_warnings REPLACE "^-W" "-Wno-")
+set_source_files_properties(
+  "${CMAKE_CURRENT_BINARY_DIR}/moxilexer.cpp"
+  PROPERTIES COMPILE_OPTIONS "${moxi_lexer_warnings}"
+)
+set_source_files_properties(
+  "${CMAKE_CURRENT_BINARY_DIR}/moxiparser.cpp"
+  PROPERTIES COMPILE_OPTIONS "${parser_warnings}"
+)
+
 add_flex_bison_dependency(SMVScanner SMVParser)
+add_flex_bison_dependency(MoXIScanner MoXIParser)
 
 set(
   SOURCES
@@ -231,6 +265,8 @@ set(
   "${PROJECT_SOURCE_DIR}/engines/mbic3.cpp"
   "${PROJECT_SOURCE_DIR}/engines/syguspdr.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/frontends/moxi_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/frontends/moxi_reader.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_node.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/vmt_encoder.cpp"
@@ -266,6 +302,8 @@ set(
   "${PROJECT_SOURCE_DIR}/options/options.cpp"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
+  "${BISON_MoXIParser_OUTPUTS}"
+  "${FLEX_MoXIScanner_OUTPUTS}"
 )
 
 if(WITH_COREIR)

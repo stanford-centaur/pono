@@ -1,0 +1,35 @@
+; Only the stutter step leaves x = 2, so without the stutter term the
+; reachability conditions are checked in the state that it would leave.
+(set-logic QF_LIA)
+
+; counts x from 0 up to 2
+(define-system Count
+  :output ((x Int))
+  :init (= x 0)
+  :trans (or (and (<= 0 x) (< x 2) (= x' (+ x 1))) (= x' x)))
+
+; x = 2 is reached, and the stutter step leaves it
+(check-system Count
+  :output ((x Int))
+  :reachable (two (= x 2))
+  :query (stutter_at_two (two)))
+
+; no step leaves x = 2 under the assumption
+(check-system Count
+  :output ((x Int))
+  :assumption (below (< x 2))
+  :reachable (two (= x 2))
+  :query (assumed_below (below two)))
+
+; the conditions hold at different steps
+(check-system Count
+  :output ((x Int))
+  :reachable (zero (= x 0))
+  :reachable (two (= x 2))
+  :query (zero_then_two (zero two)))
+
+; the stutter term is not dropped for a condition over a step
+(check-system Count
+  :output ((x Int))
+  :reachable (next_two (= x' 2))
+  :query (step_to_two (next_two)))
