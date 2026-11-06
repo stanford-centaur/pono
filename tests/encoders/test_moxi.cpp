@@ -44,7 +44,7 @@ struct MoxiQueryRun
 {
   SolverEnum se;
   MoxiQuery query;
-  MoxiEnumEncoding enum_encoding;
+  MoxiEnumEncoding enum_encoding = MoxiEnumEncoding::DT;
   bool drop_stutter = false;
 };
 
@@ -55,9 +55,11 @@ ostream & operator<<(ostream & os, const MoxiQueryRun & run)
     { MoxiEnumEncoding::INT, "int" },   { MoxiEnumEncoding::REAL, "real" },
     { MoxiEnumEncoding::AUTO, "auto" },
   };
-  return os << run.query << " with " << run.se << ", enumerations as "
-            << names.at(run.enum_encoding)
-            << (run.drop_stutter ? ", stutter dropped" : "");
+  os << run.query << " with " << run.se;
+  if (run.enum_encoding != MoxiEnumEncoding::DT) {
+    os << ", enumerations as " << names.at(run.enum_encoding);
+  }
+  return os << (run.drop_stutter ? ", stutter dropped" : "");
 }
 
 /** Each query with each solver that has the theories it needs, a query of a
@@ -71,6 +73,7 @@ vector<MoxiQueryRun> moxi_query_params()
     vector<pair<MoxiEnumEncoding, unordered_set<SolverAttribute>>> encodings{
       { MoxiEnumEncoding::DT, query.theories }
     };
+    // Only enumerations need datatypes, which encode them by default.
     if (query.theories.count(THEORY_DATATYPE)) {
       for (const auto & [encoding, theory] :
            { pair{ MoxiEnumEncoding::BV, THEORY_BV },
