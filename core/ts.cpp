@@ -23,6 +23,7 @@
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
+#include "utils/logger.h"
 #include "utils/str_util.h"
 
 using namespace smt;
@@ -740,18 +741,34 @@ bool TransitionSystem::contains(const Term & term,
   return true;
 }
 
-bool TransitionSystem::is_right_total(bool reuse_cached) const
+std::optional<bool> TransitionSystem::is_right_total(bool allow_query) const
 {
   if (is_functional() && constraints_.empty()) {
     // functional transition systems without constraints are always right-total
     return true;
   }
-  if (reuse_cached && right_total_check_cache_) {
+  if (right_total_check_cache_) {
     if (const auto result = right_total_check_cache_->lookup(*this)) {
-      return *result;
+      return result;
     }
   }
+  if (!allow_query) {
+    return std::nullopt;
+  }
+  try {
+    const bool right_total = query_right_total();
+    cache_right_total(right_total);
+    return right_total;
+  }
+  catch (const SmtException & e) {
+    // e.g., the quantifier solver does not support a sort of the system
+    logger.log(1, "Right-totality check failed: {}", e.what());
+    return std::nullopt;
+  }
+}
 
+bool TransitionSystem::query_right_total() const
+{
   // unable to get printing/logging and other settings from TS
   // use default for now
   SmtSolver s = create_quantifier_solver(solver_->get_solver_enum());
@@ -818,9 +835,7 @@ bool TransitionSystem::is_right_total(bool reuse_cached) const
     throw SmtException("Expecting sat/unsat from right-total check, but got "
                        + r.to_string());
   }
-  const bool right_total = r.is_unsat();
-  cache_right_total(right_total);
-  return right_total;
+  return r.is_unsat();
 }
 
 void TransitionSystem::cache_right_total(bool right_total) const

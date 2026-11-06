@@ -19,6 +19,7 @@
 #include <exception>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -77,8 +78,13 @@ ProverResult check_prop(PonoOptions pono_options,
   logger.log(3, "TRANS:\n{}", ts.trans());
   bool trans_is_total = false;  // conservatively assume not total
   if (pono_options.check_trans_total_) {
-    trans_is_total = ts.is_right_total();
-    logger.log(1, "TRANS is {}right-total", trans_is_total ? "" : "NOT ");
+    const std::optional<bool> right_total = ts.is_right_total();
+    trans_is_total = right_total.value_or(false);
+    if (right_total) {
+      logger.log(1, "TRANS is {}right-total", *right_total ? "" : "NOT ");
+    } else {
+      logger.log(1, "TRANS is not known to be right-total");
+    }
   }
 
   // modify the transition system and property based on options
