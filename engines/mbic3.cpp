@@ -16,6 +16,7 @@
 #include "engines/mbic3.h"
 
 #include <cassert>
+#include <string>
 
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
@@ -178,6 +179,11 @@ IC3Formula ModelBasedIC3::inductive_generalization(size_t i,
 
       Term interp;
       Result r = interpolator_->get_interpolant(int_A, int_B, interp);
+      if (r.is_unknown()) {
+        const std::string & why = r.get_explanation();
+        throw PonoException("MbIC3: interpolation failed"
+                            + (why.empty() ? "" : " (" + why + ")"));
+      }
       assert(r.is_unsat());
       logger.log(3, "Got interpolant: {}", interp);
 
