@@ -166,6 +166,7 @@ class PonoOptions
         ceg_bv_arith_as_free_symbol_(default_ceg_bv_arith_as_free_symbol_),
         ceg_bv_arith_min_bw_(default_ceg_bv_arith_min_bw_),
         promote_inputvars_(default_promote_inputvars_),
+        functionalize_(default_functionalize_),
         sygus_term_mode_(default_sygus_term_mode_),
         sygus_term_extract_depth_(default_sygus_term_extract_depth_),
         sygus_initial_term_width_(default_sygus_initial_term_width_),
@@ -292,6 +293,7 @@ class PonoOptions
       ceg_bv_arith_min_bw_;  ///< Only abstract operators having bitwidth
                              ///< strictly greater than this number
   bool promote_inputvars_;
+  bool functionalize_;  ///< turn a relational system into a functional one
   // sygus-pdr options
   SyGuSTermMode sygus_term_mode_;      ///< SyGuS term production mode
   unsigned sygus_term_extract_depth_;  ///< SyGuS Term extraction depth for
@@ -437,6 +439,7 @@ class PonoOptions
   static const bool default_ceg_bv_arith_as_free_symbol_ = false;
   static const unsigned long default_ceg_bv_arith_min_bw_ = 16;
   static const bool default_promote_inputvars_ = false;
+  static const bool default_functionalize_ = false;
   static const SyGuSTermMode default_sygus_term_mode_ = TERM_MODE_AUTO;
   static const unsigned default_sygus_term_extract_depth_ = 0;
   static const unsigned default_sygus_initial_term_width_ = 8;
