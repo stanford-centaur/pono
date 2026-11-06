@@ -6,9 +6,11 @@
 #include "core/rts.h"
 #include "core/ts.h"
 #include "engines/bmc.h"
+#include "engines/kinduction.h"
 #include "gtest/gtest.h"
 #include "modifiers/functionalize.h"
 #include "smt-switch/smt.h"
+#include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
 #include "utils/str_util.h"
@@ -18,6 +20,14 @@ using namespace smt;
 using namespace std;
 
 namespace pono_tests {
+
+/** @return the conjuncts of a term, regardless of order and repetition */
+UnorderedTermSet conjunct_set(const Term & term)
+{
+  TermVec conjuncts;
+  conjunctive_partition(term, conjuncts, true);
+  return UnorderedTermSet(conjuncts.begin(), conjuncts.end());
+}
 
 class FunctionalizeTests : public ::testing::Test,
                            public ::testing::WithParamInterface<SolverEnum>
@@ -114,6 +124,9 @@ TEST_P(FunctionalizeTests, PreservesCex)
   ASSERT_EQ(get_cex_len(rts, prop), 3);
 
   TransitionSystem fts = functionalize(rts);
+  // the equality gives x its update, and valid checks the guard
+  EXPECT_TRUE(fts.inputvars().empty());
+  EXPECT_EQ(fts.statevars().size(), 2);
   Bmc bmc(SafetyProperty(s, prop), fts, prover_solver(BMC));
   ASSERT_EQ(bmc.check_until(10), FALSE);
   vector<UnorderedTermMap> cex;
@@ -122,6 +135,142 @@ TEST_P(FunctionalizeTests, PreservesCex)
   for (size_t k = 0; k < cex.size(); ++k) {
     EXPECT_EQ(cex[k].at(x), bv(static_cast<int64_t>(k)));
   }
+}
+
+TEST_P(FunctionalizeTests, TakesUpdatesFromEqualities)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  Term y = rts.make_statevar("y", bvsort);
+  Term z = rts.make_statevar("z", bvsort);
+  Term in = rts.make_inputvar("in", bvsort);
+  for (const Term & v : { x, y, z }) {
+    rts.constrain_init(rts.make_term(Equal, v, bv(0)));
+  }
+  // z follows the next values of x and y, which come later
+  rts.constrain_trans(rts.make_term(
+      Equal, rts.next(z), rts.make_term(BVAdd, rts.next(x), rts.next(y))));
+  rts.constrain_trans(
+      rts.make_term(Equal, rts.next(x), rts.make_term(BVAdd, x, in)));
+  rts.constrain_trans(
+      rts.make_term(Equal, rts.make_term(BVAdd, y, bv(1)), rts.next(y)));
+
+  TransitionSystem fts = functionalize(rts);
+  // As every conjunct defines an update, no input chooses a next value, and
+  // there is no valid.
+  EXPECT_EQ(fts.inputvars(), UnorderedTermSet({ in }));
+  EXPECT_EQ(fts.statevars().size(), 3);
+  EXPECT_TRUE(fts.statevars_with_no_update().empty());
+  EXPECT_TRUE(fts.constraints().empty());
+  EXPECT_EQ(fts.state_updates().at(x), rts.make_term(BVAdd, x, in));
+  EXPECT_EQ(fts.state_updates().at(y), rts.make_term(BVAdd, y, bv(1)));
+
+  Term sum = rts.make_term(Equal, z, rts.make_term(BVAdd, x, y));
+  KInduction kind(SafetyProperty(s, sum), fts, prover_solver(KIND));
+  EXPECT_EQ(kind.check_until(10), TRUE);
+  Term prop = rts.make_term(Distinct, z, bv(5));
+  EXPECT_EQ(get_cex_len(fts, prop), get_cex_len(rts, prop));
+}
+
+// A functional system seen as a relational one comes back as it was: the
+// updates come from the equalities, the constraints stay constraints, and no
+// auxiliary variable is needed. Only the order of the conjuncts may differ,
+// and the initial states get the constraints once more.
+TEST_P(FunctionalizeTests, RoundTripGetsSameFunctionalSystem)
+{
+  FunctionalTransitionSystem fts(s);
+  Term x = fts.make_statevar("x", bvsort);
+  Term y = fts.make_statevar("y", bvsort);
+  Term in = fts.make_inputvar("in", bvsort);
+  fts.constrain_init(fts.make_term(Equal, x, bv(0)));
+  fts.constrain_init(fts.make_term(Equal, y, bv(0)));
+  fts.assign_next(x, fts.make_term(BVAdd, x, in));
+  fts.assign_next(y, fts.make_term(Ite, fts.make_term(BVUlt, x, y), y, x));
+  fts.add_constraint(fts.make_term(BVUlt, in, bv(5)));
+  fts.add_constraint(fts.make_term(Distinct, x, bv(200)));
+  fts.name_term("sum", fts.make_term(BVAdd, x, y));
+
+  TransitionSystem round_trip = functionalize(RelationalTransitionSystem(fts));
+  // not round_trip == fts, which compares init and trans as terms, but
+  // functionalize may reorder and repeat their conjuncts
+  EXPECT_TRUE(round_trip.is_functional());
+  EXPECT_EQ(round_trip.statevars(), fts.statevars());
+  EXPECT_EQ(round_trip.inputvars(), fts.inputvars());
+  EXPECT_EQ(round_trip.state_updates(), fts.state_updates());
+  EXPECT_EQ(round_trip.constraints(), fts.constraints());
+  EXPECT_EQ(round_trip.named_terms(), fts.named_terms());
+  EXPECT_EQ(conjunct_set(round_trip.init()), conjunct_set(fts.init()));
+  EXPECT_EQ(conjunct_set(round_trip.trans()), conjunct_set(fts.trans()));
+}
+
+// Equalities that define next-state variables by each other depend on each
+// other, so they define no update, and valid checks them.
+TEST_P(FunctionalizeTests, LeavesCycleOfEqualitiesToValid)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  Term y = rts.make_statevar("y", bvsort);
+  Term z = rts.make_statevar("z", bvsort);
+  for (const Term & v : { x, y, z }) {
+    rts.constrain_init(rts.make_term(Equal, v, bv(0)));
+  }
+  rts.constrain_trans(rts.make_term(
+      Equal, rts.next(x), rts.make_term(BVAdd, rts.next(y), rts.next(z))));
+  rts.constrain_trans(rts.make_term(
+      Equal, rts.next(y), rts.make_term(BVSub, rts.next(x), rts.next(z))));
+  rts.constrain_trans(
+      rts.make_term(Equal, rts.next(z), rts.make_term(BVAdd, z, bv(1))));
+
+  TransitionSystem fts = functionalize(rts);
+  EXPECT_EQ(fts.state_updates().at(z), rts.make_term(BVAdd, z, bv(1)));
+  // inputs choose the next values of x and y, and valid checks the cycle
+  EXPECT_EQ(fts.inputvars().size(), 2);
+  EXPECT_TRUE(fts.is_input_var(fts.state_updates().at(x)));
+  EXPECT_TRUE(fts.is_input_var(fts.state_updates().at(y)));
+  EXPECT_EQ(fts.constraints().size(), 1);
+
+  Term sum = rts.make_term(Equal, x, rts.make_term(BVAdd, y, z));
+  KInduction kind(SafetyProperty(s, sum), fts, prover_solver(KIND));
+  EXPECT_EQ(kind.check_until(10), TRUE);
+  for (int64_t value : { 7, 200 }) {
+    Term prop = rts.make_term(Distinct, x, bv(value));
+    EXPECT_EQ(get_cex_len(fts, prop), get_cex_len(rts, prop))
+        << "reaching " << value;
+  }
+}
+
+// An equality that defines a variable of a cycle by current-state variables
+// lets the other equalities of the cycle define updates.
+TEST_P(FunctionalizeTests, TakesUpdatesFromCycleAnotherEqualityBreaks)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  Term y = rts.make_statevar("y", bvsort);
+  Term z = rts.make_statevar("z", bvsort);
+  rts.constrain_init(rts.make_term(Equal, x, bv(0)));
+  rts.constrain_init(rts.make_term(Equal, y, bv(1)));
+  rts.constrain_init(rts.make_term(Equal, z, bv(0)));
+  rts.constrain_trans(rts.make_term(
+      Equal, rts.next(y), rts.make_term(BVAdd, rts.next(x), bv(1))));
+  rts.constrain_trans(rts.make_term(
+      Equal, rts.next(x), rts.make_term(BVSub, rts.next(y), bv(1))));
+  rts.constrain_trans(
+      rts.make_term(Equal, rts.next(x), rts.make_term(BVAdd, z, bv(1))));
+  rts.constrain_trans(
+      rts.make_term(Equal, rts.next(z), rts.make_term(BVAdd, z, bv(1))));
+
+  TransitionSystem fts = functionalize(rts);
+  EXPECT_TRUE(fts.inputvars().empty());
+  EXPECT_TRUE(fts.statevars_with_no_update().empty());
+  EXPECT_EQ(fts.state_updates().at(x), rts.make_term(BVAdd, z, bv(1)));
+  // valid checks the other equality for x, x' = y' - 1
+  EXPECT_EQ(fts.constraints().size(), 1);
+
+  Term follows = rts.make_term(Equal, y, rts.make_term(BVAdd, x, bv(1)));
+  KInduction kind(SafetyProperty(s, follows), fts, prover_solver(KIND));
+  EXPECT_EQ(kind.check_until(10), TRUE);
+  Term prop = rts.make_term(Distinct, y, bv(3));
+  EXPECT_EQ(get_cex_len(fts, prop), get_cex_len(rts, prop));
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedFunctionalizeTests,
