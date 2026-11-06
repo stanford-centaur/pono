@@ -200,6 +200,21 @@ TEST_P(TSUnitTests, GeneratedVarsCarryTheMarker)
   EXPECT_TRUE(is_generated_name(name_desanitize(rts.next(saved)->to_string())));
 }
 
+// A shadow of a compound term is named after the printed term, which carries
+// the bars of the symbols in it. No symbol may contain a bar, so the name
+// leaves them out.
+TEST_P(TSUnitTests, GeneratedVarsOfQuotedTerms)
+{
+  RelationalTransitionSystem rts(s);
+  const Term a = rts.make_statevar("a[0]", bvsort);
+  const Term i = rts.make_statevar("i#1", bvsort);
+  const Term hist =
+      rts.make_generated_statevar("hist_1", rts.make_term(BVAdd, a, i), bvsort);
+  const string name = name_desanitize(hist->to_string());
+  EXPECT_TRUE(is_generated_name(name));
+  EXPECT_EQ(name.find('|'), string::npos);
+}
+
 // Asking twice for the same role is not a collision, since the caller cares
 // about getting a variable rather than about the name it ends up with.
 TEST_P(TSUnitTests, GeneratedVarsMoveAsideForEachOther)
