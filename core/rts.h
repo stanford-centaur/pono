@@ -31,6 +31,7 @@ class RelationalTransitionSystem : public TransitionSystem
                              smt::TermTranslator & tt)
       : TransitionSystem(other_ts, tt)
   {
+    functional_ = false;
   }
 
   RelationalTransitionSystem(const TransitionSystem & other_ts)
