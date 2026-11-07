@@ -23,6 +23,7 @@
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
+#include "utils/logger.h"
 #include "utils/str_util.h"
 
 using namespace smt;
@@ -47,6 +48,7 @@ void swap(TransitionSystem & ts1, TransitionSystem & ts2)
   std::swap(ts1.functional_, ts2.functional_);
   std::swap(ts1.deterministic_, ts2.deterministic_);
   std::swap(ts1.constraints_, ts2.constraints_);
+  std::swap(ts1.right_total_check_cache_, ts2.right_total_check_cache_);
 }
 
 TransitionSystem & TransitionSystem::operator=(TransitionSystem other)
@@ -134,6 +136,14 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
 
   functional_ = other_ts.functional_;
   deterministic_ = other_ts.deterministic_;
+
+  // a result for the other system holds for its transferred copy
+  if (other_ts.right_total_check_cache_) {
+    if (const auto result =
+            other_ts.right_total_check_cache_->lookup(other_ts)) {
+      cache_right_total(*result);
+    }
+  }
 }
 
 bool TransitionSystem::operator==(const TransitionSystem & other) const
@@ -731,13 +741,34 @@ bool TransitionSystem::contains(const Term & term,
   return true;
 }
 
-bool TransitionSystem::is_right_total() const
+std::optional<bool> TransitionSystem::is_right_total(bool allow_query) const
 {
   if (is_functional() && constraints_.empty()) {
     // functional transition systems without constraints are always right-total
     return true;
   }
+  if (right_total_check_cache_) {
+    if (const auto result = right_total_check_cache_->lookup(*this)) {
+      return result;
+    }
+  }
+  if (!allow_query) {
+    return std::nullopt;
+  }
+  try {
+    const bool right_total = query_right_total();
+    cache_right_total(right_total);
+    return right_total;
+  }
+  catch (const SmtException & e) {
+    // e.g., the quantifier solver does not support a sort of the system
+    logger.log(1, "Right-totality check failed: {}", e.what());
+    return std::nullopt;
+  }
+}
 
+bool TransitionSystem::query_right_total() const
+{
   // unable to get printing/logging and other settings from TS
   // use default for now
   SmtSolver s = create_quantifier_solver(solver_->get_solver_enum());
@@ -808,6 +839,33 @@ bool TransitionSystem::is_right_total() const
                        + r.to_string());
   }
   return r.is_unsat();
+}
+
+void TransitionSystem::cache_right_total(bool right_total) const
+{
+  right_total_check_cache_ =
+      std::make_shared<RightTotalCheckResult>(*this, right_total);
+}
+
+TransitionSystem::RightTotalCheckResult::RightTotalCheckResult(
+    const TransitionSystem & ts, bool right_total)
+    : trans_(ts.trans_),
+      statevars_(ts.statevars_),
+      no_state_updates_(ts.no_state_updates_),
+      inputvars_(ts.inputvars_),
+      right_total_(right_total)
+{
+}
+
+std::optional<bool> TransitionSystem::RightTotalCheckResult::lookup(
+    const TransitionSystem & ts) const
+{
+  if (trans_ == ts.trans_ && statevars_ == ts.statevars_
+      && no_state_updates_ == ts.no_state_updates_
+      && inputvars_ == ts.inputvars_) {
+    return right_total_;
+  }
+  return std::nullopt;
 }
 
 bool TransitionSystem::only_curr(const Term & term) const

@@ -87,15 +87,16 @@ void InterpolantMC::initialize()
   }
 
   concrete_cex_ = false;
-  trans_total_ = is_trans_total();
+  trans_total_ = known_trans_total();
   logger.log(2,
              "Interp: transition relation is {}right-total",
-             trans_total_ ? "" : "NOT ");
+             trans_total_ ? "" : "not known to be ");
   if (!trans_total_
       && interp_props_ == InterpPropsEnum::INTERP_FIRST_AND_LAST_PROPS) {
     logger.log(0,
                "Warning: --interp-props first-and-last only works with a "
-               "right-total transition relation (see --check-trans-total).");
+               "transition relation known to be right-total (see "
+               "--ensure-trans-total and --check-trans-total).");
   }
   init0_ = unroller_.at_time(ts_.init(), 0);
   transA_ = unroller_.at_time(ts_.trans(), 0);
