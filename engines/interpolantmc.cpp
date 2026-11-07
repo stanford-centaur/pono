@@ -88,9 +88,6 @@ void InterpolantMC::initialize()
 
   concrete_cex_ = false;
   trans_total_ = known_trans_total();
-  logger.log(2,
-             "Interp: transition relation is {}right-total",
-             trans_total_ ? "" : "not known to be ");
   if (!trans_total_
       && interp_props_ == InterpPropsEnum::INTERP_FIRST_AND_LAST_PROPS) {
     logger.log(0,

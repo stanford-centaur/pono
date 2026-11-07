@@ -21,12 +21,14 @@
 #include <cstddef>
 #include <exception>
 #include <functional>
+#include <optional>
 #include <vector>
 
 #include "core/ts.h"
 #include "options/options.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -104,8 +106,14 @@ TransitionSystem & BaseProver::prover_interface_ts() { return ts_; }
 
 bool BaseProver::known_trans_total() const
 {
-  return ts_.is_right_total(/*allow_query=*/options_.check_trans_total_)
-      .value_or(false);
+  const std::optional<bool> right_total =
+      ts_.is_right_total(/*allow_query=*/options_.check_trans_total_);
+  logger.log(2,
+             "Transition relation is {}right-total",
+             !right_total   ? "not known to be "
+             : *right_total ? ""
+                            : "NOT ");
+  return right_total.value_or(false);
 }
 
 bool BaseProver::witness(vector<UnorderedTermMap> & out)

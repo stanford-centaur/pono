@@ -102,7 +102,8 @@ class BaseProver
    *  right-total: if the system is functional without constraints, if a
    *  result is kept for it (e.g., from --ensure-trans-total), or if
    *  --check-trans-total shows it, whose check may involve a quantified SMT
-   *  query. Returns false if it is not right-total or if that is unknown.
+   *  query. Returns false if it is not right-total or if that is unknown,
+   *  and logs which of these it is at verbosity 2.
    */
   bool known_trans_total() const;
 

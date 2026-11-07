@@ -424,12 +424,7 @@ bool KInduction::final_base_case_check(const int & cur_bound)
       1, "", "checking base case a posteriori at bound: {}", cur_bound);
   Term query;
   sel_assumption_.clear();
-  const bool trans_total = known_trans_total();
-  kind_log_msg(2,
-               "    ",
-               "transition relation is {}right-total",
-               trans_total ? "" : "not known to be ");
-  if (trans_total) {
+  if (known_trans_total()) {
     // enable initial state predicate but NOT its negated instances
     // disable negated bad state terms
     // DISABLE simple path --- maybe we could keep it if UNSAT
