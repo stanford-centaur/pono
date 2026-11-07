@@ -140,6 +140,20 @@ class IC3SA : public IC3
   void get_equivalence_classes_from_model(const smt::UnorderedTermSet & to_keep,
                                           EquivalenceClasses & ec) const;
 
+  /** Merge the equivalence classes of an array sort whose values are equal
+   *  in the current model. The model value of an array is a chain of stores
+   *  on a constant array, and different chains can denote the same array
+   *  (e.g., the same stores in another order), so grouping the terms by
+   *  their values alone splits such a class into several, and the
+   *  disequalities that construct_partition adds between the representatives
+   *  of those classes do not hold in the model. Makes at most one value
+   *  query per pair of classes.
+   *  @requires solver_ state is sat
+   *  @param classes the classes of one array sort, keyed by their values
+   */
+  void merge_equal_array_classes(
+      std::unordered_map<smt::Term, smt::UnorderedTermSet> & classes) const;
+
   /** Generate the literals for the partition given by ec and add to cube
    *  @param ec the equivalence classes partition
    *  @param out_cube set of formulae to add to

@@ -705,6 +705,49 @@ void IC3SA::get_equivalence_classes_from_model(const UnorderedTermSet & to_keep,
         m[val].insert(t);
       }
     }
+    if (sort->get_sort_kind() == ARRAY) {
+      merge_equal_array_classes(m);
+    }
+  }
+}
+
+void IC3SA::merge_equal_array_classes(
+    std::unordered_map<Term, UnorderedTermSet> & classes) const
+{
+  if (classes.size() < 2) {
+    return;
+  }
+  // the value of each class that is kept, with the values of the classes
+  // merged into it
+  std::vector<std::pair<Term, TermVec>> merged;
+  for (const auto & elem : classes) {
+    bool found = false;
+    for (auto & cls : merged) {
+      Term eq = solver_->make_term(Equal, cls.first, elem.first);
+      if (solver_->get_value(eq) == solver_true_) {
+        cls.second.push_back(elem.first);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      merged.emplace_back(elem.first, TermVec());
+    }
+  }
+  if (merged.size() == classes.size()) {
+    return;  // no equal classes, keep them as they are
+  }
+  for (const auto & cls : merged) {
+    UnorderedTermSet & terms = classes.at(cls.first);
+    for (const auto & val : cls.second) {
+      const UnorderedTermSet & other = classes.at(val);
+      terms.insert(other.begin(), other.end());
+    }
+  }
+  for (const auto & cls : merged) {
+    for (const auto & val : cls.second) {
+      classes.erase(val);
+    }
   }
 }
 
@@ -726,7 +769,8 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
     Term lit;
     for (const auto & elem : sortelem.second) {
       [[maybe_unused]] const Term & val = elem.first;
-      assert(val->is_value());
+      // the value of an array is a chain of stores, which is not a value
+      assert(val->is_value() || sortelem.first->get_sort_kind() == ARRAY);
 
       const UnorderedTermSet & terms = elem.second;
       UnorderedTermSet::const_iterator end = terms.cend();
