@@ -40,6 +40,30 @@ TransitionSystem simple_uvw_system(const SmtSolver & solver)
   return fts;
 }
 
+TransitionSystem array_fill_system(const SmtSolver & solver)
+{
+  // writes each index of an array with itself, one index per step
+  FunctionalTransitionSystem fts(solver);
+  Sort bvsort8 = fts.make_sort(BV, 8);
+  Sort arrsort = fts.make_sort(ARRAY, bvsort8, bvsort8);
+  Term a = fts.make_statevar("a", arrsort);
+  Term i = fts.make_statevar("i", bvsort8);
+
+  Term zero = fts.make_term(0, bvsort8);
+  Term three = fts.make_term(3, bvsort8);
+  fts.constrain_init(fts.make_term(Equal, i, zero));
+  // the index the properties read starts at 0; initialized this way instead
+  // of with a constant array so that solvers without support for an equality
+  // over a constant array work too
+  fts.constrain_init(
+      fts.make_term(Equal, fts.make_term(Select, a, three), zero));
+
+  fts.assign_next(a, fts.make_term(Store, a, i, i));
+  fts.assign_next(i, fts.make_term(BVAdd, i, fts.make_term(1, bvsort8)));
+
+  return fts;
+}
+
 class IC3SAUnitTests : public ::testing::Test,
                        public ::testing::WithParamInterface<SolverEnum>
 {
@@ -140,6 +164,55 @@ TEST_P(IC3SAUnitTests, SimpleCounterVar)
   opts.ic3sa_func_refine_ = false;
 
   IC3SA ic3sa(prop, fts, s, opts);
+  ProverResult r = ic3sa.check_until(10);
+  ASSERT_EQ(r, ProverResult::FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ic3sa.witness(cex));
+}
+
+TEST_P(IC3SAUnitTests, ArraySystemSafe)
+{
+  if (GetParam() == BTOR) {
+    GTEST_SKIP() << "Boolector evaluates an array equality that is not part "
+                    "of the formula to a zero bit-vector, which breaks "
+                    "IC3SA's partition of array terms";
+  }
+  TransitionSystem ts = array_fill_system(s);
+  Term a = ts.named_terms().at("a");
+  Term i = ts.named_terms().at("i");
+  Sort bvsort8 = ts.make_sort(BV, 8);
+  Term three = ts.make_term(3, bvsort8);
+
+  // index 3 has been written with 3 once i is 5; not inductive (i can be 4
+  // with any value at index 3), so cubes with array terms are generalized
+  SafetyProperty p(
+      s,
+      s->make_term(Or,
+                   s->make_term(Distinct, i, ts.make_term(5, bvsort8)),
+                   s->make_term(Equal, ts.make_term(Select, a, three), three)));
+
+  IC3SA ic3sa(p, ts, s);
+  ProverResult r = ic3sa.check_until(10);
+  ASSERT_EQ(r, ProverResult::TRUE);
+  ASSERT_TRUE(check_invar(ts, p.prop(), ic3sa.invar()));
+}
+
+TEST_P(IC3SAUnitTests, ArraySystemUnsafe)
+{
+  if (GetParam() == BTOR) {
+    GTEST_SKIP() << "Boolector evaluates an array equality that is not part "
+                    "of the formula to a zero bit-vector, which breaks "
+                    "IC3SA's partition of array terms";
+  }
+  TransitionSystem ts = array_fill_system(s);
+  Term a = ts.named_terms().at("a");
+  Term three = ts.make_term(3, ts.make_sort(BV, 8));
+
+  // index 3 is written with 3 in the fourth step
+  SafetyProperty p(
+      s, s->make_term(Distinct, ts.make_term(Select, a, three), three));
+
+  IC3SA ic3sa(p, ts, s);
   ProverResult r = ic3sa.check_until(10);
   ASSERT_EQ(r, ProverResult::FALSE);
   vector<UnorderedTermMap> cex;
