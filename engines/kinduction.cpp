@@ -18,6 +18,7 @@
 
 #include <cassert>
 #include <climits>
+#include <optional>
 
 #include "utils/exceptions.h"
 #include "utils/logger.h"
@@ -424,7 +425,7 @@ bool KInduction::final_base_case_check(const int & cur_bound)
       1, "", "checking base case a posteriori at bound: {}", cur_bound);
   Term query;
   sel_assumption_.clear();
-  if (is_trans_total()) {
+  if (known_trans_total()) {
     // enable initial state predicate but NOT its negated instances
     // disable negated bad state terms
     // DISABLE simple path --- maybe we could keep it if UNSAT
@@ -478,18 +479,18 @@ bool KInduction::final_base_case_check(const int & cur_bound)
   }
 }
 
-bool KInduction::is_trans_total() const
+bool KInduction::known_trans_total() const
 {
-  try {
-    bool ret = (options_.check_trans_total_ && ts_.is_right_total())
-               || (ts_.is_functional() && ts_.constraints().empty());
-    kind_log_msg(
-        2, "    ", "transition relation is {}right-total", ret ? "" : "NOT ");
-    return ret;
-  }
-  catch (SmtException &) {
-    return false;
-  }
+  const std::optional<bool> right_total =
+      ts_.is_right_total(/*allow_query=*/options_.check_trans_total_);
+  const bool ret = right_total.value_or(false);
+  kind_log_msg(2,
+               "    ",
+               "transition relation is {}right-total",
+               !right_total ? "not known to be "
+               : ret        ? ""
+                            : "NOT ");
+  return ret;
 }
 
 }  // namespace pono

@@ -1,3 +1,5 @@
+#include <optional>
+
 #include "core/fts.h"
 #include "core/prop.h"
 #include "core/rts.h"
@@ -42,14 +44,14 @@ TEST_P(TSUnitTests, FTS_IsFunc)
   fts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
   EXPECT_TRUE(fts.is_functional());
   EXPECT_TRUE(fts.is_deterministic());
-  EXPECT_TRUE(fts.is_right_total());
+  EXPECT_EQ(fts.is_right_total(), true);
   EXPECT_EQ(fts.statevars_with_no_update().size(), 0);
 
   fts.add_constraint(fts.make_term(BVUge, x, s->make_term(2, bvsort)));
   // any kind of constrains makes the system non-deterministic
   // TODO need to improve names here
   EXPECT_FALSE(fts.is_deterministic());
-  EXPECT_FALSE(fts.is_right_total());
+  EXPECT_EQ(fts.is_right_total(), false);
 
   Term y = fts.make_statevar("y", bvsort);
   fts.assign_next(y, y);
@@ -85,7 +87,7 @@ TEST_P(TSUnitTests, RTS_IsFunc)
   EXPECT_FALSE(rts.is_functional());
   // cannot guarantee determinism if relational
   EXPECT_FALSE(rts.is_deterministic());
-  EXPECT_TRUE(rts.is_right_total());
+  EXPECT_EQ(rts.is_right_total(), true);
 
   TransitionSystem ts_copy = rts;
   EXPECT_EQ(rts.is_functional(), ts_copy.is_functional());
@@ -109,9 +111,9 @@ TEST_P(TSUnitTests, RTS_IsRightTotal_HierarchicalName)
   RelationalTransitionSystem rts(s);
   Term x = rts.make_statevar("mod.sig[3]", bvsort);
   rts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
-  bool right_total;
+  std::optional<bool> right_total;
   ASSERT_NO_THROW(right_total = rts.is_right_total());
-  EXPECT_TRUE(right_total);
+  EXPECT_EQ(right_total, true);
 }
 
 TEST_P(TSUnitTests, RTS_IsRightTotal_FollowsChanges)
@@ -122,20 +124,20 @@ TEST_P(TSUnitTests, RTS_IsRightTotal_FollowsChanges)
   RelationalTransitionSystem rts(s);
   Term x = rts.make_statevar("x", bvsort);
   rts.constrain_trans(rts.make_term(Equal, rts.next(x), x));
-  EXPECT_TRUE(rts.is_right_total());
+  EXPECT_EQ(rts.is_right_total(), true);
   TransitionSystem copy = rts;
   SmtSolver other_solver = create_solver(GetParam(), GetParam() == BTOR);
   TermTranslator tt(other_solver);
   TransitionSystem translated(rts, tt);
   // x = 0 has no successor
   rts.constrain_trans(rts.make_term(Distinct, x, s->make_term(0, bvsort)));
-  EXPECT_FALSE(rts.is_right_total());
-  EXPECT_TRUE(copy.is_right_total());
-  EXPECT_TRUE(translated.is_right_total());
+  EXPECT_EQ(rts.is_right_total(), false);
+  EXPECT_EQ(copy.is_right_total(), true);
+  EXPECT_EQ(translated.is_right_total(), true);
   copy = rts;
-  EXPECT_FALSE(copy.is_right_total());
+  EXPECT_EQ(copy.is_right_total(), false);
   TransitionSystem translated_after(rts, tt);
-  EXPECT_FALSE(translated_after.is_right_total());
+  EXPECT_EQ(translated_after.is_right_total(), false);
 }
 
 TEST_P(TSUnitTests, PromoteInputvar_HierarchicalName)

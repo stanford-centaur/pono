@@ -48,6 +48,12 @@ class TransitionSystem
 
   friend void swap(TransitionSystem & ts1, TransitionSystem & ts2);
 
+  // records in the right-totality cache that the system it returns is
+  // right-total
+  friend void make_trans_total(TransitionSystem & ts,
+                               smt::Term & prop,
+                               bool allow_total_check);
+
   /** Copy constructor, which operator= below also uses to make its
    *  by-value parameter.
    */
@@ -343,9 +349,25 @@ class TransitionSystem
    * i.e., every state has a next state.
    *
    * If the system is functional and has no constraints, it is right-total.
+   * Otherwise, the result kept for the system is returned, or else that of
+   * query_right_total(), which is then kept.
    *
-   * Otherwise, a fresh solver instance is created and checks if the following
-   * query is unsatisfiable:
+   * A result is kept with the transition relation and the variables the
+   * query was built from, and returned again while they stay the same, also
+   * by copies of the system.
+   *
+   * @param allow_query false to return std::nullopt rather than run the
+   *        quantified query if no result is kept, so that only what is known
+   *        without it is answered
+   * @return whether the transition relation is right-total, or std::nullopt
+   *         if that is unknown: no result is kept and allow_query is false, or
+   *         the quantified query fails or is answered with neither sat nor
+   *         unsat
+   */
+  std::optional<bool> is_right_total(bool allow_query = true) const;
+
+  /** Checks whether the transition relation is right-total: a fresh solver
+   * instance checks if the following query is unsatisfiable:
    * `exists curr. forall next. not (exist input. trans(curr, input, next))`
    *
    * Note: states w/o update (@ref no_state_updates_) are treated as inputs.
@@ -354,14 +376,13 @@ class TransitionSystem
    * Uses the solver type in the current TransitionSystem if it supports
    * quantifiers; otherwise cvc5.
    *
-   * The result is kept with the transition relation and the variables the
-   * query was built from, and returned again while they stay the same, also
-   * by copies of the system.
+   * Unlike is_right_total(), it always runs the quantified query without
+   * checking the cached result.
+   *
+   * @return whether the transition relation is right-total
+   * @throws SmtException if the solver fails or answers neither sat nor unsat
    */
-  bool is_right_total() const;
-
-  /* Same as @ref is_right_total(), but uses the given solver type */
-  bool is_right_total(const smt::SolverEnum se) const;
+  bool query_right_total() const;
 
   /** @return true if a state or input variable is an array with a finite index
    * sort. */
@@ -694,6 +715,9 @@ class TransitionSystem
   };
 
   mutable std::shared_ptr<const RightTotalCheckResult> right_total_check_cache_;
+
+  /** Keeps right_total as the result for the system as it is now */
+  void cache_right_total(bool right_total) const;
 };
 
 }  // namespace pono

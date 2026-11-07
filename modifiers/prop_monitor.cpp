@@ -27,8 +27,9 @@ namespace pono {
 smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
 {
   const bool prop_has_next = !ts.no_next(prop);
-  // only in debug mode as right-total check can be expensive
-  assert(prop_has_next || ts.is_right_total());
+  // only in debug mode as right-total check can be expensive; fails only if
+  // the system is known not to be right-total
+  assert(prop_has_next || ts.is_right_total().value_or(true));
 
   // checks for functional TS
   if (ts.is_functional() && prop_has_next) {

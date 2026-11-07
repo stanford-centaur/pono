@@ -83,9 +83,12 @@ class KInduction : public SafetyProver
   // counterexamples were missed
   bool final_base_case_check(const int & cur_bound);
 
-  // Checks whether the transition relation is right-total.
-  // Conservatively returns false if it cannot be determined.
-  bool is_trans_total() const;
+  // Returns whether the transition relation is known to be right-total: if the
+  // system is functional without constraints, if a result is kept for it
+  // (e.g., from --ensure-trans-total), or if --check-trans-total shows it,
+  // whose check may involve a quantified SMT query. Returns false if it is not
+  // right-total or if that is unknown.
+  bool known_trans_total() const;
 };  // class KInduction
 
 }  // namespace pono
