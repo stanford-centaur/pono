@@ -45,7 +45,6 @@ void swap(TransitionSystem & ts1, TransitionSystem & ts2)
   std::swap(ts1.next_map_, ts2.next_map_);
   std::swap(ts1.curr_map_, ts2.curr_map_);
   std::swap(ts1.functional_, ts2.functional_);
-  std::swap(ts1.deterministic_, ts2.deterministic_);
   std::swap(ts1.constraints_, ts2.constraints_);
 }
 
@@ -133,7 +132,6 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
   }
 
   functional_ = other_ts.functional_;
-  deterministic_ = other_ts.deterministic_;
 }
 
 bool TransitionSystem::operator==(const TransitionSystem & other) const
@@ -148,7 +146,6 @@ bool TransitionSystem::operator==(const TransitionSystem & other) const
           && no_state_updates_ == other.no_state_updates_
           && next_map_ == other.next_map_ && curr_map_ == other.curr_map_
           && functional_ == other.functional_
-          && deterministic_ == other.deterministic_
           && constraints_ == other.constraints_);
 }
 
@@ -203,23 +200,10 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
   assert(!functional_ || erased);
   trans_ = solver_->make_term(
       And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
-
-  // if not functional, then we cannot guarantee deterministm
-  // if it is functional, depends on if all state variables
-  // have updates
-  // technically not even functional if there are constraints
-  // TODO: revisit this and possibly rename functional/deterministic
-  if (functional_ && !constraints_.size()) {
-    deterministic_ = (state_updates_.size() == statevars_.size());
-  }
 }
 
 void TransitionSystem::add_invar(const Term & constraint)
 {
-  // invariants can make it so not every state has a next state
-  // TODO: revisit this and possibly rename functional/deterministic
-  deterministic_ = false;
-
   // TODO: only check this in debug mode
   if (only_curr(constraint)) {
     init_ = solver_->make_term(And, init_, constraint);
@@ -235,10 +219,6 @@ void TransitionSystem::add_invar(const Term & constraint)
 
 void TransitionSystem::constrain_inputs(const Term & constraint)
 {
-  // constraints can make it so not every state has a next state
-  // TODO: revisit this and possibly rename functional/deterministic
-  deterministic_ = false;
-
   if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
     constraints_.push_back({ constraint, true });
@@ -250,10 +230,6 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
 void TransitionSystem::add_constraint(const Term & constraint,
                                       bool to_init_and_next)
 {
-  // constraints can make it so not every state has a next state
-  // TODO: revisit this and possibly rename functional/deterministic
-  deterministic_ = false;
-
   if (only_curr(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
 
@@ -301,9 +277,6 @@ Term TransitionSystem::declare_inputvar(const string & name, const Sort & sort)
 
 Term TransitionSystem::declare_statevar(const string & name, const Sort & sort)
 {
-  // set to false until there is a next state update for this statevar
-  deterministic_ = false;
-
   Term state = solver_->make_symbol(name, sort);
   Term next_state = solver_->make_symbol(generated_next_name(name), sort);
   add_statevar(state, next_state);
@@ -860,9 +833,6 @@ void TransitionSystem::promote_inputvar(const Term & iv)
   }
 
   // now turn into a state variable
-
-  // set to false until there is a next state update for this statevar
-  deterministic_ = false;
   Term next_state_var = solver_->make_symbol(
       generated_next_name(name_desanitize(iv->to_string())), iv->get_sort());
   add_statevar(iv, next_state_var);
