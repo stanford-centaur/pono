@@ -348,15 +348,20 @@ class TransitionSystem
    * query is unsatisfiable:
    * `exists curr. forall next. not (exist input. trans(curr, input, next))`
    *
-   * Note: states w/o update (@ref no_state_updates_) are treated as inputs.
+   * Whether a variable is a state or an input in the query is determined by
+   * whether it has a next-state update, not by whether the system keeps it
+   * in statevars_ or inputvars_: curr and next range over the state
+   * variables with an update and their next-state variables, and input over
+   * the input variables and the states without update
+   * (@ref no_state_updates_).
    *
    * The query may be expensive as it involves quantifiers.
    * Uses the solver type in the current TransitionSystem if it supports
    * quantifiers; otherwise cvc5.
    *
-   * The result is kept with the transition relation and the variables the
-   * query was built from, and returned again while they stay the same, also
-   * by copies of the system.
+   * The result is kept with the transition relation and the states without
+   * update, which determine the query, and returned again while they stay
+   * the same, also by copies of the system.
    */
   bool is_right_total() const;
 
@@ -671,10 +676,19 @@ class TransitionSystem
   virtual bool known_symbols(const smt::Term & term) const;
 
  private:
-  /** The result of a right-totality query, with the parts of the system it
-   *  was built from. It is reused only while they stay the same, so the
-   *  methods that change the system need not reset it. It never changes, so
-   *  copies of the system share it.
+  /** The result of a right-totality query, with what determines the query:
+   *  the transition relation and the states without update, which decide
+   *  how each variable in it is quantified (see is_right_total()). A
+   *  variable outside the transition relation makes no difference, so the
+   *  variable sets are not needed. The states without update are, since the
+   *  transition relation does not determine them: a state counts as updated
+   *  once its next-state variable occurred in a term added to the relation,
+   *  even if the solver simplified that term away or the relation was
+   *  replaced since.
+   *
+   *  The result is reused only while the two stay the same, so the methods
+   *  that change the system need not reset it. It never changes, so copies
+   *  of the system share it.
    */
   class RightTotalCheckResult
   {
@@ -687,9 +701,7 @@ class TransitionSystem
 
    private:
     const smt::Term trans_;
-    const smt::UnorderedTermSet statevars_;
     const smt::UnorderedTermSet no_state_updates_;
-    const smt::UnorderedTermSet inputvars_;
     const bool right_total_;
   };
 
