@@ -65,7 +65,7 @@ TEST_P(MakeTransTotalTests, CounterTrue)
       ts.make_term(
           sort->get_sort_kind() == BV ? BVUrem : Mod, x, ts.make_term(2, sort)),
       ts.make_term(0, sort));
-  make_trans_total(ts, prop);
+  make_trans_total(ts, prop, /*allow_total_check=*/false);
   // check the system, not the result make_trans_total keeps
   ASSERT_TRUE(ts.query_right_total());
   ASSERT_TRUE(ts.constraints().empty());
@@ -77,7 +77,7 @@ TEST_P(MakeTransTotalTests, CounterTrue)
 TEST_P(MakeTransTotalTests, CounterFalse)
 {
   Term prop = ts.make_term(Not, ts.make_term(Equal, x, ts.make_term(8, sort)));
-  make_trans_total(ts, prop);
+  make_trans_total(ts, prop, /*allow_total_check=*/false);
   // check the system, not the result make_trans_total keeps
   ASSERT_TRUE(ts.query_right_total());
   ASSERT_TRUE(ts.constraints().empty());

@@ -163,12 +163,15 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
   return ret;
 }
 
-void make_trans_total(TransitionSystem & ts, Term & prop)
+void make_trans_total(TransitionSystem & ts,
+                      Term & prop,
+                      bool allow_total_check)
 {
-  if (ts.is_functional() && ts.constraints().empty()) {
-    // already right-total
+  if (ts.is_right_total(allow_total_check).value_or(false)) {
+    // known to be right-total already
     return;
   }
+  logger.log(1, "Making TS right-total.");
 
   // create a new ts without constraints
   TransitionSystem new_ts = create_fresh_ts(ts.is_functional(), ts.solver());

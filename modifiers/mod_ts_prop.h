@@ -70,11 +70,17 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts);
  * - the new property becomes `valid => prop`
  *
  * A new transition system and a new property term will be
- * created and replace `ts` and `prop`, respectively
+ * created and replace `ts` and `prop`, respectively, unless the system is
+ * known to be right-total (see TransitionSystem::is_right_total())
  *
  * @param ts the transition system to modify
  * @param prop the safety property
+ * @param allow_total_check true to run the quantified query of
+ *        TransitionSystem::query_right_total() if no result is kept, so that a
+ *        right-total system is left as it is
  */
-void make_trans_total(TransitionSystem & ts, smt::Term & prop);
+void make_trans_total(TransitionSystem & ts,
+                      smt::Term & prop,
+                      bool allow_total_check);
 
 }  // namespace pono

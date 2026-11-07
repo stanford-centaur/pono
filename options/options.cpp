@@ -331,8 +331,9 @@ const option::Descriptor usage[] = {
     "",
     "check-trans-total",
     Arg::None,
-    "  --check-trans-total \tCheck whether the transition relation is "
-    "right-total. This check may involve quantified SMT query." },
+    "  --check-trans-total \tAllow a quantified SMT query to check whether the "
+    "transition relation is right-total, for --ensure-trans-total and the "
+    "engines that use it." },
   { ENSURE_TRANS_TOTAL,
     0,
     "",

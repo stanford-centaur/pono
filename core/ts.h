@@ -50,7 +50,9 @@ class TransitionSystem
 
   // records in the right-totality cache that the system it returns is
   // right-total
-  friend void make_trans_total(TransitionSystem & ts, smt::Term & prop);
+  friend void make_trans_total(TransitionSystem & ts,
+                               smt::Term & prop,
+                               bool allow_total_check);
 
   /** Copy constructor, which operator= below also uses to make its
    *  by-value parameter.

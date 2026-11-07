@@ -19,7 +19,6 @@
 #include <exception>
 #include <iostream>
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -76,17 +75,6 @@ ProverResult check_prop(PonoOptions pono_options,
              to_string(pono_options.smt_interpolator_));
   logger.log(3, "INIT:\n{}", ts.init());
   logger.log(3, "TRANS:\n{}", ts.trans());
-  bool trans_is_total = false;  // conservatively assume not total
-  if (pono_options.check_trans_total_) {
-    const std::optional<bool> right_total = ts.is_right_total();
-    trans_is_total = right_total.value_or(false);
-    if (right_total) {
-      logger.log(1, "TRANS is {}right-total", *right_total ? "" : "NOT ");
-    } else {
-      logger.log(1, "TRANS is not known to be right-total");
-    }
-  }
-
   // modify the transition system and property based on options
   if (!pono_options.clock_name_.empty()) {
     Term clock_symbol = ts.lookup(pono_options.clock_name_);
@@ -131,9 +119,8 @@ ProverResult check_prop(PonoOptions pono_options,
     ts = promote_inputvars(ts, ivs_in_prop);
   }
 
-  if (pono_options.ensure_trans_total_ && !trans_is_total) {
-    logger.log(1, "Making TS right-total.");
-    make_trans_total(ts, prop);
+  if (pono_options.ensure_trans_total_) {
+    make_trans_total(ts, prop, pono_options.check_trans_total_);
   }
 
   bool has_monitor = false;
