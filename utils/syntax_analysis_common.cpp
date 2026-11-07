@@ -19,42 +19,14 @@
 #include <cassert>
 #include <queue>
 
+#include "gmpxx.h"
 #include "utils/container_shortcut.h"
 #include "utils/str_util.h"
+#include "utils/term_analysis.h"
 
 namespace pono {
 
 namespace syntax_analysis {
-
-/* Internal Function */
-bool static extract_decimal_width(const std::string & s,
-                                  std::string & decimal,
-                                  std::string & width)
-{
-  if (s.substr(0, 5) != "(_ bv") return false;
-  auto space_idx = s.find(' ', 5);
-  if (space_idx == std::string::npos) return false;
-  auto rpara_idx = s.find(')', space_idx);
-  if (rpara_idx == std::string::npos) return false;
-
-  decimal = s.substr(5, space_idx - 5);
-  width = s.substr(space_idx + 1, rpara_idx - (space_idx + 1));
-  return true;
-}
-
-std::string convert_bin_str_to_decimal(const std::string & in)
-{
-  std::vector<char> out = { 0 };
-  for (auto pos = in.begin(); pos != in.end(); ++pos) {
-    syntax_analysis::mul2(out);  // initially it is 0 so okay
-    if (*pos == '1') syntax_analysis::add1(out);
-  }
-  std::string ret;
-  for (auto pos = out.rbegin(); pos != out.rend(); ++pos) {
-    ret += *pos + '0';
-  }
-  return ret;
-}
 
 // --------------------  eval_val ----------------
 
@@ -65,24 +37,8 @@ eval_val::eval_val(const std::string & val)
     return;
   }
 
-  if (val.find("#b") != 0) {  // then it is (_ bvX width)
-    std::string width;        // width is no use
-    [[maybe_unused]] bool succ = extract_decimal_width(val, sv, width);
-    assert(succ);
-    return;
-  }
-
-  // #b something here
-  size_t pos = 2;
-  for (; pos < val.length(); ++pos) {
-    if (val.at(pos) != '0') break;
-  }
-  if (pos == val.length()) {
-    sv = "0";
-    return;
-  }
-  // convert 101 --> 5
-  sv = convert_bin_str_to_decimal(val.substr(pos));
+  // in decimal without leading zeros, as operator< compares lengths first
+  sv = mpz_class(smtlib_bv_to_bits(val), 2).get_str(10);
 }  // eval_val::eval_val
 
 bool eval_val::operator<(const eval_val & r) const

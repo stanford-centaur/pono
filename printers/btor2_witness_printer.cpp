@@ -19,20 +19,18 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
-#include <iterator>
 #include <map>
-#include <sstream>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
 #include "core/ts.h"
 #include "frontends/btor2_encoder.h"
-#include "gmpxx.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
 #include "utils/str_util.h"
+#include "utils/term_analysis.h"
 
 namespace pono {
 
@@ -48,51 +46,6 @@ std::string as_bits(const std::uint64_t value, const std::uint64_t bit_width)
       res[bit_width - 1 - i] = '1';
     }
     bit_mask <<= 1;
-  }
-  return res;
-}
-
-std::string as_bits(std::string val)
-{
-  // TODO: this makes assumptions on format of value from boolector
-  //       to support other solvers, we need to be more general
-  std::string res = val;
-
-  if (val.length() < 2) {
-    throw PonoException("Don't know how to interpret value: " + val);
-  }
-
-  if (res.substr(0, 2) == "#b") {
-    // remove the #b prefix
-    res = res.substr(2, val.length() - 2);
-  } else if (res.substr(0, 2) == "#x") {
-    throw PonoException("Not supporting hexadecimal format yet.");
-  } else {
-    res = res.substr(5, res.length() - 5);
-    std::istringstream iss(res);
-    std::vector<std::string> tokens(std::istream_iterator<std::string>{ iss },
-                                    std::istream_iterator<std::string>());
-
-    if (tokens.size() != 2) {
-      throw PonoException("Failed to interpret " + val);
-    }
-
-    res = tokens[0];
-    // get rid of ")"
-    std::string width_str = tokens[1].substr(0, tokens[1].length() - 1);
-    std::size_t width = std::stoull(width_str);
-    mpz_class cval(res);
-    res = cval.get_str(2);
-    std::size_t strlen = res.length();
-
-    if (strlen < width) {
-      // pad with zeros
-      res = std::string(width - strlen, '0') + res;
-    } else if (strlen > width) {
-      // remove prepended zeros
-      res = res.erase(0, strlen - width);
-    }
-    return res;
   }
   return res;
 }
@@ -130,13 +83,11 @@ void print_btor_val_at_time(
   }
   smt::SortKind sk = term->get_sort()->get_sort_kind();
   if (sk == smt::BV) {
-    // TODO: this makes assumptions on format of value from boolector
-    //       to support other solvers, we need to be more general
     logger.log_to_stream(0,
                          output_stream,
                          "{} {} {}@{}",
                          btor_id,
-                         as_bits(valmap.at(term)->to_string()),
+                         smtlib_bv_to_bits(valmap.at(term)->to_string()),
                          lookup_or_key(symbol_map, term->to_string()),
                          time);
   } else if (sk == smt::ARRAY) {
@@ -153,8 +104,8 @@ void print_btor_val_at_time(
                            output_stream,
                            "{} [{}] {} {}@{}",
                            btor_id,
-                           as_bits(store_children[1]->to_string()),
-                           as_bits(store_children[2]->to_string()),
+                           smtlib_bv_to_bits(store_children[1]->to_string()),
+                           smtlib_bv_to_bits(store_children[2]->to_string()),
                            lookup_or_key(symbol_map, term->to_string()),
                            time);
       written_ids.insert(store_children[1]->to_int());
@@ -183,7 +134,7 @@ void print_btor_val_at_time(
                              "{} [{}] {} {}@{}",
                              btor_id,
                              as_bits(j, index_width),
-                             as_bits(const_val->to_string()),
+                             smtlib_bv_to_bits(const_val->to_string()),
                              lookup_or_key(symbol_map, term->to_string()),
                              time);
       }
