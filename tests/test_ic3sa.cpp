@@ -12,6 +12,22 @@ using namespace std;
 
 namespace pono_tests {
 
+TransitionSystem input_copy_system(const SmtSolver & solver)
+{
+  // y takes the value of x, which has no update and so is free in each step
+  FunctionalTransitionSystem fts(solver);
+  Sort bvsort8 = fts.make_sort(BV, 8);
+  Term x = fts.make_statevar("x", bvsort8);
+  Term y = fts.make_statevar("y", bvsort8);
+
+  Term zero = fts.make_term(0, bvsort8);
+  fts.constrain_init(fts.make_term(Equal, x, zero));
+  fts.constrain_init(fts.make_term(Equal, y, zero));
+  fts.assign_next(y, x);
+
+  return fts;
+}
+
 TransitionSystem simple_uvw_system(const SmtSolver & solver)
 {
   // simple system from IC3SA paper (with larger bitwidth):
@@ -107,6 +123,23 @@ TEST_P(IC3SAUnitTests, SimpleSystemUnsafe)
       s,
       s->make_term(
           Distinct, ts.make_term(BVAdd, u, v), ts.make_term(10, bvsort8)));
+
+  IC3SA ic3sa(p, ts, s);
+  ProverResult r = ic3sa.check_until(10);
+  ASSERT_EQ(r, ProverResult::FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ic3sa.witness(cex));
+}
+
+TEST_P(IC3SAUnitTests, FreeVariableCube)
+{
+  TransitionSystem ts = input_copy_system(s);
+  Term y = ts.named_terms().at("y");
+  Term five = ts.make_term(5, ts.make_sort(BV, 8));
+
+  // y is 5 after two steps; the cube over x that leads there has no
+  // current-state variable to project its predecessor on, as x has no update
+  SafetyProperty p(s, s->make_term(Distinct, y, five));
 
   IC3SA ic3sa(p, ts, s);
   ProverResult r = ic3sa.check_until(10);
