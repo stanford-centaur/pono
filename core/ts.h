@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -71,7 +72,8 @@ class TransitionSystem
   virtual ~TransitionSystem() = default;
 
   /** Equality comparison between TransitionSystems
-   *  compares each member variable
+   *  compares each member variable, except the result kept by
+   *  is_right_total()
    *  @param other the transition system to compare to
    *  @return true iff all member variables are equivalent
    */
@@ -345,11 +347,19 @@ class TransitionSystem
    * query is unsatisfiable:
    * `exists curr. forall next. not (exist input. trans(curr, input, next))`
    *
-   * Note: states w/o update (@ref no_state_updates_) are treated as inputs.
+   * Whether a variable is a state or an input in the query is determined by
+   * whether it has a next-state update, not by whether the system keeps it
+   * in statevars_ or inputvars_: curr and next range over the state
+   * variables with an update and their next-state variables, and input over
+   * the input variables and the states without update
+   * (@ref no_state_updates_).
    *
    * The query may be expensive as it involves quantifiers.
    * Uses the solver type in the current TransitionSystem if it supports
    * quantifiers; otherwise cvc5.
+   *
+   * The result is kept until a method changes the transition relation or
+   * the states without update, and copies of the system take it over.
    */
   bool is_right_total() const;
 
@@ -630,6 +640,11 @@ class TransitionSystem
   // the only way functional_ could be true and deterministic_ be false
   // is if not all state variables have update functions
   bool deterministic_;
+
+  // the result of the last right-totality query, kept while it holds: each
+  // method that changes what the query is built from, the transition
+  // relation and the states without update, resets it (init plays no part)
+  mutable std::optional<bool> right_total_;
 
   // extra vector of terms to TransitionSystems that records constraints
   // added to the transition relation

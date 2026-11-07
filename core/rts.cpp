@@ -43,6 +43,7 @@ void RelationalTransitionSystem::set_trans(const Term & trans)
   }
   trans_ = trans;
   set_updated_states(trans_);
+  right_total_.reset();
 }
 
 void RelationalTransitionSystem::constrain_trans(const Term & constraint)
@@ -53,6 +54,7 @@ void RelationalTransitionSystem::constrain_trans(const Term & constraint)
   }
   trans_ = solver_->make_term(And, trans_, constraint);
   set_updated_states(constraint);
+  right_total_.reset();
 }
 
 void RelationalTransitionSystem::set_updated_states(const smt::Term & term)

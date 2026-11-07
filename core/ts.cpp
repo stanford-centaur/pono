@@ -47,6 +47,7 @@ void swap(TransitionSystem & ts1, TransitionSystem & ts2)
   std::swap(ts1.functional_, ts2.functional_);
   std::swap(ts1.deterministic_, ts2.deterministic_);
   std::swap(ts1.constraints_, ts2.constraints_);
+  std::swap(ts1.right_total_, ts2.right_total_);
 }
 
 TransitionSystem & TransitionSystem::operator=(TransitionSystem other)
@@ -134,6 +135,8 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
 
   functional_ = other_ts.functional_;
   deterministic_ = other_ts.deterministic_;
+  // a result for the other system holds for its transferred copy
+  right_total_ = other_ts.right_total_;
 }
 
 bool TransitionSystem::operator==(const TransitionSystem & other) const
@@ -203,6 +206,7 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
   assert(!functional_ || erased);
   trans_ = solver_->make_term(
       And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
+  right_total_.reset();
 
   // if not functional, then we cannot guarantee deterministm
   // if it is functional, depends on if all state variables
@@ -219,6 +223,7 @@ void TransitionSystem::add_invar(const Term & constraint)
   // invariants can make it so not every state has a next state
   // TODO: revisit this and possibly rename functional/deterministic
   deterministic_ = false;
+  right_total_.reset();
 
   // TODO: only check this in debug mode
   if (only_curr(constraint)) {
@@ -238,6 +243,7 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
   // constraints can make it so not every state has a next state
   // TODO: revisit this and possibly rename functional/deterministic
   deterministic_ = false;
+  right_total_.reset();
 
   if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
@@ -253,6 +259,7 @@ void TransitionSystem::add_constraint(const Term & constraint,
   // constraints can make it so not every state has a next state
   // TODO: revisit this and possibly rename functional/deterministic
   deterministic_ = false;
+  right_total_.reset();
 
   if (only_curr(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
@@ -448,14 +455,19 @@ void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
 
   // if using an input variable, remove from set
   // will be a state variable now
+  // a fresh variable does not occur in trans, so a kept right-totality
+  // result stands; a reused input may be quantified differently in the
+  // query from now on
   if (inputvars_.find(cv) != inputvars_.end()) {
     [[maybe_unused]] bool success = inputvars_.erase(cv);
     assert(success);
+    right_total_.reset();
   }
 
   if (inputvars_.find(nv) != inputvars_.end()) {
     [[maybe_unused]] bool success = inputvars_.erase(nv);
     assert(success);
+    right_total_.reset();
   }
 
   statevars_.insert(cv);
@@ -598,6 +610,7 @@ void TransitionSystem::rebuild_trans_based_on_coi(
 {
   /* Clear current transition relation 'trans_'. */
   trans_ = solver_->make_term(true);
+  right_total_.reset();
 
   /* Add next-state functions for state variables in COI. */
   for (const auto & state_var : state_vars_in_coi) {
@@ -737,6 +750,9 @@ bool TransitionSystem::is_right_total() const
     // functional transition systems without constraints are always right-total
     return true;
   }
+  if (right_total_) {
+    return *right_total_;
+  }
 
   // unable to get printing/logging and other settings from TS
   // use default for now
@@ -807,7 +823,8 @@ bool TransitionSystem::is_right_total() const
     throw SmtException("Expecting sat/unsat from right-total check, but got "
                        + r.to_string());
   }
-  return r.is_unsat();
+  right_total_ = r.is_unsat();
+  return *right_total_;
 }
 
 bool TransitionSystem::only_curr(const Term & term) const
@@ -833,6 +850,7 @@ void TransitionSystem::drop_state_updates(const TermVec & svs)
   // now rebuild trans
   /* Clear current transition relation 'trans_'. */
   trans_ = solver_->make_term(true);
+  right_total_.reset();
 
   /* Add next-state functions for state variables in COI. */
   for (const auto & elem : state_updates_) {
@@ -906,6 +924,7 @@ void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
         "replace_terms");
   }
   trans_ = sw.visit(trans_);
+  right_total_.reset();
 
   unordered_map<string, Term> new_named_terms;
   unordered_map<Term, string> new_term_to_name;
