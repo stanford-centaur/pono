@@ -173,39 +173,31 @@ void OpExtractor::PreChild(const smt::Term & ast)
             concat_t(a1->get_sort()->get_width(), a2->get_sort()->get_width()));
         break;
       } break;
-      case smt::PrimOp::Extract:
-        assert(op.num_idx == 2);
-        {
-          ARG1()
-          constructs.insert_extract(
-              width, extract_t(a1->get_sort()->get_width(), op.idx0, op.idx1));
-        }
-        break;
+      case smt::PrimOp::Extract: {
+        ARG1()
+        constructs.insert_extract(
+            width,
+            extract_t(
+                a1->get_sort()->get_width(), op.indices[0], op.indices[1]));
+      } break;
 
-      case smt::PrimOp::Zero_Extend:
-        assert(op.num_idx == 1);
-        {
-          ARG1()
-          constructs.insert_extend(
-              width,
-              extend_t(op.prim_op, op.idx0, a1->get_sort()->get_width()));
-        }
-        break;
+      case smt::PrimOp::Zero_Extend: {
+        ARG1()
+        constructs.insert_extend(
+            width,
+            extend_t(op.prim_op, op.indices[0], a1->get_sort()->get_width()));
+      } break;
 
-      case smt::PrimOp::Sign_Extend:
-        assert(op.num_idx == 1);
-        {
-          ARG1()
-          constructs.insert_extend(
-              width,
-              extend_t(op.prim_op, op.idx0, a1->get_sort()->get_width()));
-        }
-        break;
+      case smt::PrimOp::Sign_Extend: {
+        ARG1()
+        constructs.insert_extend(
+            width,
+            extend_t(op.prim_op, op.indices[0], a1->get_sort()->get_width()));
+      } break;
 
       case smt::PrimOp::Rotate_Left:
       case smt::PrimOp::Rotate_Right: {
-        assert(op.num_idx == 1);
-        constructs.insert_rotate(width, rotate_t(op.prim_op, op.idx0));
+        constructs.insert_rotate(width, rotate_t(op.prim_op, op.indices[0]));
         break;
       }
       default:  // do nothing
@@ -431,12 +423,10 @@ void SliceExtractor::PostChild(const smt::Term & ast)
   }
 
   if (op.prim_op == smt::PrimOp::Extract) {
-    assert(op.num_idx == 2);
-
     // get its varset
     smt::UnorderedTermSet varset;
     smt::get_free_symbolic_consts(ast, varset);
-    uint64_t l = op.idx0, r = op.idx1;
+    uint64_t l = op.indices[0], r = op.indices[1];
 
     bool has_related_vars = false;
     for (const auto & sv : varset) {
