@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-smt_switch_version=555b8e2a96ea14938784ba5a2176f261ca1c8397 # v1.1.6-654-g555b8e2a
+smt_switch_version=b599c252f6453dc2dfa7b8344a94f362b6485c17 # v1.1.6-672-gb599c252
 
 # Keep the invocation directory to resolve relative path arguments against,
 # since they would otherwise be taken relative to the smt-switch checkout that
