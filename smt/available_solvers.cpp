@@ -326,6 +326,13 @@ SmtInterpolator create_interpolating_solver(SolverEnum se,
       break;
     }
 #endif
+#ifdef WITH_YICES2
+    case YICES2:
+    case YICES2_INTERPOLATOR: {
+      s = Yices2SolverFactory::create_interpolating_solver();
+      break;
+    }
+#endif
     default: {
       throw SmtException("Unhandled solver enum");
     }
@@ -417,7 +424,8 @@ const std::vector<SolverEnum> itp_enums({
 const std::unordered_map<SolverEnum, SolverEnum> interpolator_to_solver(
     { { BZLA_INTERPOLATOR, BZLA },
       { CVC5_INTERPOLATOR, CVC5 },
-      { MSAT_INTERPOLATOR, MSAT } });
+      { MSAT_INTERPOLATOR, MSAT },
+      { YICES2_INTERPOLATOR, YICES2 } });
 
 std::vector<SolverEnum> available_solver_enums() { return solver_enums; }
 
@@ -433,7 +441,20 @@ std::vector<SolverEnum> available_solver_enums_except(
   return res;
 }
 
-std::vector<SolverEnum> available_interpolator_enums() { return itp_enums; }
+std::vector<SolverEnum> available_interpolator_enums()
+{
+  std::vector<SolverEnum> res = itp_enums;
+#ifdef WITH_YICES2
+  // a Yices2 without MCSAT refuses to create an interpolator
+  try {
+    Yices2SolverFactory::create_interpolating_solver();
+    res.push_back(YICES2_INTERPOLATOR);
+  }
+  catch (const NotImplementedException &) {
+  }
+#endif
+  return res;
+}
 
 std::vector<SolverEnum> filter_solver_enums(
     const std::unordered_set<SolverAttribute> attributes)
@@ -460,7 +481,7 @@ std::vector<SolverEnum> filter_interpolator_enums(
     const std::unordered_set<SolverAttribute> attributes)
 {
   std::vector<SolverEnum> filtered_enums;
-  for (auto se : itp_enums) {
+  for (auto se : available_interpolator_enums()) {
     const std::unordered_set<SolverAttribute> & se_attrs =
         get_solver_attributes(interpolator_to_solver.at(se));
     bool all_attrs = true;

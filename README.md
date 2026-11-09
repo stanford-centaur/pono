@@ -35,9 +35,12 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
     * note that MathSAT is under a custom non-BSD compliant license and you must assume all responsibility for meeting the conditions
     * download the solver from https://mathsat.fbk.eu/download.html and unpack it
     * then add the `--with-msat` flag to the `setup-smt-switch.sh` command, along with `--msat-dir=<path>` unless you renamed the unpacked directory to `./deps/mathsat`
+  * [optional] to build with Yices2, add the `--with-yices2` and `--allow-gpl` flags to the `setup-smt-switch.sh` command, which then downloads and builds it
+    * note that Yices2 is under the GPLv3
+    * its interpolator needs MCSAT, which Yices2 is built with only if [LibPoly](https://github.com/SRI-CSL/libpoly) and [CUDD](https://github.com/ivmai/cudd) are installed
 * Run `./contrib/setup-btor2tools.sh`.
 * Run `./configure.sh`.
-  * if building with mathsat, also include `--with-msat` as an option to `configure.sh`
+  * if building with mathsat, also include `--with-msat` as an option to `configure.sh`, and likewise `--with-yices2` for Yices2
   * to build against dependencies installed elsewhere, pass their install prefixes with `--smt-switch-dir` and the solvers' `--bitwuzla-dir`, `--btor-dir`, `--cvc5-dir`, `--msat-dir`, `--yices2-dir`, and `--z3-dir`; `setup-smt-switch.sh` prints the ones you need to repeat
 * Run `cd build`.
 * Run `make`.
