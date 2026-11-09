@@ -407,4 +407,111 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(testing::ValuesIn(available_interpolator_enums()),
                      testing::ValuesIn(get_interp_options())));
 
+/** A counter whose error states have no successor, so that its transition
+ *  relation is not right-total.
+ */
+class InterpDeadEndTest
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<std::tuple<SolverEnum, PonoOptions>>
+{
+ protected:
+  void SetUp() override
+  {
+    // use Bitwuzla as the base solver
+    s = create_solver(BZLA);
+    bvsort8 = s->make_sort(BV, 8);
+    rts = RelationalTransitionSystem(s);
+    x = rts.make_statevar("x", bvsort8);
+    err = rts.make_statevar("err", s->make_sort(BOOL));
+    rts.set_init(s->make_term(And,
+                              s->make_term(Equal, x, s->make_term(0, bvsort8)),
+                              s->make_term(Not, err)));
+
+    std::tuple<SolverEnum, PonoOptions> t = GetParam();
+    opts = std::get<1>(t);
+    opts.smt_interpolator_ = std::get<0>(t);
+    if (opts.interp_props_ == INTERP_FIRST_AND_LAST_PROPS) {
+      GTEST_SKIP() << "--interp-props first-and-last has no effect without "
+                      "right-totality";
+    }
+  }
+
+  /** Counts x from 0 up to 10, where it stays, and raises err, with any x,
+   *  from a state where the guard holds. No transition leaves a state where
+   *  err holds.
+   */
+  void set_trans(const Term & guard)
+  {
+    Term ten = s->make_term(10, bvsort8);
+    Term count = s->make_term(
+        And,
+        s->make_term(BVUle, x, ten),
+        s->make_term(
+            Equal,
+            rts.next(x),
+            s->make_term(Ite,
+                         s->make_term(BVUlt, x, ten),
+                         s->make_term(BVAdd, x, s->make_term(1, bvsort8)),
+                         x)),
+        s->make_term(Not, rts.next(err)));
+    Term raise = s->make_term(And, guard, rts.next(err));
+    rts.set_trans(s->make_term(
+        And, s->make_term(Not, err), s->make_term(Or, count, raise)));
+  }
+
+  SmtSolver s;
+  Sort bvsort8;
+  RelationalTransitionSystem rts;
+  Term x;
+  Term err;
+  PonoOptions opts;
+};
+
+// No error state is reachable, as x never exceeds 10. An error state starts
+// no path of one step or more, so the interpolants must exclude it although
+// the unrolled suffix has no complete path through it.
+TEST_P(InterpDeadEndTest, Safe)
+{
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
+    GTEST_SKIP() << "cvc5 interpolation fails for this case";
+  }
+  set_trans(s->make_term(BVUgt, x, s->make_term(10, bvsort8)));
+  Term prop = s->make_term(Not, err);
+  SafetyProperty p(s, prop);
+
+  InterpolantMC interp_mc(p, rts, s, opts);
+  ProverResult r = interp_mc.check_until(20);
+  ASSERT_EQ(r, ProverResult::TRUE);
+  Term invar = interp_mc.invar();
+  ASSERT_TRUE(check_invar(rts, prop, invar));
+}
+
+// The only counterexample raises err after counting to 10 and ends there.
+TEST_P(InterpDeadEndTest, Unsafe)
+{
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
+    GTEST_SKIP() << "cvc5 interpolation fails for this case";
+  }
+  set_trans(s->make_term(Equal, x, s->make_term(10, bvsort8)));
+  SafetyProperty p(s, s->make_term(Not, err));
+
+  InterpolantMC interp_mc(p, rts, s, opts);
+  ProverResult r = interp_mc.check_until(20);
+  ASSERT_EQ(r, ProverResult::FALSE);
+  std::vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(interp_mc.witness(cex));
+  ASSERT_EQ(cex.size(), 12);
+  for (size_t k = 0; k <= 10; ++k) {
+    ASSERT_EQ(cex.at(k).at(x), s->make_term(static_cast<int64_t>(k), bvsort8));
+    ASSERT_EQ(cex.at(k).at(err), s->make_term(false));
+  }
+  ASSERT_EQ(cex.back().at(err), s->make_term(true));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ParametrizedInterpDeadEndTest,
+    InterpDeadEndTest,
+    testing::Combine(testing::ValuesIn(available_interpolator_enums()),
+                     testing::ValuesIn(get_interp_options())));
+
 }  // namespace pono_tests

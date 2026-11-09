@@ -98,6 +98,13 @@ class BaseProver
    */
   virtual TransitionSystem & prover_interface_ts();
 
+  /** Checks whether the transition relation of ts_ is right-total: it is if
+   *  the system is functional without constraints, and otherwise only known
+   *  to be with --check-trans-total, whose check may involve a quantified SMT
+   *  query. Conservatively returns false if it cannot be determined.
+   */
+  bool is_trans_total() const;
+
   PonoOptions options_;
   const Engine engine_;
   smt::SmtSolver solver_;
