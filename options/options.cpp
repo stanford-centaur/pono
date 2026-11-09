@@ -86,6 +86,7 @@ enum optionIndex
   CEG_BV_ARITH_AS_FREE_SYMBOL,
   CEG_BV_ARITH_MIN_BW,
   PROMOTE_INPUTVARS,
+  FUNCTIONALIZE,
   SYGUS_OP_LVL,
   SYGUS_TERM_MODE,
   IC3SA_INITIAL_TERMS_LVL,
@@ -530,6 +531,13 @@ const option::Descriptor usage[] = {
     "promote-inputvars",
     Arg::None,
     "  --promote-inputvars \tpromote all input variables to state variables" },
+  { FUNCTIONALIZE,
+    0,
+    "",
+    "functionalize",
+    Arg::None,
+    "  --functionalize \tturn a relational transition system into a "
+    "functional one (done for ic3sa and sygus-pdr anyway)" },
   { SYGUS_OP_LVL,
     0,
     "",
@@ -1001,6 +1009,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           ceg_bv_arith_min_bw_ = std::stoul(opt.arg);
           break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
+        case FUNCTIONALIZE: functionalize_ = true; break;
         case SYGUS_OP_LVL:
           sygus_use_operator_abstraction_ = std::stoul(opt.arg);
           break;
