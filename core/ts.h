@@ -43,8 +43,6 @@ class TransitionSystem
   {
   }
 
-  friend void swap(TransitionSystem & ts1, TransitionSystem & ts2);
-
   /** Copy constructor, which operator= below also uses to make its
    *  by-value parameter.
    */
@@ -52,6 +50,11 @@ class TransitionSystem
 
   /** Copy assignment using
    *  copy-and-swap idiom
+   *  A RelationalTransitionSystem stays relational, and a
+   *  FunctionalTransitionSystem throws on a relational system, also when
+   *  assigned through a reference to TransitionSystem. Any other system
+   *  takes on functional_ of the one assigned, so a new direct subclass
+   *  whose systems are all of one kind needs a case here.
    */
   TransitionSystem & operator=(TransitionSystem other);
 

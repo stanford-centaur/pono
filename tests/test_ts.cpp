@@ -215,6 +215,58 @@ TEST_P(TSUnitTests, RTS_Copy)
   TransitionSystem ts = rts;
 }
 
+// A relational copy of a functional system keeps its state updates, but
+// set_trans and constrain_trans change trans without them.
+TEST_P(TSUnitTests, RTS_StaysRelational)
+{
+  FunctionalTransitionSystem fts(s);
+  Term x = fts.make_statevar("x", bvsort);
+  fts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
+  ASSERT_TRUE(fts.is_deterministic());
+
+  TermTranslator tt(s);
+  RelationalTransitionSystem translated(fts, tt);
+  EXPECT_FALSE(translated.is_functional());
+  EXPECT_FALSE(translated.is_deterministic());
+
+  // also when assigned through a reference to the base class, as an
+  // abstractor assigns its abstract system
+  RelationalTransitionSystem rts(s);
+  TransitionSystem & ts = rts;
+  ts = fts;
+  EXPECT_FALSE(rts.is_functional());
+  EXPECT_FALSE(rts.is_deterministic());
+
+  // a TransitionSystem of no subclass takes the kind of what it is assigned
+  TransitionSystem base(s);
+  base = fts;
+  EXPECT_TRUE(base.is_functional());
+  EXPECT_TRUE(base.is_deterministic());
+}
+
+// The trans of a relational system is not made of its state updates, so a
+// functional system cannot take it over.
+TEST_P(TSUnitTests, FTS_StaysFunctional)
+{
+  RelationalTransitionSystem rts(s);
+  Term y = rts.make_statevar("y", bvsort);
+  rts.constrain_trans(rts.make_term(BVUge, rts.next(y), y));
+
+  TermTranslator tt(s);
+  EXPECT_THROW(FunctionalTransitionSystem translated(rts, tt), PonoException);
+
+  // also when assigned through a reference to the base class, which then
+  // leaves the system as it was
+  FunctionalTransitionSystem fts(s);
+  Term x = fts.make_statevar("x", bvsort);
+  fts.assign_next(x, x);
+  TransitionSystem & ts = fts;
+  EXPECT_THROW(ts = rts, PonoException);
+  EXPECT_TRUE(fts.is_functional());
+  EXPECT_TRUE(fts.is_curr_var(x));
+  EXPECT_FALSE(fts.is_curr_var(y));
+}
+
 TEST_P(TSUnitTests, Prop_Copy)
 {
   RelationalTransitionSystem rts(s);

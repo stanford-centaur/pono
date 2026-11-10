@@ -323,7 +323,7 @@ int main(int argc, char ** argv)
         pono_options.filename_.find_last_of(".") + 1);
     if (file_ext == "btor2" || file_ext == "btor") {
       logger.log(2, "Parsing BTOR2 file: {}", pono_options.filename_);
-      FunctionalTransitionSystem fts(s);
+      TransitionSystem fts = FunctionalTransitionSystem(s);
       BTOR2Encoder btor_enc(pono_options.filename_, fts);
       const TermVec & propvec = btor_enc.propvec();
       const auto & justicevec = btor_enc.justicevec();

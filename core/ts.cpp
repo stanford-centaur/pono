@@ -19,6 +19,8 @@
 #include <cassert>
 #include <functional>
 
+#include "core/fts.h"
+#include "core/rts.h"
 #include "smt-switch/substitution_walker.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
@@ -30,27 +32,34 @@ using namespace std;
 
 namespace pono {
 
-void swap(TransitionSystem & ts1, TransitionSystem & ts2)
-{
-  std::swap(ts1.solver_, ts2.solver_);
-  std::swap(ts1.init_, ts2.init_);
-  std::swap(ts1.trans_, ts2.trans_);
-  std::swap(ts1.statevars_, ts2.statevars_);
-  std::swap(ts1.next_statevars_, ts2.next_statevars_);
-  std::swap(ts1.inputvars_, ts2.inputvars_);
-  std::swap(ts1.named_terms_, ts2.named_terms_);
-  std::swap(ts1.term_to_name_, ts2.term_to_name_);
-  std::swap(ts1.state_updates_, ts2.state_updates_);
-  std::swap(ts1.no_state_updates_, ts2.no_state_updates_);
-  std::swap(ts1.next_map_, ts2.next_map_);
-  std::swap(ts1.curr_map_, ts2.curr_map_);
-  std::swap(ts1.functional_, ts2.functional_);
-  std::swap(ts1.constraints_, ts2.constraints_);
-}
-
 TransitionSystem & TransitionSystem::operator=(TransitionSystem other)
 {
-  swap(*this, other);
+  // This system can be one of a subclass reached through a reference to
+  // TransitionSystem, which keeps the kind of its class.
+  const bool is_fts =
+      dynamic_cast<const FunctionalTransitionSystem *>(this) != nullptr;
+  const bool is_rts =
+      dynamic_cast<const RelationalTransitionSystem *>(this) != nullptr;
+  // Checked first, so that a throw leaves this system as it was.
+  if (is_fts && !other.functional_) {
+    throw PonoException(
+        "Cannot assign a relational system to a functional one");
+  }
+  functional_ = other.functional_ && !is_rts;
+
+  std::swap(solver_, other.solver_);
+  std::swap(init_, other.init_);
+  std::swap(trans_, other.trans_);
+  std::swap(statevars_, other.statevars_);
+  std::swap(next_statevars_, other.next_statevars_);
+  std::swap(inputvars_, other.inputvars_);
+  std::swap(named_terms_, other.named_terms_);
+  std::swap(term_to_name_, other.term_to_name_);
+  std::swap(state_updates_, other.state_updates_);
+  std::swap(no_state_updates_, other.no_state_updates_);
+  std::swap(next_map_, other.next_map_);
+  std::swap(curr_map_, other.curr_map_);
+  std::swap(constraints_, other.constraints_);
   return *this;
 }
 

@@ -39,14 +39,18 @@ class FunctionalTransitionSystem : public TransitionSystem
                              smt::TermTranslator & tt)
       : TransitionSystem(other_ts, tt)
   {
-    functional_ = true;
+    if (!functional_) {
+      throw PonoException(
+          "Cannot copy a relational system to a functional one");
+    }
   }
 
   FunctionalTransitionSystem(const TransitionSystem & other_ts)
       : TransitionSystem(other_ts)
   {
     if (!functional_) {
-      throw PonoException("Copied relational system to functional one");
+      throw PonoException(
+          "Cannot copy a relational system to a functional one");
     }
   }
 
