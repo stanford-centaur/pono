@@ -18,6 +18,7 @@
 
 #include <cassert>
 #include <ctime>
+#include <string>
 
 #include "smt-switch/exceptions.h"
 #include "smt-switch/utils.h"
@@ -227,7 +228,9 @@ bool InterpolantMC::step(const int i)
     }
     if (r.is_unknown()) {
       // TODO: figure out if makes sense to increase bound and try again
-      throw PonoException("Interpolant generation failed.");
+      const std::string & why = r.get_explanation();
+      throw PonoException("Interpolant generation failed"
+                          + (why.empty() ? "" : " (" + why + ")"));
     }
   }
   assert(solver_->get_context_level() == start_context_level_ + 1);

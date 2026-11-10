@@ -21,6 +21,7 @@
 #include "engines/dual_approx_reach.h"
 
 #include <cassert>
+#include <string>
 
 #include "smt-switch/exceptions.h"
 #include "smt-switch/utils.h"
@@ -308,7 +309,12 @@ bool DualApproxReach::global_strengthen()
 #endif
   if (!int_r.is_unsat()) {
     throw PonoException(
-        "DAR: global strengthening failed, expect UNSAT interpolation query");
+        "DAR: global strengthening failed, "
+        "expected UNSAT interpolation query, got "
+        + int_r.to_string()
+        + (int_r.is_unknown() && !int_r.get_explanation().empty()
+               ? " (" + int_r.get_explanation() + ")"
+               : ""));
   }
   for (size_t i = 1; i < std::min(seq_len, unsat_idx + 2); ++i) {
     Term int_itp = int_itpseq.at(i - 1);
@@ -353,7 +359,11 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
     if (!r.is_unsat()) {
       throw PonoException(
           "DAR: pairwise strengthening failed, "
-          "expect UNSAT interpolation query");
+          "expected UNSAT interpolation query, got "
+          + r.to_string()
+          + (r.is_unknown() && !r.get_explanation().empty()
+                 ? " (" + r.get_explanation() + ")"
+                 : ""));
     }
     Term itp = unroller_.untime(to_solver_.transfer_term(int_itp));
     logger.log(3,
@@ -384,7 +394,11 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
     if (!r.is_unsat()) {
       throw PonoException(
           "DAR: pairwise strengthening failed, "
-          "expect UNSAT interpolation query");
+          "expected UNSAT interpolation query, got "
+          + r.to_string()
+          + (r.is_unknown() && !r.get_explanation().empty()
+                 ? " (" + r.get_explanation() + ")"
+                 : ""));
     }
     Term itp = unroller_.untime(to_solver_.transfer_term(int_itp));
     logger.log(3,
