@@ -22,6 +22,7 @@
 
 #include "smt-switch/utils.h"
 #include "utils/exceptions.h"
+#include "utils/str_util.h"
 
 using namespace smt;
 using namespace std;
@@ -100,7 +101,9 @@ Term Unroller::var_at_time(const Term & v, size_t k)
     return it->second;
   }
 
-  std::string name = v->to_string();
+  // to_string() quotes a name that is not a simple symbol, as in |a#b|, so
+  // the time is appended to the bare name
+  std::string name = name_desanitize(v->to_string());
   name += time_id_ + std::to_string(k);
   Term timed_v = solver_->make_symbol(name, v->get_sort());
   cache[v] = timed_v;

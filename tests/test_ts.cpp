@@ -114,6 +114,19 @@ TEST_P(TSUnitTests, RTS_IsRightTotal_HierarchicalName)
   EXPECT_TRUE(right_total);
 }
 
+TEST_P(TSUnitTests, RTS_IsRightTotal_InputsOnly)
+{
+  // Without state variables, the right-totality query quantifies only the
+  // inputs, and trans is right-total iff some input satisfies it.
+  RelationalTransitionSystem rts(s);
+  Term i = rts.make_inputvar("i", bvsort);
+  Term zero = s->make_term(0, bvsort);
+  rts.constrain_trans(rts.make_term(Distinct, i, zero));
+  EXPECT_TRUE(rts.is_right_total());
+  rts.constrain_trans(rts.make_term(Equal, i, zero));
+  EXPECT_FALSE(rts.is_right_total());
+}
+
 TEST_P(TSUnitTests, PromoteInputvar_HierarchicalName)
 {
   // Regression test: promote_inputvar() builds the next-state symbol's name
@@ -198,6 +211,21 @@ TEST_P(TSUnitTests, GeneratedVarsCarryTheMarker)
   // for a variable the design declared.
   EXPECT_TRUE(is_generated_name(name_desanitize(rts.next(x)->to_string())));
   EXPECT_TRUE(is_generated_name(name_desanitize(rts.next(saved)->to_string())));
+}
+
+// A shadow of a compound term is named after the printed term, which carries
+// the bars of the symbols in it. No symbol may contain a bar, so the name
+// leaves them out.
+TEST_P(TSUnitTests, GeneratedVarsOfQuotedTerms)
+{
+  RelationalTransitionSystem rts(s);
+  const Term a = rts.make_statevar("a[0]", bvsort);
+  const Term i = rts.make_statevar("i#1", bvsort);
+  const Term hist =
+      rts.make_generated_statevar("hist_1", rts.make_term(BVAdd, a, i), bvsort);
+  const string name = name_desanitize(hist->to_string());
+  EXPECT_TRUE(is_generated_name(name));
+  EXPECT_EQ(name.find('|'), string::npos);
 }
 
 // Asking twice for the same role is not a collision, since the caller cares

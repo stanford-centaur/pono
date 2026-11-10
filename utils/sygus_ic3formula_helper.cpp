@@ -102,7 +102,7 @@ void reduce_unsat_core_to_fixedpoint(const smt::Term & formula,
   if (r.is_unsat()) return;
 
   while (true) {
-    r = reducer_->check_sat_assuming_set(core_inout);
+    r = reducer_->check_sat_assuming(core_inout);
     assert(r.is_unsat());
 
     smt::UnorderedTermSet core_out;
@@ -165,14 +165,14 @@ void reduce_unsat_core_linear(const smt::Term & formula,
   smt::Result r = reducer_->check_sat();
   if (r.is_unsat()) return;
 
-  r = reducer_->check_sat_assuming_list(assumption_list);
+  r = reducer_->check_sat_assuming(assumption_list);
   assert(r.is_unsat());
   auto to_remove_pos = assumption_list.begin();
 
   while (to_remove_pos != assumption_list.end()) {
     smt::Term term_to_remove = *to_remove_pos;
     auto pos_after = assumption_list.erase(to_remove_pos);
-    r = reducer_->check_sat_assuming_list(assumption_list);
+    r = reducer_->check_sat_assuming(assumption_list);
     to_remove_pos = assumption_list.insert(pos_after, term_to_remove);
 
     if (r.is_sat()) {

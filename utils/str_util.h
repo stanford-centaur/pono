@@ -101,9 +101,10 @@ inline constexpr const char * generated_prefix = "pono_generated_";
 /// @param role what the variable is for, e.g. "saved"
 std::string generated_name(const std::string & role);
 
-/// Name a variable pono generates to shadow one the design declared.
+/// Name a variable pono generates to shadow a variable or a term.
 /// @param role what the variable is for, e.g. "loop"
-/// @param origin the name of the variable it is derived from
+/// @param origin the name of the variable or the printed term it is derived
+/// from; the characters no SMT-LIB symbol may contain (| and \) are left out
 std::string generated_name(const std::string & role,
                            const std::string & origin);
 

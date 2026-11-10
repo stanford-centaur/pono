@@ -20,6 +20,7 @@
 #include <cassert>
 
 #include "smt-switch/msat_solver.h"
+#include "smt-switch/msat_term.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
@@ -50,8 +51,9 @@ ProverResult MsatIC3IA::prove()
   shared_ptr<MsatSolver> msat_solver =
       static_pointer_cast<MsatSolver>(create_solver_for(
           MSAT, MSAT_IC3IA, false, false, false, options_.smt_solver_opts_));
-  msat_env env = msat_solver->get_msat_env();
-  ::ic3ia::TransitionSystem ic3ia_ts(env);
+  // shared with the terms wrapping ic3ia's results, which keep it alive
+  shared_ptr<msat_env> env = msat_solver->get_msat_env();
+  ::ic3ia::TransitionSystem ic3ia_ts(*env);
 
   TermTranslator to_msat_solver(msat_solver);
   TermTranslator to_ts_solver(solver_);
@@ -149,7 +151,7 @@ ProverResult MsatIC3IA::check_until(int k)
   throw PonoException("MsatIC3IA only supports prove, not check_until");
 }
 
-bool MsatIC3IA::compute_witness(msat_env env,
+bool MsatIC3IA::compute_witness(const shared_ptr<msat_env> & env,
                                 ic3ia::IC3 & ic3,
                                 TermTranslator & to_ts_solver)
 {

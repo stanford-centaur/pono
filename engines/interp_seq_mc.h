@@ -53,7 +53,7 @@ class InterpSeqMC : public SafetyProver
   void check_itp_sequence(const smt::TermVec & int_formulas,
                           const smt::TermVec & int_itp_seq);
 
-  smt::SmtSolver interpolator_;
+  smt::SmtInterpolator interpolator_;
   // for translating terms to interpolator_
   smt::TermTranslator to_interpolator_;
   // for translating terms to solver_
