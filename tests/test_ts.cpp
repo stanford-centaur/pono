@@ -2,6 +2,7 @@
 #include "core/prop.h"
 #include "core/rts.h"
 #include "gtest/gtest.h"
+#include "modifiers/static_coi.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
 #include "utils/str_util.h"
@@ -68,6 +69,48 @@ TEST_P(TSUnitTests, FTS_IsFunc)
   EXPECT_EQ(ts_copy, fts);
   ts_copy.set_init(ts_copy.make_term(Equal, x, ts_copy.make_term(1, bvsort)));
   EXPECT_NE(ts_copy, fts);
+}
+
+// IC3 skips the preimage check when the system is deterministic, so the answer
+// has to follow every change that takes away a state update.
+TEST_P(TSUnitTests, FTS_IsDeterministicFollowsChanges)
+{
+  FunctionalTransitionSystem fts(s);
+  Term x = fts.make_statevar("x", bvsort);
+  Term y = fts.make_statevar("y", bvsort);
+  fts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
+  fts.assign_next(y, x);
+  EXPECT_TRUE(fts.is_deterministic());
+
+  fts.drop_state_updates({ y });
+  EXPECT_FALSE(fts.is_deterministic());
+  fts.assign_next(y, x);
+  EXPECT_TRUE(fts.is_deterministic());
+
+  // a state variable added by its symbols has no update either
+  Term z = s->make_symbol("z", bvsort);
+  fts.add_statevar(z, s->make_symbol("z_next", bvsort));
+  EXPECT_FALSE(fts.is_deterministic());
+  fts.assign_next(z, z);
+  EXPECT_TRUE(fts.is_deterministic());
+}
+
+// The cone of influence keeps the state variables of init, but not the
+// updates of those outside the cone.
+TEST_P(TSUnitTests, FTS_IsDeterministicAfterCoi)
+{
+  FunctionalTransitionSystem fts(s);
+  Term x = fts.make_statevar("x", bvsort);
+  Term y = fts.make_statevar("y", bvsort);
+  Term zero = s->make_term(0, bvsort);
+  fts.constrain_init(fts.make_term(Equal, y, zero));
+  fts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
+  fts.assign_next(y, y);
+  EXPECT_TRUE(fts.is_deterministic());
+
+  StaticConeOfInfluence coi(fts, { x });
+  EXPECT_TRUE(fts.is_curr_var(y));
+  EXPECT_FALSE(fts.is_deterministic());
 }
 
 TEST_P(TSUnitTests, RTS_IsFunc)

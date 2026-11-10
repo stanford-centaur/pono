@@ -37,7 +37,6 @@ class RelationalTransitionSystem : public TransitionSystem
       : TransitionSystem(other_ts)
   {
     functional_ = false;
-    deterministic_ = false;
   }
 
   /* Sets init and trans to the provided values
