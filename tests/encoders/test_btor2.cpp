@@ -165,6 +165,17 @@ TEST_P(Btor2UnitTests, OverflowEncoding)
 // The circuit is purely combinational, i.e., it has no state variables, so the
 // satisfiability of the bad-state predicates can be checked directly by a
 // solver, without the need for a prover.
+TEST_P(Btor2UnitTests, UnsignedOverflowEncoding)
+{
+  Encoded input(GetParam(), "unsigned_overflow");
+  for (const Term & prop : input.be.propvec()) {
+    input.solver->push();
+    input.solver->assert_formula(input.solver->make_term(Not, prop));
+    EXPECT_TRUE(input.solver->check_sat().is_unsat()) << prop;
+    input.solver->pop();
+  }
+}
+
 TEST_P(Btor2UnitTests, RotateEncoding)
 {
   Encoded input(GetParam(), "rotate");
