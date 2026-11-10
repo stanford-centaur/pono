@@ -37,6 +37,12 @@ jobs:
             libmpfr-dev \
             cmake \
             ninja-build
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.os }}-${{ matrix.build_type }}
+          max-size: 1G
+          create-symlink: true
       - name: Install bison (macOS)
         if: runner.os == 'macOS'
         run: contrib/setup-bison.sh
