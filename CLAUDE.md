@@ -34,7 +34,7 @@ pytest tests
 
 Key configure options: `--debug`, `--python`, `--with-msat`, `--with-yices2`, `--with-z3`, `--with-btor`, `--docs`, `--static`.
 
-Dependency locations default to the `deps/` layout the `contrib/` scripts produce, and are overridden with `--bitwuzla-dir`, `--btor2tools-dir`, `--coreir-dir`, `--ic3ia-dir`, `--msat-dir`, `--smt-switch-dir`, and `--z3-dir`. All take an install prefix except `--ic3ia-dir`, which takes a built source tree since ic3ia has no install step. Each maps to a `<Package>_ROOT` CMake variable consumed by the matching `cmake/Find*.cmake` module; `configure.sh` is the only place their defaults live.
+Dependency locations default to the `deps/` layout the `contrib/` scripts produce (smt-switch builds the solvers it cannot find under `deps/smt-switch/deps/`), and are overridden with `--bitwuzla-dir`, `--btor-dir`, `--btor2tools-dir`, `--coreir-dir`, `--cvc5-dir`, `--ic3ia-dir`, `--msat-dir`, `--smt-switch-dir`, `--yices2-dir`, and `--z3-dir`. All take an install prefix except `--ic3ia-dir`, which takes a built source tree since ic3ia has no install step. Each maps to a `<Package>_ROOT` CMake variable, consumed by the matching `cmake/Find*.cmake` module or by smt-switch's package config (`SmtSwitchConfig.cmake`, which looks for the solvers its backends link); `configure.sh` is the only place their defaults live.
 
 ## Architecture
 

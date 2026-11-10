@@ -792,8 +792,11 @@ bool TransitionSystem::is_right_total() const
     input_params.push_back(query);
     query = s->make_term(Exists, input_params);
   }
+  // negated also if no state variable has an update, when the query is
+  // unsat iff some inputs satisfy trans
+  query = s->make_term(Not, query);
   if (!curr_params.empty()) {
-    next_params.push_back(s->make_term(Not, query));
+    next_params.push_back(query);
     query = s->make_term(Forall, next_params);
     curr_params.push_back(query);
     query = s->make_term(Exists, curr_params);

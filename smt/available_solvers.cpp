@@ -39,7 +39,6 @@
 // these are for setting specific options
 // e.g. in create_solver_for
 #include "smt-switch/msat_solver.h"
-#include "smt/msat_options.h"
 #endif
 
 #ifdef WITH_YICES2
@@ -76,6 +75,48 @@ inline void check_allowed_smt_opts(const StringMap & opts)
   }
 }
 
+// configuration options copied from open-source ic3ia implementation
+// https://es-static.fbk.eu/people/griggio/ic3ia/index.html
+[[maybe_unused]] static void set_msat_options_for_ic3(const SmtSolver & s)
+{
+  // no random decisions in the SAT solver
+  s->set_opt("dpll.branching_random_frequency", "0");
+
+  // try not assigning values to theory atoms that occur only in
+  // already-satisfied clauses. Example: given a clause (P | (t >= 0)), if P
+  // is true, the value of (t >= 0) doesn't matter, and so it is a "ghost"
+  s->set_opt("dpll.ghost_filtering", "true");
+
+  // Handling disequalities might be potentially quite expensive (especially
+  // over the integers, where splitting of !(t = 0) into ((t < 0) | (t > 0))
+  // is needed), so we want to avoid this as much as possible. If (t = 0)
+  // occurs only positively in the input formula, but the SAT solver assigns
+  // it to false, we can avoid sending the literal !(t = 0) to the
+  // arithmetic solver, since if !(t = 0) causes an arithmetic conflict, we
+  // can always flip it (as the atom never occurs negated in the input
+  // formula, so assigning it to true can't cause any Boolean conflict)
+  s->set_opt("theory.la.pure_equality_filtering", "true");
+
+  // Avoid splitting negated equalities !(t = 0) if t is of rational
+  // type. Over the rationals, it is often cheaper to handle negated
+  // equalities in a special way rather than relying on the general
+  // splitting described above
+  s->set_opt("theory.la.split_rat_eq", "false");
+
+  // Do not reset the internal scores for variables in the SAT solver
+  // whenever a pop_backtrack_point() command is issued. In an IC3 context,
+  // the solver is called very often on very similar problems, so it makes
+  // sense to keep the variable scores computed so far, and maybe perform a
+  // full solver reset only every few thousand calls rather than
+  // reinitializing the scores at every pop()
+  s->set_opt("dpll.pop_btpoint_reset_var_order", "false");
+
+  // enable interpolation if required
+  s->set_opt("preprocessor.interpolation_ite_elimination", "true");
+
+  s->set_opt("theory.bv.bit_blast_mode", "1");
+}
+
 // list of regular (non-interpolator) solver enums
 const std::vector<SolverEnum> solver_enums({
     BZLA,
@@ -99,7 +140,6 @@ const std::vector<SolverEnum> solver_enums({
 SmtSolver create_solver_base(SolverEnum se, bool logging, bool printing = false)
 {
   SmtSolver s;
-  auto printing_style = DEFAULT_STYLE;
   switch (se) {
     case BZLA: {
       s = BitwuzlaSolverFactory::create(logging);
@@ -113,13 +153,11 @@ SmtSolver create_solver_base(SolverEnum se, bool logging, bool printing = false)
 #endif
     case CVC5: {
       s = Cvc5SolverFactory::create(logging);
-      printing_style = CVC5_STYLE;
       break;
     }
 #ifdef WITH_MSAT
     case MSAT: {
       s = MsatSolverFactory::create(logging);
-      printing_style = MSAT_STYLE;
       break;
     }
 #endif
@@ -143,7 +181,7 @@ SmtSolver create_solver_base(SolverEnum se, bool logging, bool printing = false)
     }
   }
   if (printing) {
-    s = create_printing_solver(s, &std::cerr, printing_style);
+    s = create_printing_solver(s, &std::cerr);
   }
 
   return s;
@@ -189,29 +227,29 @@ SmtSolver create_solver_for(SolverEnum se,
 
   if (se == MSAT && ic3_engine) {
 #ifdef WITH_MSAT
-    // These will be managed by the solver object
-    // don't need to destroy
-    StringMap opts(solver_opts);  // user-specified options take precedence
-    opts.emplace("model_generation", "true");
+    s = std::make_shared<MsatSolver>();
+    set_msat_options_for_ic3(s);
     if (!full_model && e == IC3IA_ENGINE) {
       // only need boolean model
-      opts.emplace("bool_model_generation", "true");
-      opts.emplace("model_generation", "false");
+      s->set_opt("bool_model_generation", "true");
       // Reasoning from open-source IC3IA code (by Alberto Griggio):
       // Turn off propagation of toplevel information. This is just overhead in
       // an IC3 context (where the solver is called hundreds of thousands of
       // times). Moreover, using it makes "lightweight" model generation (see
       // below) not effective
-      opts.emplace("preprocessor.toplevel_propagation", "false");
+      s->set_opt("preprocessor.toplevel_propagation", "false");
+    } else {
+      s->set_opt("model_generation", "true");
     }
-    msat_config cfg = get_msat_config_for_ic3(opts);
-    msat_env env = msat_create_env(cfg);
-    s = std::make_shared<MsatSolver>(cfg, env);
+    // user-specified options take precedence
+    for (const auto & optpair : solver_opts) {
+      s->set_opt(optpair.first, optpair.second);
+    }
     if (logging) {
       s = std::make_shared<LoggingSolver>(s);
     }
     if (printing) {
-      s = create_printing_solver(s, &std::cerr, MSAT_STYLE);
+      s = create_printing_solver(s, &std::cerr);
     }
     return s;
 #else
@@ -244,13 +282,14 @@ SmtSolver create_reducer(SolverEnum se,
     }
   } else {
 #ifdef WITH_MSAT
-    // user-specified options take precedence
-    StringMap opts(solver_opts);
+    s = std::make_shared<MsatSolver>();
+    set_msat_options_for_ic3(s);
     // no models needed for a reducer
-    opts.emplace("model_generation", "false");
-    msat_config cfg = get_msat_config_for_ic3(opts);
-    msat_env env = msat_create_env(cfg);
-    s = std::make_shared<MsatSolver>(cfg, env);
+    s->set_opt("model_generation", "false");
+    // user-specified options take precedence
+    for (const auto & optpair : solver_opts) {
+      s->set_opt(optpair.first, optpair.second);
+    }
     if (logging) {
       s = std::make_shared<LoggingSolver>(s);
     }
@@ -263,31 +302,34 @@ SmtSolver create_reducer(SolverEnum se,
   return s;
 }
 
-SmtSolver create_interpolating_solver(SolverEnum se,
-                                      bool printing,
-                                      const StringMap & solver_opts)
+SmtInterpolator create_interpolating_solver(SolverEnum se,
+                                            bool printing,
+                                            const StringMap & solver_opts)
 {
   check_allowed_smt_opts(solver_opts);
-  SmtSolver s;
-  PrintingStyleEnum printing_style = DEFAULT_STYLE;
+  SmtInterpolator s;
   switch (se) {
     case BZLA:
     case BZLA_INTERPOLATOR: {
       s = BitwuzlaSolverFactory::create_interpolating_solver();
-      printing_style = BZLA_STYLE;
       break;
     }
     case CVC5:
     case CVC5_INTERPOLATOR: {
       s = Cvc5SolverFactory::create_interpolating_solver();
-      printing_style = CVC5_STYLE;
       break;
     }
 #ifdef WITH_MSAT
     case MSAT:
     case MSAT_INTERPOLATOR: {
       s = MsatSolverFactory::create_interpolating_solver();
-      printing_style = MSAT_STYLE;
+      break;
+    }
+#endif
+#ifdef WITH_YICES2
+    case YICES2:
+    case YICES2_INTERPOLATOR: {
+      s = Yices2SolverFactory::create_interpolating_solver();
       break;
     }
 #endif
@@ -296,7 +338,7 @@ SmtSolver create_interpolating_solver(SolverEnum se,
     }
   }
   if (printing) {
-    s = create_printing_solver(s, &std::cerr, printing_style);
+    s = create_printing_interpolator(s, &std::cerr);
   }
   for (const auto & optpair : solver_opts) {
     s->set_opt(optpair.first, optpair.second);
@@ -304,10 +346,10 @@ SmtSolver create_interpolating_solver(SolverEnum se,
   return s;
 }
 
-SmtSolver create_interpolating_solver_for(SolverEnum se,
-                                          Engine e,
-                                          bool printing,
-                                          const StringMap & solver_opts)
+SmtInterpolator create_interpolating_solver_for(SolverEnum se,
+                                                Engine e,
+                                                bool printing,
+                                                const StringMap & solver_opts)
 {
   if (ic3_variants().find(e) == ic3_variants().end() || se != MSAT) {
     return create_interpolating_solver(se, printing, solver_opts);
@@ -319,16 +361,16 @@ SmtSolver create_interpolating_solver_for(SolverEnum se,
       // for convenience -- accept any MSAT SolverEnum
     case MSAT:
     case MSAT_INTERPOLATOR: {
-      // These will be managed by the solver object
-      // don't need to destroy
-      StringMap msat_opts(solver_opts);
-      msat_opts.emplace("bool_model_generation", "false");
-      msat_opts.emplace("model_generation", "true");
-      msat_config cfg = get_msat_config_for_ic3(msat_opts);
-      msat_env env = msat_create_env(cfg);
-      SmtSolver solver = std::make_shared<MsatInterpolatingSolver>(cfg, env);
+      SmtInterpolator solver = std::make_shared<MsatInterpolatingSolver>();
+      set_msat_options_for_ic3(solver);
+      solver->set_opt("bool_model_generation", "false");
+      solver->set_opt("model_generation", "true");
+      // user-specified options take precedence
+      for (const auto & optpair : solver_opts) {
+        solver->set_opt(optpair.first, optpair.second);
+      }
       if (printing) {
-        solver = create_printing_solver(solver, &std::cerr, MSAT_STYLE);
+        solver = create_printing_interpolator(solver, &std::cerr);
       }
       return solver;
     }
@@ -382,7 +424,8 @@ const std::vector<SolverEnum> itp_enums({
 const std::unordered_map<SolverEnum, SolverEnum> interpolator_to_solver(
     { { BZLA_INTERPOLATOR, BZLA },
       { CVC5_INTERPOLATOR, CVC5 },
-      { MSAT_INTERPOLATOR, MSAT } });
+      { MSAT_INTERPOLATOR, MSAT },
+      { YICES2_INTERPOLATOR, YICES2 } });
 
 std::vector<SolverEnum> available_solver_enums() { return solver_enums; }
 
@@ -398,7 +441,20 @@ std::vector<SolverEnum> available_solver_enums_except(
   return res;
 }
 
-std::vector<SolverEnum> available_interpolator_enums() { return itp_enums; }
+std::vector<SolverEnum> available_interpolator_enums()
+{
+  std::vector<SolverEnum> res = itp_enums;
+#ifdef WITH_YICES2
+  // a Yices2 without MCSAT refuses to create an interpolator
+  try {
+    Yices2SolverFactory::create_interpolating_solver();
+    res.push_back(YICES2_INTERPOLATOR);
+  }
+  catch (const NotImplementedException &) {
+  }
+#endif
+  return res;
+}
 
 std::vector<SolverEnum> filter_solver_enums(
     const std::unordered_set<SolverAttribute> attributes)
@@ -425,7 +481,7 @@ std::vector<SolverEnum> filter_interpolator_enums(
     const std::unordered_set<SolverAttribute> attributes)
 {
   std::vector<SolverEnum> filtered_enums;
-  for (auto se : itp_enums) {
+  for (auto se : available_interpolator_enums()) {
     const std::unordered_set<SolverAttribute> & se_attrs =
         get_solver_attributes(interpolator_to_solver.at(se));
     bool all_attrs = true;

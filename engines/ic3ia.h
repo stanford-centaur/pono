@@ -71,7 +71,7 @@ class IC3IA : public IC3
   // useful for checking if predicate has been added already
   // also available as a vector in ia_.predicates()
 
-  smt::SmtSolver interpolator_;  ///< interpolator for refinement
+  smt::SmtInterpolator interpolator_;  ///< interpolator for refinement
   smt::TermTranslator
       to_interpolator_;  ///< transfer terms from solver_ to interpolator_
   smt::TermTranslator
