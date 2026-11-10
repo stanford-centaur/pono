@@ -31,6 +31,9 @@ class CegarValuesTest
 
 TEST_P(CegarValuesTest, SimpleSafe)
 {
+  if (opts.smt_interpolator_ == YICES2_INTERPOLATOR) {
+    GTEST_SKIP() << "Yices2 cannot interpolate over an array both sides share";
+  }
   RelationalTransitionSystem rts(s);
   Sort intsort = rts.make_sort(INT);
   Sort arrsort = rts.make_sort(ARRAY, intsort, intsort);
@@ -102,6 +105,9 @@ TEST_P(CegarValuesTest, HierarchicalName)
   // produces, such as "mod.sig[3]"). Same scenario as SimpleSafe, just with
   // hierarchical variable names so value abstraction actually exercises the
   // fixed code paths.
+  if (opts.smt_interpolator_ == YICES2_INTERPOLATOR) {
+    GTEST_SKIP() << "Yices2 cannot interpolate over an array both sides share";
+  }
   RelationalTransitionSystem rts(s);
   Sort intsort = rts.make_sort(INT);
   Sort arrsort = rts.make_sort(ARRAY, intsort, intsort);

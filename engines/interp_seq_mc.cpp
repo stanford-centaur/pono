@@ -69,6 +69,12 @@ void InterpSeqMC::initialize()
     }
   }
 
+  // register symbols at time 0 (`step()` registers those at later times),
+  // which `check_itp_sequence()` translates back;
+  // an unregistered symbol is looked up by its printed name,
+  // which misses if the name needs quoting
+  update_term_map(0);
+
   concrete_cex_ = false;
   reach_seq_.clear();
   trans_seq_.clear();

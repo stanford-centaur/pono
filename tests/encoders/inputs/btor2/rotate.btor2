@@ -1,0 +1,63 @@
+1 sort bitvec 1
+2 sort bitvec 2
+3 sort bitvec 3
+4 input 3 a
+5 zero 3
+6 one 3
+7 constd 3 2
+8 constd 3 3
+; a rotated left by 1 bit.
+9 slice 2 4 1 0
+10 slice 1 4 2 2
+11 concat 3 9 10
+; a rotated left by 2 bits.
+12 slice 1 4 0 0
+13 slice 2 4 2 1
+14 concat 3 12 13
+; Rotating left by 0 and by the width 3 leaves a unchanged,
+; rotating left by 1 and 2 matches the rotations above.
+15 rol 3 4 5
+16 neq 1 15 4
+17 bad 16
+18 rol 3 4 6
+19 neq 1 18 11
+20 bad 19
+21 rol 3 4 7
+22 neq 1 21 14
+23 bad 22
+24 rol 3 4 8
+25 neq 1 24 4
+26 bad 25
+; Rotating right by 0 and by the width 3 leaves a unchanged,
+; rotating right by 1 and 2 is rotating left by 2 and 1.
+27 ror 3 4 5
+28 neq 1 27 4
+29 bad 28
+30 ror 3 4 6
+31 neq 1 30 21
+32 bad 31
+33 ror 3 4 7
+34 neq 1 33 18
+35 bad 34
+36 ror 3 4 8
+37 neq 1 36 4
+38 bad 37
+; At width 70, rotating by 2^64 is rotating by 16,
+; since 2^64 mod 70 = 16.
+39 sort bitvec 70
+40 input 39 x
+41 const 39 0000010000000000000000000000000000000000000000000000000000000000000000
+42 sort bitvec 54
+43 sort bitvec 16
+44 rol 39 40 41
+45 slice 42 40 53 0
+46 slice 43 40 69 54
+47 concat 39 45 46
+48 neq 1 44 47
+49 bad 48
+50 ror 39 40 41
+51 slice 43 40 15 0
+52 slice 42 40 69 16
+53 concat 39 51 52
+54 neq 1 50 53
+55 bad 54
