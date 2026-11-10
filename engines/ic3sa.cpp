@@ -171,7 +171,16 @@ void IC3SA::predecessor_generalization(size_t i,
     }
   }
   assert(coi_symbols.size() <= ts_.statevars().size());
-  assert(coi_symbols.size());
+  if (coi_symbols.empty()) {
+    // the next state of c does not depend on the current state (e.g., c is
+    // over state variables without an update, which can take any next value),
+    // so every state is a predecessor; keep the cube of the whole model that
+    // pred holds, as the IC3 engines without predecessor generalization do
+    logger.log(2,
+               "IC3SA::generalize_predecessor found no current-state variable "
+               "to project on, keeping the cube of the model");
+    return;
+  }
 
   logger.log(
       2,
