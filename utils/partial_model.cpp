@@ -18,8 +18,10 @@
 #include "utils/partial_model.h"
 
 #include <cassert>
+#include <cstdint>
+#include <string>
 
-#include "utils/str_util.h"
+#include "utils/term_analysis.h"
 
 namespace pono {
 
@@ -94,75 +96,11 @@ void PartialModelGen::GetVarListForAsts(const smt::TermVec & asts,
 }
 
 /* Internal Function */
-bool static extract_decimal_width(const std::string & s,
-                                  std::string & decimal,
-                                  std::string & width)
-{
-  if (s.substr(0, 5) != "(_ bv") return false;
-  auto space_idx = s.find(' ', 5);
-  if (space_idx == std::string::npos) return false;
-  auto rpara_idx = s.find(')', space_idx);
-  if (rpara_idx == std::string::npos) return false;
-
-  decimal = s.substr(5, space_idx - 5);
-  width = s.substr(space_idx + 1, rpara_idx - (space_idx + 1));
-  assert(!width.empty());
-  return true;
-}
-
-static std::string get_all_one(uint64_t width)
-{
-  std::vector<char> out = { 1 };
-
-  for (unsigned idx = 1; idx < width; ++idx) {
-    syntax_analysis::mul2(out);
-    syntax_analysis::add1(out);
-  }
-
-  std::string ret;
-  for (auto pos = out.rbegin(); pos != out.rend(); ++pos) {
-    ret += *pos + '0';
-  }
-  return ret;
-}
-
-bool static convert_to_boolean_and_check(const std::string & decimal,
-                                         const std::string & width,
-                                         bool _0or1)
-{
-  static std::unordered_map<uint64_t, std::string> width2fullones;
-
-  if (!_0or1) {
-    for (auto c : decimal)
-      if (c != '0') return false;
-    return true;
-  }  // if 0, requires 0,00,000
-
-  auto width_i = syntax_analysis::StrToULongLong(width, 10);
-  assert(width_i != 0);
-  auto fullone_pos = width2fullones.find(width_i);
-  if (fullone_pos == width2fullones.end()) {
-    fullone_pos = width2fullones.emplace(width_i, get_all_one(width_i)).first;
-  }
-  return decimal == fullone_pos->second;
-}
-
-/* Internal Function */
 static inline bool is_all_zero(const std::string & s)
 {
   if (s == "true") return false;
   if (s == "false") return true;
-  assert(s.length() > 2);
-  if (s.substr(0, 2) == "#b") {
-    for (auto pos = s.begin() + 2; pos != s.end(); ++pos)
-      if (*pos != '0') return false;
-    return true;
-  }  // else
-  std::string decimal, width;
-  [[maybe_unused]] bool conv_succ = extract_decimal_width(s, decimal, width);
-  assert(conv_succ);
-
-  return convert_to_boolean_and_check(decimal, width, false);
+  return smtlib_bv_to_bits(s).find('1') == std::string::npos;
 }
 
 /* Internal Function */
@@ -171,20 +109,11 @@ static inline bool is_all_one(const std::string & s, uint64_t w)
   if (s == "true") return true;
   if (s == "false") return false;
 
-  assert(s.length() > 2);
-  if (s.substr(0, 2) == "#b") {
-    assert(s.length() - 2 <= w);
-    if (s.length() - 2 < w)  // if it has fewer zeros
-      return false;
-    for (auto pos = s.begin() + 2; pos != s.end(); ++pos)
-      if (*pos != '1') return false;
-    return true;
-  }
-  std::string decimal, width;
-  [[maybe_unused]] bool conv_succ = extract_decimal_width(s, decimal, width);
-  assert(conv_succ);
-
-  return convert_to_boolean_and_check(decimal, width, true);
+  const std::string bits = smtlib_bv_to_bits(s);
+  assert(bits.length() <= w);
+  if (bits.length() < w)  // if it has fewer zeros
+    return false;
+  return bits.find('0') == std::string::npos;
 }
 
 /* Internal Macros */

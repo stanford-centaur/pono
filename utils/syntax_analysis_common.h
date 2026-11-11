@@ -91,11 +91,11 @@ struct PerVarsetInfo
 // value for enumeration
 struct eval_val
 {
-  // the starting char is always 1
+  // the value in decimal, without leading zeros
   std::string sv;
 
+  // reads a Boolean or bit-vector value as Term::to_string gives it
   eval_val(const std::string & val);
-  // will remove #b0...0 and then decide to convert or not
   // default copy and assignment, and then
 
   bool operator==(const eval_val & r) const { return (sv == r.sv); }
@@ -104,8 +104,7 @@ struct eval_val
 
   std::string to_string() const { return sv; }
 
-  // the first one is always 1....
-  // so, if one is shorter, it must be smaller
+  // without leading zeros, a shorter value is smaller
 
 };  // struct eval_val
 

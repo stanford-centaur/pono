@@ -22,8 +22,10 @@
 #include <iostream>
 
 #include "frontends/btor2_encoder.h"
+#include "gmpxx.h"
 #include "utils/logger.h"
 #include "utils/str_util.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
@@ -62,99 +64,23 @@ static std::string width2range(uint64_t w)
   return "";
 }
 
-// copied from btor2_witness_printer,
-// so that we don't need to include
-// because its header contains also
-// implementation, this creates troubles
-static std::string as_bits(std::string val)
+// convert a value to a VCD value: one bit for a Boolean, b and the bits for a
+// bit-vector
+static std::string as_bits(const std::string & val)
 {
-  // TODO: this makes assumptions on format of value from boolector
-  //       to support other solvers, we need to be more general
-  std::string res = val;
-
-  if (val.length() < 2) {
-    throw PonoException("Don't know how to interpret value: " + val);
-  }
-
   if (val == "true") {
     return "1";
   }
   if (val == "false") {
     return "0";
   }
-
-  if (res.substr(0, 2) == "#b") {
-    // #b prefix -> b
-    res = res.substr(1, val.length() - 1);
-  } else if (res.substr(0, 2) == "#x") {
-    throw PonoException("Not supporting hexadecimal format yet.");
-  } else {
-    res = res.substr(5, res.length() - 5);
-    std::istringstream iss(res);
-    std::vector<std::string> tokens(std::istream_iterator<std::string>{ iss },
-                                    std::istream_iterator<std::string>());
-
-    if (tokens.size() != 2) {
-      throw PonoException("Failed to interpret " + val);
-    }
-
-    res = tokens[0];
-    // get rid of ")"
-    std::string width_str = tokens[1].substr(0, tokens[1].length() - 1);
-    size_t width = std::stoull(width_str);
-    mpz_class cval(res);
-    res = cval.get_str(2);
-    size_t strlen = res.length();
-
-    if (strlen < width) {
-      // pad with zeros
-      res = std::string(width - strlen, '0') + res;
-    } else if (strlen > width) {
-      // remove prepended zeros
-      res = res.erase(0, strlen - width);
-    }
-    return res;
-  }
-  return res;
+  return "b" + smtlib_bv_to_bits(val);
 }
 
-// convert boolector value to decimal
-static std::string as_decimal(std::string val)
+// convert a bit-vector value to decimal
+static std::string as_decimal(const std::string & val)
 {
-  // TODO: this makes assumptions on format of value from boolector
-  //       to support other solvers, we need to be more general
-  std::string res = val;
-
-  if (val.length() < 2) {
-    throw PonoException("Don't know how to interpret value: " + val);
-  }
-
-  if (res.substr(0, 2) == "#b") {
-    // #b prefix -> b
-    res = res.substr(2, val.length() - 1);
-    mpz_class cval(res, 2);
-    res = cval.get_str(10);
-  } else if (res.substr(0, 2) == "#x") {
-    throw PonoException("Not supporting hexadecimal format yet.");
-  } else {
-    res = res.substr(5, res.length() - 5);
-    std::istringstream iss(res);
-    std::vector<std::string> tokens(std::istream_iterator<std::string>{ iss },
-                                    std::istream_iterator<std::string>());
-
-    if (tokens.size() != 2) {
-      throw PonoException("Failed to interpret " + val);
-    }
-
-    res = tokens[0];
-    // get rid of ")"
-    std::string width_str = tokens[1].substr(0, tokens[1].length() - 1);
-    [[maybe_unused]] size_t width = std::stoull(width_str);
-    mpz_class cval(res);
-    res = cval.get_str(10);
-    return res;
-  }
-  return res;
+  return mpz_class(smtlib_bv_to_bits(val), 2).get_str(10);
 }
 
 // ------------- CLASS FUNCTIONS ------------------ //

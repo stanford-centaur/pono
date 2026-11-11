@@ -16,8 +16,6 @@ import smt_switch as ss
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_vcd_trace(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
-    if create_solver is ss.solvers.get("z3"):
-        pytest.skip(reason="Z3's hexadecimal format is not supported yet")
     solver = create_solver(create_solver is ss.solvers.get("yices2"))
     solver.set_opt("incremental", "true")
     solver.set_opt("produce-models", "true")

@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
+#include "utils/exceptions.h"
 #include "utils/make_provers.h"
 #include "utils/term_analysis.h"
 #include "utils/term_walkers.h"
@@ -208,6 +209,45 @@ TEST_P(UtilsUnitTests, RemoveItes)
   s->assert_formula(s->make_term(Distinct, top, symbolic_return_val));
   r = s->check_sat();
   EXPECT_TRUE(r.is_unsat());
+}
+
+// Each solver's own way of printing a value gives the same bits: 8 bits make
+// Z3 print hexadecimal, 7 bits binary, and 72 bits are more than to_int reads.
+TEST_P(UtilsUnitTests, SmtlibBvToBitsReadsValues)
+{
+  Term x = s->make_symbol("x", bvsort);
+  Term y = s->make_symbol("y", s->make_sort(BV, 7));
+  Term z = s->make_symbol("z", s->make_sort(BV, 72));
+  s->assert_formula(
+      s->make_term(Equal, x, s->make_term("a5", x->get_sort(), 16)));
+  s->assert_formula(
+      s->make_term(Equal, y, s->make_term("1011010", y->get_sort(), 2)));
+  s->assert_formula(s->make_term(
+      Equal, z, s->make_term("800000000000000001", z->get_sort(), 16)));
+  ASSERT_TRUE(s->check_sat().is_sat());
+
+  EXPECT_EQ(smtlib_bv_to_bits(s->get_value(x)->to_string()), "10100101");
+  EXPECT_EQ(smtlib_bv_to_bits(s->get_value(y)->to_string()), "1011010");
+  EXPECT_EQ(smtlib_bv_to_bits(s->get_value(z)->to_string()),
+            "1" + string(70, '0') + "1");
+}
+
+TEST(SmtlibBvToBits, ReadsEachForm)
+{
+  EXPECT_EQ(smtlib_bv_to_bits("#b0101"), "0101");
+  EXPECT_EQ(smtlib_bv_to_bits("#x0a"), "00001010");
+  EXPECT_EQ(smtlib_bv_to_bits("#xFf"), "11111111");
+  EXPECT_EQ(smtlib_bv_to_bits("(_ bv5 8)"), "00000101");
+  EXPECT_EQ(smtlib_bv_to_bits("(_ bv0 3)"), "000");
+}
+
+TEST(SmtlibBvToBits, RejectsOtherStrings)
+{
+  EXPECT_THROW(smtlib_bv_to_bits("true"), PonoException);
+  EXPECT_THROW(smtlib_bv_to_bits("#x"), PonoException);
+  EXPECT_THROW(smtlib_bv_to_bits("#xg"), PonoException);
+  EXPECT_THROW(smtlib_bv_to_bits("(_ bv5)"), PonoException);
+  EXPECT_THROW(smtlib_bv_to_bits("(_ bv256 8)"), PonoException);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedUtilsUnitTests,
