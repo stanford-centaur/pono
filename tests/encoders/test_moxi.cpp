@@ -1,0 +1,646 @@
+#include <cstdio>
+#include <fstream>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "core/rts.h"
+#include "engines/kinduction.h"
+#include "frontends/moxi_encoder.h"
+#include "gtest/gtest.h"
+#include "smt/available_solvers.h"
+#include "test_encoder_inputs.h"
+#include "utils/exceptions.h"
+#include "utils/str_util.h"
+
+using namespace pono;
+using namespace smt;
+using namespace std;
+
+namespace pono_tests {
+
+string moxi_path(const string & file)
+{
+  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
+  return string(STRFY(PONO_SRC_DIR)) + "/tests/encoders/inputs/moxi/" + file;
+}
+
+/** @return whether the two formulas are equivalent */
+bool equivalent(const SmtSolver & s, const Term & a, const Term & b)
+{
+  s->push();
+  s->assert_formula(s->make_term(Distinct, a, b));
+  const bool result = s->check_sat().is_unsat();
+  s->pop();
+  return result;
+}
+
+/** A query, the solver to check it with, the sort that encodes the
+ *  enumerations, and whether to drop a stutter term. */
+struct MoxiQueryRun
+{
+  SolverEnum se;
+  MoxiQuery query;
+  MoxiEnumEncoding enum_encoding = MoxiEnumEncoding::DT;
+  bool drop_stutter = false;
+};
+
+ostream & operator<<(ostream & os, const MoxiQueryRun & run)
+{
+  static const unordered_map<MoxiEnumEncoding, string> names{
+    { MoxiEnumEncoding::DT, "dt" },     { MoxiEnumEncoding::BV, "bv" },
+    { MoxiEnumEncoding::INT, "int" },   { MoxiEnumEncoding::REAL, "real" },
+    { MoxiEnumEncoding::AUTO, "auto" },
+  };
+  os << run.query << " with " << run.se;
+  if (run.enum_encoding != MoxiEnumEncoding::DT) {
+    os << ", enumerations as " << names.at(run.enum_encoding);
+  }
+  return os << (run.drop_stutter ? ", stutter dropped" : "");
+}
+
+/** Each query with each solver that has the theories it needs, a query of a
+ *  stutter_*.moxi file also with its stutter term dropped, which must not
+ *  change the result, and a query over enumerations, which datatypes encode,
+ *  also with each other sort that can encode them instead. */
+vector<MoxiQueryRun> moxi_query_params()
+{
+  vector<MoxiQueryRun> params;
+  for (const MoxiQuery & query : moxi_queries) {
+    vector<pair<MoxiEnumEncoding, unordered_set<SolverAttribute>>> encodings{
+      { MoxiEnumEncoding::DT, query.theories }
+    };
+    // Only enumerations need datatypes, which encode them by default.
+    if (query.theories.count(THEORY_DATATYPE)) {
+      for (const auto & [encoding, theory] :
+           { pair{ MoxiEnumEncoding::BV, THEORY_BV },
+             pair{ MoxiEnumEncoding::INT, THEORY_INT },
+             pair{ MoxiEnumEncoding::REAL, THEORY_REAL } }) {
+        unordered_set<SolverAttribute> theories = query.theories;
+        theories.erase(THEORY_DATATYPE);
+        theories.insert(theory);
+        encodings.emplace_back(encoding, theories);
+      }
+    }
+    for (const auto & [encoding, theories] : encodings) {
+      for (const SolverEnum se : filter_solver_enums(theories)) {
+        if (!query.excluded.count(se)) {
+          params.push_back({ se, query, encoding });
+          // Only the stutter_*.moxi files have a stutter term to drop.
+          if (query.file.rfind("stutter_", 0) == 0) {
+            params.push_back({ se, query, encoding, true });
+          }
+        }
+      }
+    }
+  }
+  return params;
+}
+
+class MoxiQueryUnitTests : public ::testing::Test,
+                           public ::testing::WithParamInterface<MoxiQueryRun>
+{
+};
+
+TEST_P(MoxiQueryUnitTests, Encode)
+{
+  const MoxiQuery & query = GetParam().query;
+  SmtSolver s = create_solver(GetParam().se);
+  RelationalTransitionSystem rts(s);
+  MoxiEncoder encoder(moxi_path(query.file),
+                      rts,
+                      query.index,
+                      GetParam().enum_encoding,
+                      GetParam().drop_stutter);
+
+  ASSERT_TRUE(rts.only_curr(encoder.prop()));
+  SafetyProperty p(s, encoder.prop());
+  KInduction kind(p, rts, s);
+  EXPECT_EQ(kind.check_until(20), query.result);
+}
+
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverMoxiQueryUnitTests,
+                         MoxiQueryUnitTests,
+                         testing::ValuesIn(moxi_query_params()));
+
+/** Encodes inputs with each solver that has integers and bit-vectors, which
+ *  the inputs of these tests use. */
+class MoxiEncoderUnitTests : public ::testing::Test,
+                             public ::testing::WithParamInterface<SolverEnum>
+{
+ protected:
+  void SetUp() override { s = create_solver(GetParam()); }
+
+  SmtSolver s;
+};
+
+/** Encodes inputs over bit-vectors only, with each solver that has them. */
+class MoxiEncoderBvUnitTests : public MoxiEncoderUnitTests
+{
+};
+
+TEST_P(MoxiEncoderBvUnitTests, SelectsCheckSystem)
+{
+  RelationalTransitionSystem rts(s);
+  MoxiEncoder encoder(moxi_path("checks.moxi"), rts, 1);
+  EXPECT_EQ(encoder.query_name(), "impossible");
+}
+
+// Only the command with the :queries attribute is rejected; moxi_queries
+// checks the others of the file.
+TEST_P(MoxiEncoderBvUnitTests, RejectsQueriesAttribute)
+{
+  RelationalTransitionSystem rts(s);
+  try {
+    MoxiEncoder encoder(moxi_path("checks.moxi"), rts, 3);
+    FAIL() << "the :queries attribute was encoded";
+  }
+  catch (const PonoException & e) {
+    EXPECT_NE(string(e.what()).find(
+                  "checks.moxi:31:3: the :queries attribute is not supported"),
+              string::npos)
+        << e.what();
+  }
+}
+
+TEST_P(MoxiEncoderBvUnitTests, NamesSubsystemVarsAfterInstance)
+{
+  RelationalTransitionSystem rts(s);
+  MoxiEncoder encoder(moxi_path("subsystems.moxi"), rts);
+  // The check-system renames the variables of the system it checks.
+  for (const string name : { "x",
+                             "y",
+                             "m",
+                             "steps",
+                             "d1.mid",
+                             "d2.mid",
+                             "d1.first.held",
+                             "d2.second.held" }) {
+    EXPECT_NO_THROW(rts.lookup(name)) << name;
+  }
+  for (const string name : { "in", "out", "mid", "t", "held" }) {
+    EXPECT_THROW(rts.lookup(name), PonoException) << name;
+  }
+}
+
+// A variable that only the transitions refer to, unprimed, need not be a
+// state, which depends on the query as its assumptions refer to variables too.
+TEST_P(MoxiEncoderUnitTests, MakesInputsOfTransOnlyVars)
+{
+  RelationalTransitionSystem free_rts(s);
+  MoxiEncoder free(moxi_path("assumptions.moxi"), free_rts, 0);
+  EXPECT_TRUE(free_rts.is_input_var(free_rts.lookup("i")));
+  EXPECT_TRUE(free_rts.is_curr_var(free_rts.lookup("s")));
+
+  // a solver of its own, as it cannot have two variables of the same name
+  RelationalTransitionSystem assumed_rts(create_solver(GetParam()));
+  MoxiEncoder assumed(moxi_path("assumptions.moxi"), assumed_rts, 1);
+  EXPECT_TRUE(assumed_rts.is_curr_var(assumed_rts.lookup("i")));
+}
+
+// Primed, an input refers to its next value, so it has to be a state.
+TEST_P(MoxiEncoderUnitTests, MakesStatesOfPrimedInputs)
+{
+  RelationalTransitionSystem rts(s);
+  MoxiEncoder encoder(moxi_path("assumptions.moxi"), rts, 3);
+  EXPECT_TRUE(rts.is_curr_var(rts.lookup("b")));
+}
+
+TEST_P(MoxiEncoderUnitTests, KeepsDeclaredConstants)
+{
+  RelationalTransitionSystem rts(s);
+  MoxiEncoder encoder(moxi_path("constants.moxi"), rts);
+  const Term k = rts.lookup("k");
+  ASSERT_TRUE(rts.is_curr_var(k));
+  EXPECT_EQ(rts.state_updates().at(k), k);
+}
+
+// A :current formula that the query lists replaces the initial conditions of
+// the system and of its subsystems, rather than joining them. Initially, the
+// reachability condition has not held yet.
+TEST_P(MoxiEncoderUnitTests, CurrentReplacesInit)
+{
+  RelationalTransitionSystem init_rts(s);
+  MoxiEncoder init(moxi_path("current.moxi"), init_rts, 0);
+  const Sort int_sort = s->make_sort(INT);
+  EXPECT_TRUE(equivalent(
+      s,
+      init_rts.init(),
+      s->make_term(
+          And,
+          { s->make_term(
+                Equal, init_rts.lookup("n"), s->make_term(10, int_sort)),
+            s->make_term(
+                Equal, init_rts.lookup("t"), s->make_term(0, int_sort)),
+            s->make_term(Not,
+                         init_rts.lookup(generated_name("reached_0"))) })));
+
+  // a solver of its own, as it cannot have two variables of the same name
+  SmtSolver s2 = create_solver(GetParam());
+  RelationalTransitionSystem current_rts(s2);
+  MoxiEncoder current(moxi_path("current.moxi"), current_rts, 1);
+  EXPECT_TRUE(equivalent(
+      s2,
+      current_rts.init(),
+      s2->make_term(
+          And,
+          s2->make_term(Lt,
+                        current_rts.lookup("n"),
+                        s2->make_term(3, s2->make_sort(INT))),
+          s2->make_term(Not,
+                        current_rts.lookup(generated_name("reached_0"))))));
+}
+
+// A stutter step lets a path repeat a state, so k-induction without
+// simple-path checks proves no more than 1-induction. x != 1 is 2-inductive
+// in Swap, as two swaps restore x, but not 1-inductive.
+TEST_P(MoxiEncoderUnitTests, DroppedStutterLetsPathsSkipSimplicity)
+{
+  PonoOptions opts;
+  opts.kind_no_simple_path_check_ = true;
+  for (const bool drop : { false, true }) {
+    // a solver each, as it cannot have two variables of the same name
+    SmtSolver solver = create_solver(GetParam());
+    RelationalTransitionSystem rts(solver);
+    MoxiEncoder encoder(
+        moxi_path("stutter_swap.moxi"), rts, 0, MoxiEnumEncoding::DT, drop);
+    SafetyProperty p(solver, encoder.prop());
+    KInduction kind(p, rts, solver, opts);
+    EXPECT_EQ(kind.check_until(5),
+              drop ? ProverResult::TRUE : ProverResult::UNKNOWN);
+  }
+}
+
+// The stutter term is not dropped for a condition over a step, for a system
+// with subsystems, and if the disjunct with the most stutter equalities does
+// not keep a state variable. Nor is it without the request.
+TEST_P(MoxiEncoderUnitTests, DropsStutterOnlyWhereItCan)
+{
+  const vector<tuple<string, size_t, bool>> queries{
+    { "stutter_count.moxi", 0, true },  { "stutter_count.moxi", 2, true },
+    { "stutter_step.moxi", 0, true },   { "stutter_stop.moxi", 0, true },
+    { "stutter_count.moxi", 3, false }, { "stutter_partial.moxi", 0, false },
+    { "stutter_follow.moxi", 0, false }
+  };
+  for (const auto & [file, index, expect_dropped] : queries) {
+    for (const bool drop : { false, true }) {
+      // a solver each, as it cannot have two variables of the same name
+      SmtSolver solver = create_solver(GetParam());
+      RelationalTransitionSystem rts(solver);
+      MoxiEncoder encoder(
+          moxi_path(file), rts, index, MoxiEnumEncoding::DT, drop);
+      EXPECT_EQ(encoder.stutter_dropped(), drop && expect_dropped)
+          << file << " query " << index << (drop ? " with" : " without")
+          << " the request";
+    }
+  }
+}
+
+// The symbols standing for variables while a file is read are apart from
+// those of any other file.
+TEST_P(MoxiEncoderUnitTests, SharesSolverBetweenFiles)
+{
+  RelationalTransitionSystem counter_rts(s);
+  MoxiEncoder counter(moxi_path("counter.moxi"), counter_rts);
+  RelationalTransitionSystem current_rts(s);
+  EXPECT_NO_THROW(MoxiEncoder(moxi_path("current.moxi"), current_rts));
+}
+
+// Unless the solver has datatypes, a sort of the logic encodes an
+// enumeration, or bit-vectors if the logic has none.
+TEST(MoxiEnumEncodingUnitTests, AutoPicksSortOfLogic)
+{
+  const string path = testing::TempDir() + "pono_test.moxi";
+  for (const auto & [logic, theory, kind] :
+       { tuple{ "QF_LIA", THEORY_INT, INT },
+         tuple{ "QF_LRA", THEORY_REAL, REAL },
+         tuple{ "QF_BVLIA", THEORY_BV, BV },
+         tuple{ "QF_UF", THEORY_BV, BV } }) {
+    {
+      ofstream file(path);
+      file << "(set-logic " << logic << ")"
+           << "(declare-enum-sort Color (red green blue))"
+           << "(define-system S :output ((c Color)))"
+           << "(check-system S :reachable (r (= c red)) :query (q (r)))\n";
+    }
+    for (const SolverEnum se : filter_solver_enums({ theory })) {
+      RelationalTransitionSystem rts(create_solver(se));
+      MoxiEncoder encoder(path, rts, 0, MoxiEnumEncoding::AUTO);
+      const Sort sort = rts.lookup("c")->get_sort();
+      if (solver_has_attribute(se, THEORY_DATATYPE)) {
+        EXPECT_EQ(sort->get_sort_kind(), DATATYPE) << logic << " " << se;
+      } else {
+        EXPECT_EQ(sort->get_sort_kind(), kind) << logic << " " << se;
+        if (kind == BV) {
+          EXPECT_EQ(sort->get_width(), 2) << logic << " " << se;
+        }
+      }
+    }
+  }
+  remove(path.c_str());
+}
+
+TEST_P(MoxiEncoderBvUnitTests, RejectsIndexOutOfRange)
+{
+  RelationalTransitionSystem rts(s);
+  try {
+    MoxiEncoder encoder(moxi_path("counter.moxi"), rts, 4);
+    FAIL() << "check-system 4 of 4 was encoded";
+  }
+  catch (const PonoException & e) {
+    EXPECT_NE(string(e.what()).find("out of range"), string::npos) << e.what();
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverMoxiEncoderUnitTests,
+                         MoxiEncoderUnitTests,
+                         testing::ValuesIn(filter_solver_enums({ THEORY_INT,
+                                                                 THEORY_BV })));
+
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverMoxiEncoderBvUnitTests,
+                         MoxiEncoderBvUnitTests,
+                         testing::ValuesIn(filter_solver_enums({ THEORY_BV })));
+
+/** A malformed MoXI file, with part of the message rejecting it. */
+struct MoxiError
+{
+  string text;
+  string message;
+  MoxiEnumEncoding enum_encoding = MoxiEnumEncoding::DT;
+};
+
+ostream & operator<<(ostream & os, const MoxiError & error)
+{
+  return os << error.message;
+}
+
+// Each file is well-formed apart from one mistake, mostly the one that the
+// reference sort checker in the MoXI tool suite tests with the same name.
+const vector<MoxiError> moxi_errors({
+    // lexical rules
+    { "(define-fun f () Int 00123)", "numeral with a leading zero" },
+    { "(set-logic QF_LRA) (define-fun f () Real 0.)", "syntax error" },
+    { "(define-system S :input (('abc Bool)))", "unexpected character" },
+    { "(define-system S :input ((a'bc Bool)))", "syntax error" },
+    { "(define-fun |abc () Bool true)", "without a closing |" },
+    { "(define-fun |abc\\| () Bool true)", "without a closing |" },
+    // commands
+    { "(fake-command)", "unknown or unsupported command fake-command" },
+    { "(set-logic PHONY)", "unknown logic PHONY" },
+    { "(set-logic QF_BV) (set-logic QF_BV)", "the logic is already set" },
+    { "(define-fun f () Bool true) (define-fun f () Bool false)",
+      "symbol f is already declared" },
+    { "(declare-enum-sort S (and))", "and is a predefined symbol" },
+    { "(declare-enum-sort Bool (A B C))", "sort Bool is already defined" },
+    { "(declare-enum-sort Color (red green))"
+      "(define-system S :input ((c Color)) :output ((o Bool))"
+      " :inv (= o (= c #b0)))",
+      "cannot apply = to arguments of sort Color, (_ BitVec 1)" },
+    { "(set-logic QF_LIA) (define-fun f ((x Int) (y Int)) Int (> x y))",
+      "the definition of f has sort Bool, but Int is declared" },
+    { "(declare-fun x (Bool Bool) Bool) (define-fun y () Bool (x false))",
+      "function x takes 2 arguments, not 1" },
+    { "(set-logic QF_BV) (define-fun f () (_ BitVec 8) (bvadd #x01 #b1))",
+      "cannot apply bvadd" },
+    { "(define-fun f () Bool (and true))", "and cannot take 1 argument" },
+    { "(set-logic QF_LIA) (define-fun f () Int (+ 1))",
+      "+ cannot take 1 argument" },
+    { "(set-logic QF_BV) (define-fun f () (_ BitVec 3) (concat #b1 #b0 #b1))",
+      "concat cannot take 3 arguments" },
+    { "(define-fun f () Bool (to_bv3 true))", "unknown function to_bv3" },
+    // an integer stands for a real only as an argument of arithmetic, =,
+    // distinct and !=
+    { "(set-logic ALL) (define-fun f () Real (ite true 1.5 1))",
+      "cannot apply ite to arguments of sort Bool, Real, Int" },
+    { "(set-logic ALL) (declare-fun a () (Array Real Real))"
+      "(define-fun f () Real (select a 1))",
+      "cannot apply select" },
+    { "(set-logic ALL) (declare-fun a () (Array Int Real))"
+      "(define-fun f () (Array Int Real) (store a 0 1))",
+      "cannot apply store" },
+    { "(set-logic ALL)"
+      "(define-fun f () (Array Int Real) ((as const (Array Int Real)) 0))",
+      "needs a value of sort Real, not Int" },
+    { "(set-logic ALL) (declare-fun g (Real) Bool)"
+      "(define-fun f () Bool (g 1))",
+      "to arguments of sort" },
+    { "(set-logic ALL) (define-fun f () Real 1)",
+      "the definition of f has sort Int, but Real is declared" },
+    { "(set-logic ALL) (define-fun h ((x Real)) Real x)"
+      "(define-fun f () Real (h 1))",
+      "argument 1 of h has sort Int instead of Real" },
+    { "(set-logic ALL) (declare-fun c () Int)"
+      "(define-fun f () Real (as c Real))",
+      "c does not have sort Real" },
+    { "(set-logic ALL) (define-fun f () Real ((as + Real) 1 2))",
+      "the application of + does not have sort Real" },
+    // an enumeration that another sort encodes keeps a sort of its own
+    { "(declare-enum-sort Color (red green)) (define-fun f () Int (+ red 1))",
+      "cannot apply + to arguments of sort Color, Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green)) (define-fun f () Bool (= red 1))",
+      "cannot apply = to arguments of sort Color, Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort A (a1 a2)) (declare-enum-sort B (b1 b2))"
+      "(define-fun f () Bool (distinct a1 b1))",
+      "cannot apply distinct to arguments of sort A, B",
+      MoxiEnumEncoding::BV },
+    { "(declare-enum-sort Color (red green))"
+      "(define-fun f () Color (ite true red 0))",
+      "cannot apply ite to arguments of sort Bool, Color, Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green))"
+      "(define-fun f () (_ BitVec 1) ((_ extract 0 0) red))",
+      "cannot apply extract to an argument of sort Color",
+      MoxiEnumEncoding::BV },
+    { "(declare-enum-sort Color (red green)) (define-fun f () Real red)",
+      "the definition of f has sort Color, but Real is declared",
+      MoxiEnumEncoding::REAL },
+    { "(declare-enum-sort Color (red green)) (declare-fun g (Int) Bool)"
+      "(define-fun f () Bool (g red))",
+      "argument 1 of g has sort Color instead of Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green)) (define-fun h ((x Int)) Int x)"
+      "(define-fun f () Int (h red))",
+      "argument 1 of h has sort Color instead of Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green))"
+      "(declare-const a (Array Color Int))"
+      "(define-fun f () Int (select a 0))",
+      "cannot apply select to arguments of sort (Array Color Int), Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green))"
+      "(define-fun f () (Array Int Color) ((as const (Array Int Color)) 0))",
+      "needs a value of sort Color, not Int",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green))"
+      "(define-system S :input ((c Color)) :init c)",
+      "the formula of :init has sort Color instead of Bool",
+      MoxiEnumEncoding::BV },
+    { "(declare-enum-sort A (a1 a2)) (declare-enum-sort B (b1 b2))"
+      "(define-system S :input ((x A))) (check-system S :input ((y B)))",
+      "variable y has sort B, but the variable x of system S it renames "
+      "has sort A",
+      MoxiEnumEncoding::INT },
+    // where values outside an enumeration would tell arrays apart
+    { "(declare-enum-sort Color (red green))"
+      "(declare-const a (Array Int Color)) (declare-const b (Array Int Color))"
+      "(define-fun f () Bool (= a b))",
+      "cannot encode enumeration Color as Int here, as = would tell apart "
+      "equal arrays of sort (Array Int Color) by values outside Color",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green blue))"
+      "(declare-const a (Array Int Color)) (declare-const b (Array Int Color))"
+      "(define-fun f () Bool (distinct a b))",
+      "cannot encode enumeration Color as (_ BitVec 2) here, as distinct "
+      "would tell apart equal arrays of sort (Array Int Color)",
+      MoxiEnumEncoding::BV },
+    { "(declare-enum-sort Color (red green))"
+      "(declare-fun g ((Array Color Int)) Bool)",
+      "as function g would tell apart equal arguments of sort "
+      "(Array Color Int) by values outside Color",
+      MoxiEnumEncoding::INT },
+    { "(declare-enum-sort Color (red green))"
+      "(declare-const m (Array (Array Color Int) Bool))",
+      "as an array would tell apart equal indices of sort (Array Color Int)",
+      MoxiEnumEncoding::REAL },
+    // operators of solvers that SMT-LIB does not have
+    { "(set-logic QF_BV) (define-fun f () (_ BitVec 1) (bvredor #b10))",
+      "unknown function bvredor" },
+    { "(set-logic QF_BV) (define-fun f () (_ BitVec 1) (bvredand #b10))",
+      "unknown function bvredand" },
+    { "(set-logic ALL) (define-fun f () Int (bv2nat #b10))",
+      "unknown function bv2nat" },
+    { "(set-logic ALL) (define-fun f () (_ BitVec 2) ((_ int2bv 2) 1))",
+      "unknown indexed function int2bv" },
+    { "(define-fun f () Bool g)", "unknown symbol g" },
+    { "(define-fun f () Bool (let ((y true)) y'))",
+      "the bound variable y cannot be primed" },
+    { "(define-fun c () Bool true) (define-system S :init c')",
+      "only variables of a system can be primed" },
+    // define-system
+    { "(define-system S :output ((o Bool)) :init o')",
+      "the next-state variable o' cannot appear in :init" },
+    { "(define-system S :output ((o Bool)) :inv o')",
+      "the next-state variable o' cannot appear in :inv" },
+    { "(define-system S :input ((i Bool)) :output ((i Bool)))",
+      "variable i is declared more than once" },
+    { "(define-system S :input ((i Bool)) :input ((j Bool)))",
+      "attribute :input appears more than once" },
+    { "(define-system S :output ((o Bool)) :init o :init (not o))",
+      "attribute :init appears more than once" },
+    { "(define-system S :init true :input ((i Bool)))", "syntax error" },
+    { "(define-system S :init (bvnot #b0))", "instead of Bool" },
+    { "(define-system S1 :input ((i Bool)))"
+      "(define-system S2 :input ((i Bool)) :subsys (A (S0 i)))",
+      "unknown system S0" },
+    { "(define-system S1 :input ((i Bool)) :output ((o Bool)))"
+      "(define-system S2 :input ((i Bool)) :subsys (A (S1 i)))",
+      "passes 1 variables to system S1, which has 2 inputs and outputs" },
+    { "(define-system S1 :input ((i Bool)))"
+      "(define-system S2 :subsys (A (S1 in)))",
+      "passes in, which is not a variable of system S2" },
+    { "(set-logic QF_BV) (define-system S1 :input ((i Bool)))"
+      "(define-system S2 :local ((b (_ BitVec 1))) :subsys (A (S1 b)))",
+      "passes b of sort (_ BitVec 1) for i of sort Bool" },
+    { "(define-system S1) (define-system S2 :local ((l Bool)) :subsys (l "
+      "(S1)))",
+      "subsystem l has the name of another variable or subsystem of S2" },
+    // check-system
+    { "(define-system S) (check-system S0)", "unknown system S0" },
+    { "(define-system S :input ((i Bool))) (check-system S :input ())",
+      "the :input attribute declares 0 variables, but system S has 1" },
+    { "(set-logic QF_LIA) (define-system S :input ((i Bool)))"
+      "(check-system S :input ((i Int)))",
+      "variable i has sort Int, but the variable i of system S it renames "
+      "has sort Bool" },
+    { "(define-system S :output ((o Bool))) (check-system S :current (c o'))",
+      "the next-state variable o' cannot appear in :current" },
+    { "(define-system S :output ((o Bool)))"
+      "(check-system S :assumption (a o) :fairness (a o))",
+      "another formula of this check-system is named a" },
+    { "(define-system S :output ((o Bool)))"
+      "(check-system S :reachable (r o) :query (q (f)))",
+      "query q refers to f, which is not a formula of this check-system" },
+    { "(define-system S) (check-system S :query (q ()))",
+      "query q lists no formulas" },
+    { "(define-system S) (check-system S :queries ())", "syntax error" },
+    { "(define-system S :output ((o Bool)))"
+      "(check-system S :reachable (r o) :query (q (r)) :query (q (r)))",
+      "query q is defined more than once" },
+    { "(define-system S :output ((o Bool)))"
+      "(check-system S :current (c1 o) :current (c2 (not o))"
+      " :reachable (r o) :query (q (c1 c2 r)))",
+      "query q has more than one :current formula" },
+    // what the encoder does not support
+    { "(define-system S :output ((o Bool)))"
+      "(check-system S :fairness (f o) :reachable (r o) :query (q (f r)))",
+      "only queries without fairness conditions are supported" },
+    { "(define-system S :output ((o Bool)))"
+      "(check-system S :reachable (r o) :queries ((q1 (r)) (q2 (r))))",
+      "the :queries attribute is not supported" },
+    { "(define-system S :output ((o Bool)))", "has no check-system command" },
+    { "(define-system S) (check-system S)",
+      "the check-system command has no query" },
+    { "(define-system S :output ((o Bool)))"
+      "(check-system S :reachable (r o) :query (q1 (r)) :query (q2 (r)))",
+      "has 2 queries, but only one query per command is supported" },
+});
+
+class MoxiErrorUnitTests : public ::testing::Test,
+                           public ::testing::WithParamInterface<MoxiError>
+{
+};
+
+TEST_P(MoxiErrorUnitTests, Rejects)
+{
+  const string path = testing::TempDir() + "pono_test.moxi";
+  {
+    ofstream file(path);
+    file << GetParam().text << "\n";
+  }
+  SmtSolver s = create_solver(CVC5);
+  RelationalTransitionSystem rts(s);
+  try {
+    MoxiEncoder encoder(path, rts, 0, GetParam().enum_encoding);
+    ADD_FAILURE() << "the file was encoded:\n" << GetParam().text;
+  }
+  catch (const PonoException & e) {
+    EXPECT_NE(string(e.what()).find(GetParam().message), string::npos)
+        << e.what();
+  }
+  remove(path.c_str());
+}
+
+INSTANTIATE_TEST_SUITE_P(MoxiErrorUnitTests,
+                         MoxiErrorUnitTests,
+                         testing::ValuesIn(moxi_errors));
+
+// An error names the file and the line and column where it occurs.
+TEST(MoxiLocationUnitTests, LocatesError)
+{
+  const string path = testing::TempDir() + "pono_test.moxi";
+  {
+    ofstream file(path);
+    file << "(set-logic QF_BV)\n"
+         << "; a comment\n"
+         << "(define-system S\n"
+         << "  :output ((o Bool))\n"
+         << "  :init (and o p))\n";
+  }
+  SmtSolver s = create_solver(CVC5);
+  RelationalTransitionSystem rts(s);
+  try {
+    MoxiEncoder encoder(path, rts);
+    FAIL() << "the file was encoded";
+  }
+  catch (const PonoException & e) {
+    EXPECT_EQ(string(e.what()), path + ":5:16: unknown symbol p");
+  }
+  remove(path.c_str());
+}
+
+}  // namespace pono_tests

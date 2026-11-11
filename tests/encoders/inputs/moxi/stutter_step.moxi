@@ -1,0 +1,16 @@
+; The stutter term does not keep the input i, which takes a value of its own
+; in each step anyway, so it is dropped all the same.
+(set-logic QF_LIA)
+
+; adds a positive i to x, or keeps x
+(define-system Step
+  :input ((i Int))
+  :output ((x Int))
+  :init (= x 0)
+  :trans (or (and (<= 0 x) (< 0 i) (= x' (+ x i))) (= x' x)))
+
+(check-system Step
+  :input ((i Int))
+  :output ((x Int))
+  :reachable (three (= x 3))
+  :query (steps_to_three (three)))

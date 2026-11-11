@@ -54,6 +54,8 @@ enum optionIndex
   RESET,
   RESET_BND,
   CLK,
+  MOXI_ENUM_AS,
+  MOXI_DROP_STUTTER,
   SMT_SOLVER,
   SMT_SOLVER_OPT,
   SMT_INTERPOLATOR,
@@ -206,7 +208,8 @@ const option::Descriptor usage[] = {
     "p",
     "prop",
     Arg::Numeric,
-    "  --prop, -p \tProperty index to check (default: 0)." },
+    "  --prop, -p \tProperty index to check (default: 0). For MoXI input, the "
+    "index of the check-system command, which must have exactly one :query." },
   { VERBOSITY,
     0,
     "v",
@@ -353,6 +356,24 @@ const option::Descriptor usage[] = {
     Arg::NonEmpty,
     "  --clock, -c <clock name> \tSymbol to use for clock signal (only "
     "supports starting at 0 and toggling each step)" },
+  { MOXI_ENUM_AS,
+    0,
+    "",
+    "moxi-enum-as",
+    Arg::NonEmpty,
+    "  --moxi-enum-as <sort> \tSort to encode MoXI enumeration sorts as: dt "
+    "(datatypes, default), bv, int, real, or auto, which is dt if the solver "
+    "has datatypes and otherwise the first of bv, int and real that the "
+    "logic has" },
+  { MOXI_DROP_STUTTER,
+    0,
+    "",
+    "moxi-drop-stutter",
+    Arg::None,
+    "  --moxi-drop-stutter \t(experimental) Drop the disjunct of a MoXI "
+    "system's :trans that keeps all variables, and check the reachability "
+    "conditions in the state that its step would leave. Applies only to "
+    "systems without subsystems and queries without next-state variables" },
   { NO_IC3_PREGEN,
     0,
     "",
@@ -955,6 +976,23 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = std::stoul(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;
+        case MOXI_ENUM_AS:
+          if (opt.arg == std::string("dt")) {
+            moxi_enum_encoding_ = MoxiEnumEncoding::DT;
+          } else if (opt.arg == std::string("bv")) {
+            moxi_enum_encoding_ = MoxiEnumEncoding::BV;
+          } else if (opt.arg == std::string("int")) {
+            moxi_enum_encoding_ = MoxiEnumEncoding::INT;
+          } else if (opt.arg == std::string("real")) {
+            moxi_enum_encoding_ = MoxiEnumEncoding::REAL;
+          } else if (opt.arg == std::string("auto")) {
+            moxi_enum_encoding_ = MoxiEnumEncoding::AUTO;
+          } else {
+            throw PonoException("Unknown --moxi-enum-as option: "
+                                + std::string(opt.arg));
+          }
+          break;
+        case MOXI_DROP_STUTTER: moxi_drop_stutter_ = true; break;
         case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = parse_uint(opt.arg); break;
