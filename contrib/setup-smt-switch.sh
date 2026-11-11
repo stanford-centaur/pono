@@ -16,9 +16,10 @@ Usage: $0 [<option> ...]
 
 Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 
-smt-switch downloads and builds each solver it cannot find, except MathSAT and
-Yices2, whose licenses do not allow that. Each dependency location below takes
-an install prefix, where the solver then has to be.
+smt-switch downloads and builds each solver it cannot find, except MathSAT,
+whose license does not allow that, and Yices2 unless given --allow-gpl. Each
+dependency location below takes an install prefix, where the solver then has
+to be.
 
 -h, --help              display this message and exit
 
@@ -31,6 +32,7 @@ Dependency locations:
 --z3-dir=STR            use an existing Z3 installation
 
 Optional features / backends (default: off for all):
+--allow-gpl             permit downloading GPL dependencies, i.e. Yices2
 --python                build python bindings, installed into the active Python
 --with-btor             include Boolector
 --with-msat             include MathSAT which is under a custom non-BSD compliant license
@@ -60,6 +62,7 @@ cvc5_dir=
 msat_dir=
 yices2_dir=
 z3_dir=
+allow_gpl=false
 with_boolector=false
 with_msat=false
 with_python=false
@@ -91,6 +94,7 @@ while (($# > 0)); do
       ;;
 
     # Optional features / backends
+    --allow-gpl) allow_gpl=true ;;
     --python) with_python=true ;;
     --with-btor) with_boolector=true ;;
     --with-msat) with_msat=true ;;
@@ -173,6 +177,9 @@ if [[ $with_z3 == true ]]; then
     conf_opts+=(--z3-dir="$z3_dir")
     pono_opts+=(--z3-dir="$z3_dir")
   fi
+fi
+if [[ $allow_gpl == true ]]; then
+  conf_opts+=(--allow-gpl)
 fi
 if [[ $with_python == true ]]; then
   conf_opts+=(--python)

@@ -34,6 +34,9 @@ class CegProphecyArraysTest
 
 TEST_P(CegProphecyArraysTest, Simple)
 {
+  if (opts.smt_interpolator_ == YICES2_INTERPOLATOR) {
+    GTEST_SKIP() << "Yices2 cannot interpolate over an array both sides share";
+  }
   RelationalTransitionSystem rts(s);
   Sort intsort = rts.make_sort(INT);
   Sort arrsort = rts.make_sort(ARRAY, intsort, intsort);

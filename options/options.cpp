@@ -250,8 +250,8 @@ const option::Descriptor usage[] = {
     "",
     "smt-interpolator",
     Arg::NonEmpty,
-    "  --smt-interpolator \tSMT solver used for interpolation: bzla, cvc5, or "
-    "msat (default: bzla)." },
+    "  --smt-interpolator \tSMT solver used for interpolation: bzla, cvc5, "
+    "msat, or yices2 (default: bzla)." },
   { SMT_INTERPOLATOR_OPT,
     0,
     "",
@@ -970,6 +970,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
             smt_interpolator_ = smt::CVC5_INTERPOLATOR;
           } else if (opt.arg == std::string("msat")) {
             smt_interpolator_ = smt::MSAT_INTERPOLATOR;
+          } else if (opt.arg == std::string("yices2")) {
+            smt_interpolator_ = smt::YICES2_INTERPOLATOR;
           } else {
             throw PonoException("Unknown interpolator: "
                                 + std::string(opt.arg));
