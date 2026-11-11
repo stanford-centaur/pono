@@ -15,7 +15,10 @@
 **/
 
 #include <cassert>
+#include <cstdint>
+#include <string>
 
+#include "gmpxx.h"
 #include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 #include "utils/exceptions.h"
@@ -354,6 +357,47 @@ TermVec remove_ites_under_model(const SmtSolver & solver, const TermVec & terms)
     res.push_back(cache.at(tt));
   }
   return res;
+}
+
+std::string smtlib_bv_to_bits(const std::string & value)
+{
+  string numeral;
+  int base;
+  string width;  // in decimal
+  if (value.rfind("#b", 0) == 0) {
+    numeral = value.substr(2);
+    base = 2;
+    width = to_string(numeral.length());
+  } else if (value.rfind("#x", 0) == 0) {
+    numeral = value.substr(2);
+    base = 16;
+    width = to_string(4 * numeral.length());
+  } else if (value.rfind("(_ bv", 0) == 0 && value.back() == ')') {
+    size_t space = value.find(' ', 5);
+    if (space != string::npos) {
+      numeral = value.substr(5, space - 5);
+      width = value.substr(space + 1, value.length() - space - 2);
+    }
+    base = 10;
+  } else {
+    throw PonoException("Not a bit-vector value: " + value);
+  }
+
+  const char * digits = base == 2    ? "01"
+                        : base == 16 ? "0123456789abcdefABCDEF"
+                                     : "0123456789";
+  if (numeral.empty() || numeral.find_first_not_of(digits) != string::npos
+      || width.empty()
+      || width.find_first_not_of("0123456789") != string::npos) {
+    throw PonoException("Not a bit-vector value: " + value);
+  }
+
+  string bits = mpz_class(numeral, base).get_str(2);
+  uint64_t w = stoull(width);
+  if (bits.length() > w) {
+    throw PonoException("Bit-vector value exceeds its width: " + value);
+  }
+  return string(w - bits.length(), '0') + bits;
 }
 
 }  // namespace pono

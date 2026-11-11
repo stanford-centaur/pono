@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -82,5 +84,14 @@ void get_predicates(const smt::SmtSolver & solver,
  */
 smt::TermVec remove_ites_under_model(const smt::SmtSolver & solver,
                                      const smt::TermVec & terms);
+
+/** The bits, most significant first, of a bit-vector value as a solver
+ *  prints it: `#b...`, `#x...` (Z3, for widths that are multiples of 4) or
+ *  `(_ bvN W)` (e.g., cvc5 and MathSAT)
+ *  @param value the value's string, as Term::to_string gives it
+ *  @return as many bits as the value's width
+ *  @throws PonoException if value is none of these
+ */
+std::string smtlib_bv_to_bits(const std::string & value);
 
 }  // namespace pono

@@ -602,4 +602,53 @@ TEST_F(CliUnitTests, MoxiJusticeIsRejected)
   expect_rejected(run_pono({ "--justice", input_path("moxi/counter.moxi") }),
                   "--justice is not supported for moxi");
 }
+
+/** The solvers this build has, by the names --smt-solver takes. */
+static vector<string> cli_solvers()
+{
+  vector<string> solvers = { "bzla", "cvc5" };
+#ifdef WITH_BOOLECTOR
+  solvers.push_back("btor");
+#endif
+#ifdef WITH_MSAT
+  solvers.push_back("msat");
+#endif
+#ifdef WITH_YICES2
+  solvers.push_back("yices2");
+#endif
+#ifdef WITH_Z3
+  solvers.push_back("z3");
+#endif
+  return solvers;
+}
+
+class CliSolverTests : public CliUnitTests,
+                       public ::testing::WithParamInterface<string>
+{
+};
+
+// Solvers print bit-vector values differently: Bitwuzla as #b..., cvc5 and
+// MathSAT as (_ bvN W), and Z3 as #x... for widths that are multiples of 4.
+// The witness gives the bits whichever solver found them.
+TEST_P(CliSolverTests, Btor2WitnessGivesTheBits)
+{
+  const string trace = witness(
+      { "--smt-solver", GetParam(), input_path("btor2/byte_counter.btor2") });
+  EXPECT_TRUE(contains(trace, "\n0 00010001 in@1\n"));
+  EXPECT_TRUE(contains(trace, "\n0 01010101 in@5\n"));
+}
+
+// A VCD vector value starts with b, which values of the form (_ bvN W) also
+// need.
+TEST_P(CliSolverTests, Btor2WaveformGivesTheBits)
+{
+  const string vcd = waveform(
+      { "--smt-solver", GetParam(), input_path("btor2/byte_counter.btor2") });
+  EXPECT_TRUE(contains(vcd, "\n#1\nb00010001 v"));
+  EXPECT_TRUE(contains(vcd, "\n#5\nb01010101 v"));
+}
+
+INSTANTIATE_TEST_SUITE_P(ParameterizedCliSolverTests,
+                         CliSolverTests,
+                         testing::ValuesIn(cli_solvers()));
 }  // namespace pono_tests
