@@ -41,8 +41,7 @@ class TransitionSystem
       : solver_(s),
         init_(s->make_term(true)),
         trans_(s->make_term(true)),
-        functional_(false),
-        deterministic_(false)
+        functional_(false)
   {
   }
 
@@ -342,8 +341,16 @@ class TransitionSystem
    *   3) every state variable has an update function
    *       --> there exists exactly one next state
    *           if current vars and inputs are fixed
+   *
+   * It is computed from the system rather than recorded, so that no change
+   * to the system can leave it out of date. Only state variables have
+   * updates, so equal sizes mean that each of them has one.
    */
-  bool is_deterministic() const { return deterministic_; }
+  bool is_deterministic() const
+  {
+    return functional_ && constraints_.empty()
+           && state_updates_.size() == statevars_.size();
+  }
 
   /** Whether the transition relation is right-total,
    * i.e., every state has a next state.
@@ -652,12 +659,6 @@ class TransitionSystem
 
   // whether the TransitionSystem is functional
   bool functional_;
-  // whether the TransitionSystem is fully deterministic
-  // i.e. if you fix the current states and inputs
-  // is there only one next state
-  // the only way functional_ could be true and deterministic_ be false
-  // is if not all state variables have update functions
-  bool deterministic_;
 
   // extra vector of terms to TransitionSystems that records constraints
   // added to the transition relation
