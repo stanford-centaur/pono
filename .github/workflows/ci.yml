@@ -1,14 +1,7 @@
 name: CI
 on:
   push:
-  schedule:
-    - cron: "23 3 * * 1" # Mondays at 03:23 UTC, as full hours delay schedules most
   workflow_dispatch: # allow manual trigger
-    inputs:
-      with_z3:
-        description: Build with Z3, as the weekly run does
-        type: boolean
-        default: false
 # Superseded runs are pointless on branches, but main needs a run per commit:
 # giving each of its commits its own group keeps them from queueing, where a
 # pending run is cancelled as soon as the next one arrives.
@@ -27,10 +20,6 @@ jobs:
             conf_build_opts: --debug
     name: ${{ matrix.os }}:${{ matrix.build_type }}
     runs-on: ${{ matrix.os}}
-    env:
-      # Building Z3 doubles the time a run takes, so only the weekly run and a
-      # manual run that asks for it build with Z3.
-      Z3_OPT: ${{ (github.event_name == 'schedule' || inputs.with_z3) && '--with-z3' || '' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -76,11 +65,11 @@ jobs:
           DYLD_FALLBACK_LIBRARY_PATH: /opt/homebrew/lib # this lets the precompiled MathSAT binary (used in the tests) find libgmp
         run: |
           source .venv/bin/activate
-          ./contrib/setup-smt-switch.sh --python --with-btor --with-msat $Z3_OPT
+          ./contrib/setup-smt-switch.sh --python --with-btor --with-msat --with-z3
       - name: Configure
         run: |
           source .venv/bin/activate
-          ./configure.sh --python --with-btor --with-msat $Z3_OPT --static ${{ matrix.conf_build_opts }}
+          ./configure.sh --python --with-btor --with-msat --with-z3 --static ${{ matrix.conf_build_opts }}
       - name: Build
         run: |
           cd build
