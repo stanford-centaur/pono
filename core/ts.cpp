@@ -823,9 +823,7 @@ void TransitionSystem::cache_right_total(bool right_total) const
 TransitionSystem::RightTotalCheckResult::RightTotalCheckResult(
     const TransitionSystem & ts, bool right_total)
     : trans_(ts.trans_),
-      statevars_(ts.statevars_),
       no_state_updates_(ts.no_state_updates_),
-      inputvars_(ts.inputvars_),
       right_total_(right_total)
 {
 }
@@ -833,9 +831,7 @@ TransitionSystem::RightTotalCheckResult::RightTotalCheckResult(
 std::optional<bool> TransitionSystem::RightTotalCheckResult::lookup(
     const TransitionSystem & ts) const
 {
-  if (trans_ == ts.trans_ && statevars_ == ts.statevars_
-      && no_state_updates_ == ts.no_state_updates_
-      && inputvars_ == ts.inputvars_) {
+  if (trans_ == ts.trans_ && no_state_updates_ == ts.no_state_updates_) {
     return right_total_;
   }
   return std::nullopt;
