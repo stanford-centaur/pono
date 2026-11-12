@@ -16,10 +16,11 @@ configurations.
   run for each logic.
 - `pono-bin`: the model checker, which runs without any other files.
 - `smoketest.sh`: prints the version and the usage of `pono`, then runs its
-  portfolio for SV-COMP on the tasks in `examples/` and exits with status 0 if
-  `pono` reports the verdict each task is named after.
-- `examples/`: a MoXI task with a satisfiable query, `sat.moxi`, and one with
-  an unsatisfiable query, `unsat.moxi`.
+  portfolio for SV-COMP, and `pono-bin` with each SMT solver of the portfolio,
+  on the tasks in `examples/`, and exits with status 0 if every run reports
+  the verdict the task is named after.
+- `examples/`: a MoXI task on bit-vectors with a satisfiable query,
+  `sat.moxi`, and one with an unsatisfiable query, `unsat.moxi`.
 - `LICENSE` and `LICENSES/`: the licenses of Pono and of the software linked
   into it.
 
