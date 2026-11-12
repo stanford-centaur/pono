@@ -31,6 +31,12 @@ repos:
     rev: v2.3.1
     hooks:
       - id: mypy
+        # mypy takes the portfolio script for the module pono, which the
+        # Python tests import, so it is checked on its own.
+        exclude: ^scripts/package/pono$
+      - id: mypy
+        name: mypy (portfolio script)
+        files: ^scripts/package/pono$
   - repo: https://github.com/scop/pre-commit-shfmt
     rev: v3.13.1-1
     hooks:

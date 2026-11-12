@@ -2,11 +2,12 @@
 # Packages a statically linked pono binary for distribution, for example on
 # Zenodo as an SV-COMP tool archive, as a directory pono-<version> and its
 # zip archive, where <version> is the git describe output that pono --version
-# reports. Beside the binary, the directory holds a LICENSE that appends a
-# notice for every third-party component linked into the binary to pono's
+# reports. The directory holds the binary as pono-bin, a LICENSE that appends
+# a notice for every third-party component linked into the binary to pono's
 # own, the license texts of those components in LICENSES/, and the files in
-# scripts/package: README.md filled in from README.md.in, and a smoke test,
-# which this script runs on the package.
+# scripts/package: pono, a script that runs a portfolio of configurations of
+# pono-bin, svcomp.yml, its portfolio for SV-COMP, README.md filled in from
+# README.md.in, and a smoke test, which this script runs on the package.
 #
 # The components are detected from the symbols of the binary and located
 # through the CMake cache of its build. License texts that are not on disk
@@ -20,8 +21,8 @@ usage() {
 Usage: $0 [<option> ...] <build-dir>
 
 Packages <build-dir>/pono, which must be statically linked (configure.sh
---static) and not stripped, with the license texts of everything linked
-into it.
+--static) and not stripped, as pono-bin with the license texts of everything
+linked into it, and the portfolio script pono with its portfolio for SV-COMP.
 
 -h, --help              display this message and exit
 -o, --output-dir DIR    write pono-<version>/ and pono-<version>.zip to DIR
@@ -65,6 +66,10 @@ done
 for tool in curl nm readelf strip zip; do
   command -v "$tool" >/dev/null || die "$tool is required but not installed"
 done
+# The smoke test runs the portfolio script, which reads its YAML file with
+# PyYAML.
+python3 -c 'import yaml' 2>/dev/null ||
+  die "python3 with PyYAML is required to test the package"
 
 # The files that go into the package, as they are or filled in.
 assets="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/package"
@@ -506,12 +511,24 @@ if [[ $readme =~ @[A-Z_]+@ ]]; then
 fi
 printf '%s\n' "$readme" >"$pkg/README.md"
 
-if [[ $strip_binary == yes ]]; then
-  strip --strip-all -o "$pkg/pono" "$binary"
-else
-  cp "$binary" "$pkg/pono"
+# The files of scripts/package go into the package from the checkout of this
+# script, but README.md cites the commit of the binary.
+if [[ -n $commit ]]; then
+  while IFS= read -r -d '' file; do
+    file=${file#"$assets"/}
+    if ! git -C "$src_dir" show "$commit:scripts/package/$file" 2>/dev/null |
+      cmp -s - "$assets/$file"; then
+      warn "scripts/package/$file differs from the one in commit $commit"
+    fi
+  done < <(find "$assets" -type f -print0)
 fi
-cp "$assets/smoketest.sh" "$pkg/"
+
+if [[ $strip_binary == yes ]]; then
+  strip --strip-all -o "$pkg/pono-bin" "$binary"
+else
+  cp "$binary" "$pkg/pono-bin"
+fi
+cp "$assets/pono" "$assets/svcomp.yml" "$assets/smoketest.sh" "$pkg/"
 cp -r "$assets/examples" "$pkg/"
 chmod -R u=rwX,go=rX "$pkg"
 # SV-COMP runs the smoke test in the package directory, but the tool has to

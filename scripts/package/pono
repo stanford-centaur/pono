@@ -1,0 +1,950 @@
+#!/usr/bin/env python3
+# Copyright (c) 2026 by the authors listed in the file AUTHORS in the top-level
+# source directory and their institutional affiliations. See the file LICENSE
+# in the top-level source directory for licensing information.
+#
+# This file is part of the pono project.
+"""Run a portfolio of pono configurations on a model.
+
+A portfolio is a YAML file that lists configurations of pono for each logic.
+This script reads the logic of the model from its set-logic command and runs
+the configurations listed for that logic in their order, a few at a time, each
+in a process of its own that has limits on its CPU time and memory. The first
+configuration that answers sat or unsat gives the answer: the script stops the
+others and prints the output of that configuration.
+
+Because a configuration fails alone when it exceeds its memory limit, a limit
+on the memory of the whole run, such as the one that BenchExec enforces in
+SV-COMP, does not end the run as long as the configurations that run at the
+same time fit in it together: the script goes on with the next configuration.
+
+The last configuration of a list can be a fallback, which starts only once
+every other configuration of the list has ended without an answer, so that it
+takes no CPU time from them, but uses what is left when they fail early. As
+nothing waits for it, it has no CPU time limit.
+"""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import csv
+import ctypes
+import dataclasses
+import math
+import os
+import re
+import resource
+import shlex
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+from typing import IO, TYPE_CHECKING, NoReturn
+
+import yaml
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Iterator, Sequence
+    from types import FrameType
+
+HERE = Path(__file__).resolve().parent
+PONO_BIN = HERE / "pono-bin"
+SVCOMP_PORTFOLIO = HERE / "svcomp.yml"
+
+# The exit codes of pono, after ProverResult in core/proverresult.h, in which
+# unknown is -1.
+EXIT_SAT = 0
+EXIT_UNSAT = 1
+EXIT_ERROR = 2
+EXIT_UNKNOWN = 255
+# The verdicts that pono prints on a line of their own, with their exit codes.
+# BenchExec's tool-info module for pono takes the last line of the output that
+# starts with one of them, in this order.
+VERDICTS = {"unsat": EXIT_UNSAT, "sat": EXIT_SAT, "unknown": EXIT_UNKNOWN}
+ANSWERS = {"sat": EXIT_SAT, "unsat": EXIT_UNSAT}
+# The results that leave the question open, rather than reporting a failure.
+INCONCLUSIVE = {"unknown", "timeout", "memout"}
+# The result of a configuration that this script stopped.
+STOPPED = "stopped"
+
+TIME_UNITS = {"": 1, "s": 1, "min": 60, "h": 3600}
+MEMORY_UNITS = {
+    "": 1,
+    "b": 1,
+    "kb": 10**3,
+    "mb": 10**6,
+    "gb": 10**9,
+    "tb": 10**12,
+    "kib": 2**10,
+    "mib": 2**20,
+    "gib": 2**30,
+    "tib": 2**40,
+}
+QUANTITY = re.compile(r"\s*(\d+(?:\.\d*)?|\.\d+)\s*([A-Za-z]*)\s*")
+
+PORTFOLIO_KEYS = ("jobs", "timelimit", "memlimit", "options", "logics")
+CONFIG_KEYS = ("name", "options", "timelimit", "fallback")
+DEFAULT_LOGIC = "default"
+
+# The signals that end this script, which stops its configurations first.
+SIGNALS = (signal.SIGHUP, signal.SIGINT, signal.SIGTERM)
+# A configuration that ran out of memory says so in its error output, or its
+# peak memory comes this close to its limit, which applies to its address
+# space and thus to more than the memory it uses.
+OUT_OF_MEMORY = re.compile(
+    rb"bad_alloc|cannot allocate memory|out of memory", re.IGNORECASE
+)
+NEAR_MEMLIMIT = 0.95
+# How much of the end of the error output of a configuration is searched, and
+# how much of its last line a report quotes.
+ERRORS_TAIL = 1 << 16
+DETAIL_LENGTH = 200
+
+# prctl(PR_SET_PDEATHSIG, SIGKILL) makes the kernel kill a configuration as
+# soon as this script ends, even if the script is killed before it can stop
+# the configurations itself.
+PR_SET_PDEATHSIG = 1
+try:
+    PRCTL: Callable[..., int] | None = ctypes.CDLL(None).prctl
+except (AttributeError, OSError):
+    PRCTL = None
+
+
+class PortfolioError(Exception):
+    """A portfolio, model, or setting that this script cannot run."""
+
+
+class TerminatedError(Exception):
+    """This script received one of SIGNALS."""
+
+    def __init__(self, signum: int) -> None:
+        super().__init__(signal.Signals(signum).name)
+        self.signum = signum
+
+
+def parse_quantity(value: object, units: dict[str, int], what: str) -> float:
+    """Return value in the base unit of units, the unit of a bare number."""
+    number = None
+    if isinstance(value, str):
+        match = QUANTITY.fullmatch(value)
+        if match is not None and match.group(2).lower() in units:
+            number = float(match.group(1)) * units[match.group(2).lower()]
+    elif isinstance(value, (int, float)) and not isinstance(value, bool):
+        number = float(value)
+    if number is None or not 0 < number < math.inf:
+        msg = f"{what}: " if what else ""
+        msg += f"{value!r} is not a positive number, with or without one of the"
+        msg += f" units {', '.join(unit for unit in units if unit)}"
+        raise PortfolioError(msg)
+    return number
+
+
+def parse_time(value: object, what: str = "") -> float:
+    """Return a time in seconds, given in seconds or as, e.g., '5 min'."""
+    return parse_quantity(value, TIME_UNITS, what)
+
+
+def parse_memory(value: object, what: str = "") -> int:
+    """Return an amount of memory in bytes, given in bytes or as, e.g., '7 GB'."""
+    return int(parse_quantity(value, MEMORY_UNITS, what))
+
+
+def format_time(seconds: float) -> str:
+    return f"{seconds:.1f} s"
+
+
+def format_memory(size: float) -> str:
+    if size < 10**9:
+        return f"{size / 10**6:.3g} MB"
+    return f"{size / 10**9:.3g} GB"
+
+
+@dataclasses.dataclass(frozen=True)
+class Config:
+    """A configuration of pono: its options, its CPU time limit in seconds, and
+    whether it is the fallback, which starts only once the others have ended."""
+
+    name: str
+    options: list[str]
+    timelimit: float | None
+    fallback: bool = False
+
+
+@dataclasses.dataclass
+class Portfolio:
+    """The configurations of a portfolio for each logic, and how to run them."""
+
+    path: Path
+    jobs: int
+    memlimit: int | None
+    options: list[str]
+    logics: dict[str, list[Config]]
+
+    def select(self, logic: str | None) -> tuple[str, list[Config]]:
+        """Return the configurations for logic, or else the default ones."""
+        key = logic if logic in self.logics else DEFAULT_LOGIC
+        if key not in self.logics:
+            msg = f"{self.path} lists configurations neither for"
+            msg += f" {logic or 'models without a logic'} nor for '{DEFAULT_LOGIC}'"
+            raise PortfolioError(msg)
+        return key, self.logics[key]
+
+
+def _mapping(
+    value: object,
+    what: str,
+    keys: Collection[str] | None = None,
+    required: Collection[str] = (),
+) -> dict[object, object]:
+    if not isinstance(value, dict):
+        msg = f"{what} is not a mapping"
+        raise PortfolioError(msg)
+    if keys is not None:
+        unknown = [str(key) for key in value if key not in keys]
+        if unknown:
+            msg = f"{what} has the unknown key '{unknown[0]}', not one of"
+            msg += f" {', '.join(keys)}"
+            raise PortfolioError(msg)
+    missing = [key for key in required if key not in value]
+    if missing:
+        msg = f"{what} has no '{missing[0]}'"
+        raise PortfolioError(msg)
+    return value
+
+
+def _options(value: object, what: str) -> list[str]:
+    """Return options given as a string to split as by a shell, or as a list."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        try:
+            return shlex.split(value)
+        except ValueError as error:
+            msg = f"{what}: {error}"
+            raise PortfolioError(msg) from error
+    if isinstance(value, list) and all(
+        isinstance(item, (str, int)) and not isinstance(item, bool) for item in value
+    ):
+        return [str(item) for item in value]
+    msg = f"{what} is neither a string nor a list of strings"
+    raise PortfolioError(msg)
+
+
+def _config(value: object, what: str, timelimit: float | None) -> Config:
+    entry = _mapping(value, what, CONFIG_KEYS, required=["name"])
+    name = entry["name"]
+    if not isinstance(name, str) or not name:
+        msg = f"{what} has a name that is not a non-empty string"
+        raise PortfolioError(msg)
+    what = f"{what} ({name})"
+    fallback = entry.get("fallback", False)
+    if not isinstance(fallback, bool):
+        msg = f"{what}: fallback: {fallback!r} is neither true nor false"
+        raise PortfolioError(msg)
+    if fallback:
+        # Nothing waits for the fallback, so no limit of the portfolio ends it.
+        if entry.get("timelimit") is not None:
+            msg = f"{what} is a fallback, which has no timelimit"
+            raise PortfolioError(msg)
+        timelimit = None
+    elif "timelimit" in entry:
+        own = entry["timelimit"]
+        timelimit = None if own is None else parse_time(own, f"{what}: timelimit")
+    options = _options(entry.get("options"), f"{what}: options")
+    return Config(name, options, timelimit, fallback)
+
+
+def load_portfolio(path: Path) -> Portfolio:
+    """Read and check the portfolio in a YAML file, as --help describes it."""
+    try:
+        with path.open(encoding="utf-8") as stream:
+            data = yaml.safe_load(stream)
+    except OSError as error:
+        msg = f"cannot read {path}: {error.strerror}"
+        raise PortfolioError(msg) from error
+    except yaml.YAMLError as error:
+        msg = f"cannot parse {path}: {error}"
+        raise PortfolioError(msg) from error
+    top = _mapping(data, str(path), PORTFOLIO_KEYS, required=["logics"])
+    jobs = top.get("jobs", 1)
+    if isinstance(jobs, bool) or not isinstance(jobs, int) or jobs < 1:
+        msg = f"{path}: jobs: {jobs!r} is not a positive integer"
+        raise PortfolioError(msg)
+    timelimit = top.get("timelimit")
+    if timelimit is not None:
+        timelimit = parse_time(timelimit, f"{path}: timelimit")
+    memlimit = top.get("memlimit")
+    if memlimit is not None:
+        memlimit = parse_memory(memlimit, f"{path}: memlimit")
+    logics: dict[str, list[Config]] = {}
+    for logic, entries in _mapping(top["logics"], f"{path}: logics").items():
+        what = f"{path}: logics: {logic}"
+        if not isinstance(logic, str):
+            msg = f"{what} is not a string"
+            raise PortfolioError(msg)
+        if not isinstance(entries, list) or not entries:
+            msg = f"{what} is not a non-empty list of configurations"
+            raise PortfolioError(msg)
+        logics[logic] = [
+            _config(entry, f"{what}, configuration {index}", timelimit)
+            for index, entry in enumerate(entries, 1)
+        ]
+        if any(config.fallback for config in logics[logic][:-1]):
+            msg = f"{what} has a fallback that is not its last configuration"
+            raise PortfolioError(msg)
+    options = _options(top.get("options"), f"{path}: options")
+    return Portfolio(path, jobs, memlimit, options, logics)
+
+
+# The tokens of SMT-LIB, and thus of MoXI: whitespace, comments, string
+# literals, quoted symbols, parentheses, and anything else up to one of them.
+TOKEN = re.compile(r'\s+|;[^\n]*|"(?:[^"]|"")*"|\|[^|]*\||[()]|[^\s()";|]+')
+# The commands that can come before set-logic.
+PREAMBLE = ("set-info", "set-option")
+
+
+def _tokens(stream: IO[str]) -> Iterator[str]:
+    """Yield the tokens of stream, except whitespace and comments."""
+    buffer = ""
+    position = 0
+    end = False
+    while True:
+        match = TOKEN.match(buffer, position)
+        # A token that reaches the end of the buffer may go on in the input.
+        if match is None or (match.end() == len(buffer) and not end):
+            if end:
+                return
+            chunk = stream.read(1 << 16)
+            end = not chunk
+            buffer = buffer[position:] + chunk
+            position = 0
+            continue
+        position = match.end()
+        token = match.group()
+        if not token.isspace() and not token.startswith(";"):
+            yield token
+
+
+def detect_logic(path: Path) -> str | None:
+    """Return the logic that a set-logic command at the start of a model sets.
+
+    As in SMT-LIB, only set-info and set-option commands can come before it. A
+    model without it, or in a format other than MoXI or SMT-LIB, has no logic.
+    """
+    with path.open(encoding="utf-8", errors="replace") as stream:
+        tokens = _tokens(stream)
+        for opening in tokens:
+            command = next(tokens, None) if opening == "(" else None
+            if command == "set-logic":
+                logic = next(tokens, None)
+                return None if logic in {None, "(", ")"} else logic.strip("|")
+            if command not in PREAMBLE:
+                return None
+            depth = 1
+            while depth > 0:
+                depth += {"(": 1, ")": -1}.get(next(tokens, ")"), 0)
+    return None
+
+
+def _lower_limit(kind: int, value: int) -> None:
+    for limit in resource.getrlimit(kind):
+        if limit != resource.RLIM_INFINITY:
+            value = min(value, limit)
+    resource.setrlimit(kind, (value, value))
+
+
+def _limits(cpu_seconds: int | None, memlimit: int | None) -> Callable[[], None]:
+    """Return what a configuration's process runs before it starts pono."""
+    parent = os.getpid()
+
+    def apply() -> None:
+        if PRCTL is not None:
+            PRCTL(PR_SET_PDEATHSIG, int(signal.SIGKILL))
+            if os.getppid() != parent:
+                os._exit(EXIT_ERROR)
+        # No core dumps, which can be as large as the memory limit.
+        _lower_limit(resource.RLIMIT_CORE, 0)
+        # At the hard limit, the kernel kills the process, but at a lower soft
+        # limit it sends SIGXCPU, which dumps a core, so both are the same.
+        if cpu_seconds is not None:
+            _lower_limit(resource.RLIMIT_CPU, cpu_seconds)
+        # Last, as Python can hardly allocate memory after this.
+        if memlimit is not None:
+            _lower_limit(resource.RLIMIT_AS, memlimit)
+
+    return apply
+
+
+def make_command(
+    pono_bin: Path, options: list[str], config: Config, model: Path
+) -> list[str]:
+    return [str(pono_bin), *options, *config.options, str(model)]
+
+
+@dataclasses.dataclass
+class Run:
+    """A configuration that runs in a process of its own."""
+
+    index: int
+    config: Config
+    command: list[str]
+    output: Path
+    errors: Path
+    process: subprocess.Popen[bytes]
+    cpu_seconds: int | None
+    started: float
+    stopped: bool = False
+
+
+@dataclasses.dataclass
+class Outcome:
+    """How a configuration ended."""
+
+    result: str
+    returncode: int
+    cputime: float
+    walltime: float
+    memory: int
+    detail: str = ""
+
+
+def _tail(path: Path) -> bytes:
+    try:
+        with path.open("rb") as stream:
+            stream.seek(max(0, path.stat().st_size - ERRORS_TAIL))
+            return stream.read()
+    except OSError:
+        return b""
+
+
+def _verdict(path: Path) -> str | None:
+    """Return the verdict in the output of a configuration, as BenchExec reads it."""
+    verdict = None
+    with contextlib.suppress(OSError), path.open("rb") as stream:
+        for line in stream:
+            for name in VERDICTS:
+                if line.startswith(name.encode()):
+                    verdict = name
+                    break
+    return verdict
+
+
+def _signal_name(signum: int) -> str:
+    try:
+        return signal.Signals(signum).name
+    except ValueError:
+        return f"signal {signum}"
+
+
+def _mismatch(verdict: str | None, returncode: int) -> str | None:
+    """Return how the exit code of a configuration contradicts its verdict."""
+    if verdict is None:
+        claimed = [name for name, code in VERDICTS.items() if code == returncode]
+        if not claimed:
+            return None
+        return (
+            f"exited with {returncode}, which stands for {claimed[0]}, but printed"
+            " no verdict"
+        )
+    if returncode == VERDICTS[verdict]:
+        return None
+    if returncode < 0:
+        status = f"was killed by {_signal_name(-returncode)}"
+    else:
+        status = f"exited with {returncode}"
+    return f"printed {verdict}, but {status} instead of {VERDICTS[verdict]}"
+
+
+def _result(run: Run, returncode: int, cputime: float, verdict: str | None) -> str:
+    """Return the result of a configuration: its verdict, or how it ended."""
+    signum = -returncode
+    if run.stopped and signum == signal.SIGKILL:
+        return STOPPED
+    if verdict is not None:
+        return verdict
+    if returncode == EXIT_ERROR:
+        return "error"
+    if (
+        signum in {signal.SIGKILL, signal.SIGXCPU}
+        and run.cpu_seconds is not None
+        and cputime >= run.cpu_seconds - 1
+    ):
+        return "timeout"
+    if returncode < 0:
+        return _signal_name(signum)
+    return f"exit code {returncode}"
+
+
+@dataclasses.dataclass
+class Runner:
+    """Runs the configurations of a portfolio for a model."""
+
+    configs: list[Config]
+    logic: str
+    model: Path
+    pono_bin: Path
+    options: list[str]
+    jobs: int
+    memlimit: int | None
+    workdir: Path
+    summary: IO[str] | None = None
+    verbose: bool = False
+    running: dict[int, Run] = dataclasses.field(default_factory=dict)
+    outcomes: list[Outcome] = dataclasses.field(default_factory=list)
+
+    def label(self, index: int, config: Config) -> str:
+        return f"[{index}/{len(self.configs)}] {config.name}"
+
+    def start(self, index: int, config: Config) -> None:
+        """Start a configuration, or report why it cannot start."""
+        label = self.label(index, config)
+        command = make_command(self.pono_bin, self.options, config, self.model)
+        cpu_seconds = None
+        if config.timelimit is not None:
+            cpu_seconds = max(1, math.ceil(config.timelimit))
+        if self.verbose:
+            limit = "no" if cpu_seconds is None else format_time(cpu_seconds)
+            message(f"{label}: starts with {limit} CPU time limit:")
+            message(f"{label}: {shlex.join(command)}")
+        output = self.workdir / f"{index}.out"
+        errors = self.workdir / f"{index}.err"
+        started = time.monotonic()
+        try:
+            with output.open("wb") as stdout, errors.open("wb") as stderr:
+                process = subprocess.Popen(
+                    command,
+                    stdin=subprocess.DEVNULL,
+                    stdout=stdout,
+                    stderr=stderr,
+                    # This script runs no threads, which preexec_fn is unsafe with.
+                    preexec_fn=_limits(cpu_seconds, self.memlimit),  # noqa: PLW1509
+                )
+        except (OSError, subprocess.SubprocessError) as error:
+            outcome = Outcome("error", EXIT_ERROR, 0, 0, 0, f"cannot start: {error}")
+            self.report(index, config, command, outcome)
+            return
+        run = Run(index, config, command, output, errors, process, cpu_seconds, started)
+        self.running[process.pid] = run
+
+    def finish(self, run: Run, status: int, usage: resource.struct_rusage) -> Outcome:
+        """Report how the process of a configuration ended, and return it."""
+        cputime = usage.ru_utime + usage.ru_stime
+        walltime = time.monotonic() - run.started
+        memory = usage.ru_maxrss * 1024
+        if os.WIFSIGNALED(status):
+            returncode = -os.WTERMSIG(status)
+        else:
+            returncode = os.WEXITSTATUS(status)
+        # This script reaped the process, so its Popen must not wait for it.
+        run.process.returncode = returncode
+        label = self.label(run.index, run.config)
+        # The verdict that BenchExec would read decides, so that a
+        # configuration that fails after printing it, e.g., as it cleans up,
+        # still answers.
+        verdict = _verdict(run.output)
+        result = _result(run, returncode, cputime, verdict)
+        if result != STOPPED and (mismatch := _mismatch(verdict, returncode)):
+            message(f"{label}: warning: {mismatch}")
+        detail = ""
+        if result not in ANSWERS and result not in INCONCLUSIVE | {STOPPED}:
+            tail = _tail(run.errors)
+            if OUT_OF_MEMORY.search(tail) or (
+                self.memlimit is not None and memory >= NEAR_MEMLIMIT * self.memlimit
+            ):
+                result = "memout"
+            elif lines := [line.strip() for line in tail.splitlines() if line.strip()]:
+                detail = lines[-1].decode(errors="replace")[:DETAIL_LENGTH]
+        outcome = Outcome(result, returncode, cputime, walltime, memory, detail)
+        self.report(run.index, run.config, run.command, outcome)
+        if self.verbose:
+            with run.errors.open(errors="replace") as stream:
+                for line in stream:
+                    message(f"{label}: stderr: {line.rstrip()}")
+        # Only the output of the configuration that answers is printed, and
+        # BenchExec counts the files towards the memory of the run.
+        if result not in ANSWERS:
+            run.output.unlink(missing_ok=True)
+            run.errors.unlink(missing_ok=True)
+        return outcome
+
+    def report(
+        self, index: int, config: Config, command: list[str], outcome: Outcome
+    ) -> None:
+        self.outcomes.append(outcome)
+        text = f"{self.label(index, config)}: {outcome.result} after"
+        text += f" {format_time(outcome.cputime)} CPU time and"
+        text += f" {format_time(outcome.walltime)} wall time, with"
+        text += f" {format_memory(outcome.memory)} memory"
+        message(f"{text}: {outcome.detail}" if outcome.detail else text)
+        if self.summary is not None:
+            csv.writer(self.summary).writerow(
+                [
+                    self.logic,
+                    index,
+                    config.name,
+                    outcome.result,
+                    outcome.returncode,
+                    f"{outcome.cputime:.3f}",
+                    f"{outcome.walltime:.3f}",
+                    outcome.memory,
+                    shlex.join(command),
+                ]
+            )
+            self.summary.flush()
+
+    def stop_all(self) -> None:
+        """Kill the configurations that still run, and wait for them."""
+        for signum in SIGNALS:
+            signal.signal(signum, signal.SIG_IGN)
+        for pid, run in self.running.items():
+            run.stopped = True
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(pid, signal.SIGKILL)
+        for pid, run in list(self.running.items()):
+            with contextlib.suppress(ChildProcessError):
+                _, status, usage = os.wait4(pid, 0)
+                self.finish(run, status, usage)
+            del self.running[pid]
+
+    def run(self) -> int:
+        """Run the configurations until one answers, and return the exit code."""
+        pending = list(enumerate(self.configs, 1))
+        pending.reverse()
+        try:
+            while pending or self.running:
+                while pending and len(self.running) < self.jobs:
+                    # The fallback, which comes last, waits for the others.
+                    if pending[-1][1].fallback and self.running:
+                        break
+                    self.start(*pending.pop())
+                if not self.running:
+                    continue
+                pid, status, usage = os.wait4(-1, 0)
+                run = self.running.pop(pid, None)
+                if run is None:
+                    continue
+                outcome = self.finish(run, status, usage)
+                if outcome.result in ANSWERS:
+                    self.stop_all()
+                    return self.answer(run, outcome)
+        finally:
+            self.stop_all()
+        if any(outcome.result in INCONCLUSIVE for outcome in self.outcomes):
+            message("no configuration answered")
+            print("unknown")
+            return EXIT_UNKNOWN
+        message("every configuration failed")
+        print("error")
+        return EXIT_ERROR
+
+    def answer(self, run: Run, outcome: Outcome) -> int:
+        """Print the output of the configuration that answered."""
+        message(f"{self.label(run.index, run.config)} answered {outcome.result}")
+        # BenchExec reads the same verdict from it as this script did.
+        sys.stdout.flush()
+        with run.output.open("rb") as stream:
+            shutil.copyfileobj(stream, sys.stdout.buffer)
+        sys.stdout.flush()
+        return ANSWERS[outcome.result]
+
+
+def message(text: str) -> None:
+    """Print a message of this script, on a line that no verdict starts."""
+    print(f"pono: {text}", file=sys.stderr, flush=True)
+
+
+def _raise_terminated(signum: int, _frame: FrameType | None) -> NoReturn:
+    raise TerminatedError(signum)
+
+
+def _cli_type(parse: Callable[[str], object]) -> Callable[[str], object]:
+    def convert(text: str) -> object:
+        try:
+            return parse(text)
+        except PortfolioError as error:
+            raise argparse.ArgumentTypeError(str(error)) from error
+
+    return convert
+
+
+def _positive_int(text: str) -> int:
+    if not text.isdigit() or int(text) < 1:
+        msg = f"{text!r} is not a positive integer"
+        raise argparse.ArgumentTypeError(msg)
+    return int(text)
+
+
+DESCRIPTION = """\
+Runs a portfolio of pono configurations on FILE, a model in MoXI or another
+format that pono-bin reads. A portfolio is a YAML file that lists the
+configurations for each logic. This script reads the logic from the set-logic
+command of FILE and runs the configurations for it in their order, JOBS at a
+time, each in a process with limits on its CPU time and memory, until one of
+them answers sat or unsat. It then stops the others and prints the output of
+that configuration. If none answers, it prints unknown, or error if each one
+failed. The messages of this script go to standard error and start with
+"pono:"."""
+
+EPILOG = f"""\
+A portfolio file is a mapping of
+  jobs       the number of configurations that run at the same time
+             (default: 1)
+  timelimit  the CPU time limit of each configuration, in seconds or with a
+             unit, e.g., 300 or 5 min (default: none)
+  memlimit   the memory limit of each configuration, in bytes or with a unit,
+             e.g., 7 GB or 6.5 GiB (default: none)
+  options    the options of every configuration, before its own: a string,
+             which is split as by a shell, or a list (default: none)
+  logics     a mapping from logics to lists of configurations, each a mapping
+             of its name, its options, and optionally a timelimit to use
+             instead of the one above (null for none). The last configuration
+             of a list can have fallback: true instead of a timelimit: it then
+             starts only once every other one has ended without an answer, and
+             has no CPU time limit. The configurations for '{DEFAULT_LOGIC}'
+             run on models whose logic is not listed.
+The memory limit applies to the address space of a configuration's process,
+which is larger than the memory that the process uses.
+
+The verdict of a configuration is the last line of its output that starts with
+sat, unsat, or unknown, as BenchExec reads it from the output of pono-bin and
+of this script. If the exit status of pono-bin does not match the verdict,
+e.g., when it crashes after printing the verdict, this script warns, but keeps
+the verdict.
+
+{SVCOMP_PORTFOLIO.name} beside this script is the portfolio for SV-COMP.
+
+Exit status, as for pono-bin: 0 for sat, 1 for unsat, 255 for unknown, and 2
+for errors."""
+
+
+def make_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="pono",
+        description=DESCRIPTION,
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False,
+    )
+    parser.add_argument("file", nargs="?", type=Path, metavar="FILE")
+    parser.add_argument(
+        "--svcomp",
+        action="store_true",
+        help=f"run the portfolio for SV-COMP, {SVCOMP_PORTFOLIO.name} beside this"
+        " script",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        metavar="PORTFOLIO",
+        help="run the portfolio in the YAML file PORTFOLIO, also if --svcomp is given",
+    )
+    parser.add_argument(
+        "--logic",
+        help="run the configurations for LOGIC rather than for the logic of FILE",
+    )
+    parser.add_argument(
+        "--jobs",
+        type=_positive_int,
+        metavar="N",
+        help="run N configurations at the same time, rather than the portfolio's jobs",
+    )
+    parser.add_argument(
+        "--timelimit",
+        type=_cli_type(parse_time),
+        metavar="TIME",
+        help="limit the CPU time of each configuration, also of a fallback, to"
+        " TIME, e.g., 60 or '2 min', rather than to the time limits of the"
+        " portfolio",
+    )
+    parser.add_argument(
+        "--memlimit",
+        type=_cli_type(parse_memory),
+        metavar="SIZE",
+        help="limit the memory of each configuration to SIZE, e.g., '4 GB',"
+        " rather than to the portfolio's memlimit",
+    )
+    parser.add_argument(
+        "--pono-bin",
+        type=Path,
+        default=PONO_BIN,
+        metavar="PONO",
+        help=f"run the configurations with PONO (default: {PONO_BIN.name} beside"
+        " this script)",
+    )
+    parser.add_argument(
+        "--summary",
+        type=Path,
+        metavar="CSV",
+        help="write a row for each configuration that ran to the file CSV",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the configurations to run on FILE and their command lines,"
+        " but run none",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the command line of each configuration as it starts, and its"
+        " error output as it ends",
+    )
+    parser.add_argument(
+        "--version",
+        action="store_true",
+        help=f"print the version of {PONO_BIN.name}, and exit with its status 2",
+    )
+    return parser
+
+
+def show_version(pono_bin: Path) -> NoReturn:
+    """Run pono-bin --version in place of this script, as BenchExec expects."""
+    try:
+        os.execv(pono_bin, [str(pono_bin), "--version"])  # noqa: S606
+    except OSError as error:
+        message(f"error: cannot run {pono_bin}: {error.strerror}")
+        sys.exit(EXIT_ERROR)
+
+
+@dataclasses.dataclass
+class Plan:
+    """The portfolio to run on a model, and the configurations that run."""
+
+    portfolio: Portfolio
+    logic: str | None
+    key: str
+    configs: list[Config]
+
+    @property
+    def title(self) -> str:
+        """The logic, and where its configurations are from."""
+        if self.logic == self.key:
+            return self.key
+        return f"{self.logic or 'no logic'}, configurations for '{self.key}'"
+
+
+def plan(args: argparse.Namespace) -> Plan:
+    """Return what to run on the model, with the settings of the command line."""
+    portfolio = load_portfolio(args.config or SVCOMP_PORTFOLIO)
+    if args.jobs is not None:
+        portfolio.jobs = args.jobs
+    if args.memlimit is not None:
+        portfolio.memlimit = args.memlimit
+    if not args.pono_bin.is_file() or not os.access(args.pono_bin, os.X_OK):
+        msg = f"cannot execute {args.pono_bin}"
+        raise PortfolioError(msg)
+    if not args.file.is_file():
+        msg = f"cannot find the model {args.file}"
+        raise PortfolioError(msg)
+    logic = args.logic
+    if logic is None:
+        try:
+            logic = detect_logic(args.file)
+        except OSError as error:
+            msg = f"cannot read {args.file}: {error.strerror}"
+            raise PortfolioError(msg) from error
+    key, configs = portfolio.select(logic)
+    if args.timelimit is not None:
+        configs = [dataclasses.replace(c, timelimit=args.timelimit) for c in configs]
+    return Plan(portfolio, logic, key, configs)
+
+
+def dry_run(chosen: Plan, args: argparse.Namespace) -> None:
+    portfolio = chosen.portfolio
+    memlimit = portfolio.memlimit
+    print(f"portfolio: {portfolio.path}")
+    print(f"logic: {chosen.title}")
+    print(f"jobs: {portfolio.jobs}")
+    print(f"memlimit: {'none' if memlimit is None else format_memory(memlimit)}")
+    for index, config in enumerate(chosen.configs, 1):
+        timelimit = config.timelimit
+        print(
+            f"{index}. {config.name}, timelimit:"
+            f" {'none' if timelimit is None else format_time(timelimit)}"
+            f"{', fallback' if config.fallback else ''}"
+        )
+        command = make_command(args.pono_bin, portfolio.options, config, args.file)
+        print(f"   {shlex.join(command)}")
+
+
+SUMMARY_HEADER = (
+    "logic",
+    "index",
+    "config",
+    "result",
+    "returncode",
+    "cputime",
+    "walltime",
+    "memory",
+    "command",
+)
+
+
+def run(chosen: Plan, args: argparse.Namespace) -> int:
+    """Run the configurations of the plan, and return the exit code."""
+    portfolio = chosen.portfolio
+    with contextlib.ExitStack() as stack:
+        workdir = stack.enter_context(tempfile.TemporaryDirectory(prefix="pono-"))
+        runner = Runner(
+            chosen.configs,
+            chosen.logic or "",
+            args.file,
+            args.pono_bin,
+            portfolio.options,
+            portfolio.jobs,
+            portfolio.memlimit,
+            Path(workdir),
+            verbose=args.verbose,
+        )
+        if args.summary is not None:
+            runner.summary = stack.enter_context(
+                args.summary.open("w", newline="", encoding="utf-8")
+            )
+            csv.writer(runner.summary).writerow(SUMMARY_HEADER)
+        for signum in SIGNALS:
+            signal.signal(signum, _raise_terminated)
+        memlimit = portfolio.memlimit
+        count = len(chosen.configs)
+        message(
+            f"{chosen.title}: {count} configuration{'s' if count > 1 else ''} of"
+            f" {portfolio.path.name}, {portfolio.jobs} at a time, with"
+            f" {'no' if memlimit is None else format_memory(memlimit)} memory limit"
+        )
+        try:
+            return runner.run()
+        except TerminatedError as stop:
+            message(f"stopped by {stop}")
+            return 128 + stop.signum
+    return EXIT_ERROR
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = make_parser()
+    args = parser.parse_args(argv)
+    if args.version:
+        show_version(args.pono_bin)
+    if args.file is None:
+        parser.error("the following arguments are required: FILE")
+    if not args.svcomp and args.config is None:
+        parser.error("choose a portfolio with --svcomp or --config")
+    try:
+        chosen = plan(args)
+    except PortfolioError as error:
+        message(f"error: {error}")
+        return EXIT_ERROR
+    if args.dry_run:
+        dry_run(chosen, args)
+        return 0
+    try:
+        return run(chosen, args)
+    except OSError as error:
+        message(f"error: {error}")
+        return EXIT_ERROR
+
+
+if __name__ == "__main__":
+    sys.exit(main())

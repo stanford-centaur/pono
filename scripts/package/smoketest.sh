@@ -1,31 +1,34 @@
 #!/usr/bin/env bash
-# Smoke test of the pono binary beside this script, which SV-COMP requires of
-# a tool archive: prints the version and the usage of pono, then runs it on
-# the MoXI tasks in examples/, each named after its expected verdict. Exits
-# with status 0 if and only if pono reports every expected verdict.
+# Smoke test of the package beside this script, which SV-COMP requires of a
+# tool archive: prints the version and the usage of pono, the portfolio
+# script, then runs its portfolio for SV-COMP on the MoXI tasks in examples/,
+# each named after its expected verdict, as SV-COMP runs it. Exits with
+# status 0 if and only if pono reports every expected verdict.
 #
-# Set PONO to test another binary, e.g. PONO=build/pono in the source tree.
+# Set PONO_BIN to run the portfolio with another binary than pono-bin, e.g.
+# PONO_BIN=build/pono scripts/package/smoketest.sh in the source tree.
 set -euo pipefail
 
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-pono=${PONO:-$dir/pono}
-# IC3 with implicit predicate abstraction, with MathSAT as the solver and the
-# interpolator. Bounded model checking, the default engine, cannot prove a
-# query unsatisfiable, and Bitwuzla, the default solver, does not support
-# integers.
-options=(-e ic3ia --smt-solver msat --smt-interpolator msat)
+pono=$dir/pono
+binary=()
+if [[ -n ${PONO_BIN:-} ]]; then
+  binary=(--pono-bin "$PONO_BIN")
+fi
 
-# pono exits with status 2 after printing its version or usage.
-"$pono" --version || [[ $? -eq 2 ]]
-"$pono" --help || [[ $? -eq 2 ]]
+# pono exits with status 2 after printing the version of pono-bin, as pono-bin
+# does.
+"$pono" "${binary[@]}" --version || [[ $? -eq 2 ]]
+"$pono" --help
 
 failed=0
 for expected in sat unsat; do
   echo
-  echo "\$ pono ${options[*]} examples/$expected.moxi"
+  echo "\$ pono --svcomp examples/$expected.moxi"
   # pono exits with status 0 for sat and 1 for unsat, so the verdict is the
   # last line of its output that starts with one, as BenchExec reads it.
-  output=$("$pono" "${options[@]}" "$dir/examples/$expected.moxi") || true
+  output=$("$pono" --svcomp "${binary[@]}" "$dir/examples/$expected.moxi") ||
+    true
   echo "$output"
   verdict=$(grep -E '^(sat|unsat|unknown)' <<<"$output" | tail -n 1) || true
   if [[ $verdict == "$expected" ]]; then
