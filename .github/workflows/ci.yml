@@ -2,14 +2,22 @@ name: CI
 on:
   push:
   workflow_dispatch: # allow manual trigger
+    inputs:
+      svcomp_package:
+        description: Build only the package for SV-COMP
+        type: boolean
+        default: false
 # Superseded runs are pointless on branches, but main needs a run per commit:
 # giving each of its commits its own group keeps them from queueing, where a
-# pending run is cancelled as soon as the next one arrives.
+# pending run is cancelled as soon as the next one arrives. A run that builds
+# the package for SV-COMP neither cancels the other runs nor is cancelled by
+# them.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}${{ inputs.svcomp_package && '-svcomp-package' || '' }}
   cancel-in-progress: true
 jobs:
   build:
+    if: ${{ !inputs.svcomp_package }}
     strategy:
       fail-fast: false
       matrix:
@@ -108,3 +116,70 @@ jobs:
         run: |
           source .venv/bin/activate
           pytest ./tests
+  # Builds the archive to submit to SV-COMP: the portfolio script and its
+  # portfolio, the binary, and the licenses of everything linked into it. A
+  # manual run with svcomp_package runs this job only.
+  svcomp-package:
+    if: ${{ inputs.svcomp_package }}
+    name: SV-COMP package
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history, so that `git describe` can name the package.
+          fetch-depth: 0
+      - name: Install Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libbison-dev \
+            libfl-dev \
+            libmpfr-dev \
+            cmake \
+            ninja-build \
+            python3-yaml \
+            unzip \
+            zip
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: svcomp-package
+          max-size: 1G
+          create-symlink: true
+      - name: Python Environment Setup
+        run: |
+          python3 -m venv ./.venv
+          source .venv/bin/activate
+          python3 -m pip install \
+            meson \
+            packaging \
+            setuptools
+      - name: Download MathSAT
+        run: ./ci-scripts/setup-msat.sh --auto-yes
+      - name: Setup Btor2Tools
+        run: ./contrib/setup-btor2tools.sh
+      - name: Setup Smt-Switch
+        run: |
+          source .venv/bin/activate
+          ./contrib/setup-smt-switch.sh --with-msat --with-z3
+      - name: Configure
+        run: ./configure.sh --with-msat --with-z3 --static
+      - name: Build
+        run: make -C build -j"$(getconf _NPROCESSORS_ONLN)" pono-bin
+      # The script tests the package with the system's Python, which has
+      # PyYAML, rather than with the one of the environment above.
+      - name: Package
+        run: scripts/package-binary.sh --output-dir package build
+      - name: Upload the package
+        uses: actions/upload-artifact@v7
+        with:
+          path: package/pono-*.zip
+          # as the zip archive itself, not inside another one
+          archive: false
+          if-no-files-found: error
+      # The archive is unpacked outside of the checkout, as a user has it. The
+      # test follows the upload, so that an archive that fails it is at hand.
+      - name: Test the package
+        run: |
+          unzip -q package/pono-*.zip -d "$RUNNER_TEMP"
+          "$RUNNER_TEMP"/pono-*/smoketest.sh
