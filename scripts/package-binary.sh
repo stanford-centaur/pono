@@ -173,6 +173,7 @@ declare -A probes=(
   [mathsat]=msat_create_env
   [cvc5]='cvc5::Solver::Solver('
   [bitwuzla]='bitwuzla::Bitwuzla::Bitwuzla('
+  [z3]=Z3_mk_context
   [btor2tools]=btor2parser_new
   [libpoly]=lp_polynomial_new
   [gmp]=__gmpz_init
@@ -183,7 +184,6 @@ declare -A probes=(
 declare -A unsupported=(
   [Boolector]=boolector_new
   [Yices2]=yices_init
-  [Z3]=Z3_mk_context
   [ic3ia]='ic3ia::'
   [CoreIR]='CoreIR::'
   [gperftools]=ProfilerStart
@@ -324,6 +324,19 @@ if [[ -v linked[bitwuzla] ]]; then
   add_user symfpu "$rev" Bitwuzla
 fi
 
+if [[ -v linked[z3] ]]; then
+  z3_dir=$(cache_path Z3_DIR)
+  # Z3 counts a fourth number, which the tags of its releases leave out.
+  z3_version=$(sed -n \
+    's/^set(PACKAGE_VERSION "\([0-9]*\.[0-9]*\.[0-9]*\)[0-9.]*")$/\1/p' \
+    "$z3_dir/Z3ConfigVersion.cmake")
+  [[ -n $z3_version ]] || die "cannot read the Z3 version in $z3_dir"
+  z3_tag=z3-$z3_version
+  github_file Z3Prover/z3 "$z3_tag" LICENSE.txt "$licenses/z3.txt"
+  add_component Z3 "$z3_version" MIT LICENSES/z3.txt \
+    "https://github.com/Z3Prover/z3/tree/$z3_tag"
+fi
+
 for tag in "${!cadical[@]}"; do
   github_file arminbiere/cadical "$tag" LICENSE "$licenses/cadical-$tag.txt"
   add_component "CaDiCaL (in ${cadical[$tag]})" "$tag" MIT \
@@ -459,6 +472,9 @@ if [[ $build_type == Debug ]]; then
 fi
 if [[ -v linked[mathsat] ]]; then
   configure_flags+=" --with-msat"
+fi
+if [[ -v linked[z3] ]]; then
+  configure_flags+=" --with-z3"
 fi
 built_from="<$pono_url>"
 if [[ -n $commit ]]; then
