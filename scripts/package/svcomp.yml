@@ -13,10 +13,11 @@ memlimit: 7.4 GB
 options: --bound 2000000000 --moxi-enum-as auto --check-invar
 # The configurations for each logic, in the order in which they start, each
 # with its CPU time limit; where the last one has none, it uses the time that
-# the others leave. The fallback after them starts, also without a limit, only
-# once all of them have ended without an answer, e.g., because they failed. The
-# configurations use the SMT solvers Bitwuzla (bzla), cvc5, MathSAT (msat), and
-# Z3 (z3), which pono-bin must have.
+# the others leave. The fallback after them starts only once all of them have
+# ended without an answer, e.g., because they failed; it runs alone, with
+# neither a time limit nor a memory limit. The configurations use the SMT
+# solvers Bitwuzla (bzla), cvc5, MathSAT (msat), and Z3 (z3), which pono-bin
+# must have.
 logics:
   QF_ABV:
     - name: imc-eager-total-nostutter.bzla

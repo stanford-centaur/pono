@@ -165,12 +165,14 @@ def format_memory(size: float) -> str:
 
 @dataclasses.dataclass(frozen=True)
 class Config:
-    """A configuration of pono: its options, its CPU time limit in seconds, and
-    whether it is the fallback, which starts only once the others have ended."""
+    """A configuration of pono: its options, its limits on CPU time in seconds
+    and on memory in bytes, and whether it is the fallback, which starts only
+    once the others have ended."""
 
     name: str
     options: list[str]
     timelimit: float | None
+    memlimit: int | None
     fallback: bool = False
 
 
@@ -234,7 +236,9 @@ def _options(value: object, what: str) -> list[str]:
     raise PortfolioError(msg)
 
 
-def _config(value: object, what: str, timelimit: float | None) -> Config:
+def _config(
+    value: object, what: str, timelimit: float | None, memlimit: int | None
+) -> Config:
     entry = _mapping(value, what, CONFIG_KEYS, required=["name"])
     name = entry["name"]
     if not isinstance(name, str) or not name:
@@ -246,16 +250,18 @@ def _config(value: object, what: str, timelimit: float | None) -> Config:
         msg = f"{what}: fallback: {fallback!r} is neither true nor false"
         raise PortfolioError(msg)
     if fallback:
-        # Nothing waits for the fallback, so no limit of the portfolio ends it.
+        # The fallback runs alone and nothing waits for it, so that no limit of
+        # the portfolio applies to it.
         if entry.get("timelimit") is not None:
             msg = f"{what} is a fallback, which has no timelimit"
             raise PortfolioError(msg)
         timelimit = None
+        memlimit = None
     elif "timelimit" in entry:
         own = entry["timelimit"]
         timelimit = None if own is None else parse_time(own, f"{what}: timelimit")
     options = _options(entry.get("options"), f"{what}: options")
-    return Config(name, options, timelimit, fallback)
+    return Config(name, options, timelimit, memlimit, fallback)
 
 
 def load_portfolio(path: Path) -> Portfolio:
@@ -290,7 +296,7 @@ def load_portfolio(path: Path) -> Portfolio:
             msg = f"{what} is not a non-empty list of configurations"
             raise PortfolioError(msg)
         logics[logic] = [
-            _config(entry, f"{what}, configuration {index}", timelimit)
+            _config(entry, f"{what}, configuration {index}", timelimit, memlimit)
             for index, entry in enumerate(entries, 1)
         ]
         if any(config.fallback for config in logics[logic][:-1]):
@@ -489,7 +495,6 @@ class Runner:
     pono_bin: Path
     options: list[str]
     jobs: int
-    memlimit: int | None
     workdir: Path
     summary: IO[str] | None = None
     verbose: bool = False
@@ -506,9 +511,14 @@ class Runner:
         cpu_seconds = None
         if config.timelimit is not None:
             cpu_seconds = max(1, math.ceil(config.timelimit))
+        memlimit = config.memlimit
         if self.verbose:
-            limit = "no" if cpu_seconds is None else format_time(cpu_seconds)
-            message(f"{label}: starts with {limit} CPU time limit:")
+            time_limit = "no" if cpu_seconds is None else format_time(cpu_seconds)
+            memory_limit = "no" if memlimit is None else format_memory(memlimit)
+            message(
+                f"{label}: starts with {time_limit} CPU time limit and"
+                f" {memory_limit} memory limit:"
+            )
             message(f"{label}: {shlex.join(command)}")
         output = self.workdir / f"{index}.out"
         errors = self.workdir / f"{index}.err"
@@ -521,7 +531,7 @@ class Runner:
                     stdout=stdout,
                     stderr=stderr,
                     # This script runs no threads, which preexec_fn is unsafe with.
-                    preexec_fn=_limits(cpu_seconds, self.memlimit),  # noqa: PLW1509
+                    preexec_fn=_limits(cpu_seconds, memlimit),  # noqa: PLW1509
                 )
         except (OSError, subprocess.SubprocessError) as error:
             outcome = Outcome("error", EXIT_ERROR, 0, 0, 0, f"cannot start: {error}")
@@ -550,10 +560,11 @@ class Runner:
         if result != STOPPED and (mismatch := _mismatch(verdict, returncode)):
             message(f"{label}: warning: {mismatch}")
         detail = ""
+        memlimit = run.config.memlimit
         if result not in ANSWERS and result not in INCONCLUSIVE | {STOPPED}:
             tail = _tail(run.errors)
             if OUT_OF_MEMORY.search(tail) or (
-                self.memlimit is not None and memory >= NEAR_MEMLIMIT * self.memlimit
+                memlimit is not None and memory >= NEAR_MEMLIMIT * memlimit
             ):
                 result = "memout"
             elif lines := [line.strip() for line in tail.splitlines() if line.strip()]:
@@ -704,8 +715,9 @@ A portfolio file is a mapping of
              instead of the one above (null for none). The last configuration
              of a list can have fallback: true instead of a timelimit: it then
              starts only once every other one has ended without an answer, and
-             has no CPU time limit. The configurations for '{DEFAULT_LOGIC}'
-             run on models whose logic is not listed.
+             has neither a CPU time limit nor a memory limit. The
+             configurations for '{DEFAULT_LOGIC}' run on models whose logic is
+             not listed.
 The memory limit applies to the address space of a configuration's process,
 which is larger than the memory that the process uses.
 
@@ -764,8 +776,8 @@ def make_parser() -> argparse.ArgumentParser:
         "--memlimit",
         type=_cli_type(parse_memory),
         metavar="SIZE",
-        help="limit the memory of each configuration to SIZE, e.g., '4 GB',"
-        " rather than to the portfolio's memlimit",
+        help="limit the memory of each configuration, also of a fallback, to"
+        " SIZE, e.g., '4 GB', rather than to the portfolio's memlimit",
     )
     parser.add_argument(
         "--pono-bin",
@@ -850,6 +862,8 @@ def plan(args: argparse.Namespace) -> Plan:
     key, configs = portfolio.select(logic)
     if args.timelimit is not None:
         configs = [dataclasses.replace(c, timelimit=args.timelimit) for c in configs]
+    if args.memlimit is not None:
+        configs = [dataclasses.replace(c, memlimit=args.memlimit) for c in configs]
     return Plan(portfolio, logic, key, configs)
 
 
@@ -862,9 +876,11 @@ def dry_run(chosen: Plan, args: argparse.Namespace) -> None:
     print(f"memlimit: {'none' if memlimit is None else format_memory(memlimit)}")
     for index, config in enumerate(chosen.configs, 1):
         timelimit = config.timelimit
+        own = config.memlimit
         print(
             f"{index}. {config.name}, timelimit:"
-            f" {'none' if timelimit is None else format_time(timelimit)}"
+            f" {'none' if timelimit is None else format_time(timelimit)}, memlimit:"
+            f" {'none' if own is None else format_memory(own)}"
             f"{', fallback' if config.fallback else ''}"
         )
         command = make_command(args.pono_bin, portfolio.options, config, args.file)
@@ -896,7 +912,6 @@ def run(chosen: Plan, args: argparse.Namespace) -> int:
             args.pono_bin,
             portfolio.options,
             portfolio.jobs,
-            portfolio.memlimit,
             Path(workdir),
             verbose=args.verbose,
         )
