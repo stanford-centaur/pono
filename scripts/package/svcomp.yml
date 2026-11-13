@@ -1,0 +1,174 @@
+# The portfolio that pono --svcomp runs in SV-COMP; pono --help describes its
+# keys.
+#
+# In SV-COMP, BenchExec limits each run, so this portfolio as a whole, to 15 GB
+# of memory and 900 s of CPU time. The jobs configurations that run at the same
+# time must fit in the 15 GB with memlimit each, with some memory left for the
+# script, so that a configuration that runs out of memory fails alone and the
+# next one starts. They share the CPU time, and the run ends when it is used
+# up; a configuration with timelimit null runs until then.
+jobs: 2
+memlimit: 7.4 GB
+# The global options, which all configurations use.
+options: --bound 2000000000 --moxi-enum-as auto --check-invar
+# The configurations for each logic, in the order in which they start, each
+# with its CPU time limit; where the last one has none, it uses the time that
+# the others leave. The fallback after them starts only once all of them have
+# ended without an answer, e.g., because they failed; it runs alone, with
+# neither a time limit nor a memory limit. The configurations use the SMT
+# solvers Bitwuzla (bzla), cvc5, MathSAT (msat), and Z3 (z3), which pono-bin
+# must have.
+logics:
+  QF_ABV:
+    - name: imc-eager-total-nostutter.bzla
+      options: --engine interp --interp-eager-unroll --ensure-trans-total --moxi-drop-stutter --smt-solver bzla --smt-interpolator bzla --smt-interpolator-opt interpolants-simp:true
+      timelimit: 120 s
+    - name: ic3ia.msat
+      options: --engine ic3ia --smt-solver msat --smt-interpolator msat
+      timelimit: 60 s
+    - name: ic3ia-nostutter.msat
+      options: --engine ic3ia --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 60 s
+    - name: ic3sa-cegbv-nostutter.msat
+      options: --engine ic3sa --ceg-bv-arith --moxi-drop-stutter --smt-solver msat
+      timelimit: 60 s
+    - name: kind-nosp-nostutter.bzla
+      options: --engine ind --no-kind-simple-path-check --moxi-drop-stutter --smt-solver bzla
+      timelimit: null
+    # fallback, once the configurations above have ended
+    - name: kind-nosp-cegbv-nostutter.msat
+      options: --engine ind --no-kind-simple-path-check --ceg-bv-arith --moxi-drop-stutter --smt-solver msat
+      fallback: true
+  QF_ALIA:
+    - name: kind-nosp-nostutter.z3
+      options: --engine ind --no-kind-simple-path-check --moxi-drop-stutter --smt-solver z3
+      timelimit: 180 s
+    - name: imc-total-nostutter.msat
+      options: --engine interp --ensure-trans-total --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 180 s
+    - name: ic3ia-cegp-nostutter.msat
+      options: --engine ic3ia --ceg-prophecy-arrays --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 180 s
+    - name: ic3ia-nostutter.cvc5
+      options: --engine ic3ia --moxi-drop-stutter --smt-solver cvc5 --smt-interpolator cvc5
+      timelimit: 180 s
+    - name: kind-nosp.z3
+      options: --engine ind --no-kind-simple-path-check --smt-solver z3
+      timelimit: null
+    # fallback, once the configurations above have ended
+    - name: kind-nosp-step5-nostutter.msat
+      options:
+        - --engine
+        - ind
+        - --no-kind-simple-path-check
+        - --kind-one-time-base-check
+        - --kind-bound-step
+        - '5'
+        - --moxi-drop-stutter
+        - --smt-solver
+        - msat
+      fallback: true
+  QF_BV:
+    - name: imc-backward-total-nostutter.bzla
+      options: --engine interp --interp-backward --ensure-trans-total --moxi-drop-stutter --smt-solver bzla --smt-interpolator bzla --smt-interpolator-opt interpolants-simp:true
+      timelimit: 60 s
+    - name: ic3ia-nostutter.msat
+      options: --engine ic3ia --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 60 s
+    - name: ic3sa-nostutter.msat
+      options: --engine ic3sa --moxi-drop-stutter --smt-solver msat
+      timelimit: 60 s
+    - name: ic3ia-nostutter.bzla
+      options: --engine ic3ia --moxi-drop-stutter --smt-solver bzla --smt-interpolator bzla --smt-interpolator-opt interpolants-simp:true --smt-interpolator-opt interpolants-subst:true
+      timelimit: 240 s
+    - name: kind-nosp-nostutter.bzla
+      options: --engine ind --no-kind-simple-path-check --moxi-drop-stutter --smt-solver bzla
+      timelimit: null
+    # fallback, once the configurations above have ended
+    - name: kind-nosp-nostutter.msat
+      options: --engine ind --no-kind-simple-path-check --moxi-drop-stutter --smt-solver msat
+      fallback: true
+  QF_LIA:
+    - name: ic3ia.msat
+      options: --engine ic3ia --smt-solver msat --smt-interpolator msat
+      timelimit: 240 s
+    - name: imc-backward.msat
+      options: --engine interp --interp-backward --smt-solver msat --smt-interpolator msat
+      timelimit: 60 s
+    - name: kind-nosp-step5-nostutter.msat
+      options:
+        - --engine
+        - ind
+        - --no-kind-simple-path-check
+        - --kind-one-time-base-check
+        - --kind-bound-step
+        - '5'
+        - --moxi-drop-stutter
+        - --smt-solver
+        - msat
+      timelimit: 60 s
+    - name: ic3ia-nostutter.msat
+      options: --engine ic3ia --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 120 s
+    - name: imc-eager-total-nostutter.msat
+      options: --engine interp --interp-eager-unroll --ensure-trans-total --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 60 s
+    - name: imc-backward-nostutter.msat
+      options: --engine interp --interp-backward --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 60 s
+    - name: dar-nostutter.msat
+      options: --engine dar --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 120 s
+    - name: ic3ia.cvc5
+      options: --engine ic3ia --smt-solver cvc5 --smt-interpolator cvc5
+      timelimit: null
+    # fallback, once the configurations above have ended
+    - name: kind-nostutter.z3
+      options: --engine ind --moxi-drop-stutter --smt-solver z3
+      fallback: true
+  QF_LRA:
+    - name: imc-backward-nostutter.msat
+      options: --engine interp --interp-backward --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 60 s
+    - name: kind-nostutter.msat
+      options: --engine ind --moxi-drop-stutter --smt-solver msat
+      timelimit: 180 s
+    - name: ic3ia.msat
+      options: --engine ic3ia --smt-solver msat --smt-interpolator msat
+      timelimit: null
+    # fallback, once the configurations above have ended
+    - name: kind-nostutter.z3
+      options: --engine ind --moxi-drop-stutter --smt-solver z3
+      fallback: true
+  QF_NIA:
+    - name: imc-floordiv-nobb-noeqprop-nostutter.msat
+      options: --engine interp --eliminate-floor-and-div --smt-solver-opt theory.la.laz_internal_branch_and_bound:false --smt-interpolator-opt theory.eq_propagation:false --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 60 s
+    - name: imc-backward-nostutter.msat
+      options: --engine interp --interp-backward --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 60 s
+    - name: dar-floordiv-nobb-nofloor-nostutter.msat
+      options: --engine dar --eliminate-floor-and-div --smt-solver-opt theory.la.laz_internal_branch_and_bound:false --smt-interpolator-opt theory.la.interpolation_laz_use_floor:false --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 120 s
+    - name: ic3ia-floordiv-nostutter.cvc5
+      options: --engine ic3ia --eliminate-floor-and-div --moxi-drop-stutter --smt-solver cvc5 --smt-interpolator cvc5
+      timelimit: 60 s
+    - name: ismc-floordiv-nobb-nofloor-nostutter.msat
+      options: --engine ismc --eliminate-floor-and-div --smt-solver-opt theory.la.laz_internal_branch_and_bound:false --smt-interpolator-opt theory.la.interpolation_laz_use_floor:false --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: null
+    # fallback, once the configurations above have ended
+    - name: ic3ia-nostutter.cvc5
+      options: --engine ic3ia --moxi-drop-stutter --smt-solver cvc5 --smt-interpolator cvc5
+      fallback: true
+  default:
+    # for the models with another logic, or with none
+    - name: imc.bzla
+      options: --engine interp --smt-solver bzla --smt-interpolator bzla --smt-interpolator-opt interpolants-simp:true
+      timelimit: 600 s
+    - name: ic3ia.msat
+      options: --engine ic3ia --smt-solver msat --smt-interpolator msat
+      timelimit: 600 s
+    # fallback, once the configurations above have ended
+    - name: kind.cvc5
+      options: --engine ind --smt-solver cvc5
+      fallback: true
