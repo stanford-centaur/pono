@@ -20,6 +20,10 @@ options: --bound 2000000000 --moxi-enum-as auto --check-invar
 # must have.
 logics:
   QF_ABV:
+    # No configuration uses --ceg-prophecy-arrays: the index sorts of these
+    # arrays are finite, so it uses no lambda indices and cannot answer sat. In
+    # a preliminary evaluation on the MoXI tasks of sv-benchmarks, the
+    # configurations below proved all that it proved unsat.
     - name: imc-eager-total-nostutter.bzla
       options: --engine interp --interp-eager-unroll --ensure-trans-total --moxi-drop-stutter --smt-solver bzla --smt-interpolator bzla --smt-interpolator-opt interpolants-simp:true
       timelimit: 120 s
@@ -89,9 +93,9 @@ logics:
       options: --engine ind --no-kind-simple-path-check --moxi-drop-stutter --smt-solver msat
       fallback: true
   QF_LIA:
-    - name: ic3ia.msat
-      options: --engine ic3ia --smt-solver msat --smt-interpolator msat
-      timelimit: 240 s
+    - name: ic3ia-nostutter.msat
+      options: --engine ic3ia --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 120 s
     - name: imc-backward.msat
       options: --engine interp --interp-backward --smt-solver msat --smt-interpolator msat
       timelimit: 60 s
@@ -107,20 +111,23 @@ logics:
         - --smt-solver
         - msat
       timelimit: 60 s
-    - name: ic3ia-nostutter.msat
-      options: --engine ic3ia --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
-      timelimit: 120 s
+    - name: ic3ia-nobb.msat
+      options: --engine ic3ia --smt-solver-opt theory.la.laz_internal_branch_and_bound:false --smt-solver msat --smt-interpolator msat
+      timelimit: 240 s
+    - name: ic3ia.cvc5
+      options: --engine ic3ia --smt-solver cvc5 --smt-interpolator cvc5
+      timelimit: 180 s
     - name: imc-eager-total-nostutter.msat
       options: --engine interp --interp-eager-unroll --ensure-trans-total --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
       timelimit: 60 s
-    - name: imc-backward-nostutter.msat
-      options: --engine interp --interp-backward --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+    - name: imc-backward-nobb-nostutter.msat
+      options: --engine interp --interp-backward --smt-solver-opt theory.la.laz_internal_branch_and_bound:false --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
+      timelimit: 60 s
+    - name: ic3ia-nocore-nostutter.cvc5
+      options: --engine ic3ia --no-ic3-unsatcore-gen --moxi-drop-stutter --smt-solver cvc5 --smt-interpolator cvc5
       timelimit: 60 s
     - name: dar-nostutter.msat
       options: --engine dar --moxi-drop-stutter --smt-solver msat --smt-interpolator msat
-      timelimit: 120 s
-    - name: ic3ia.cvc5
-      options: --engine ic3ia --smt-solver cvc5 --smt-interpolator cvc5
       timelimit: null
     # fallback, once the configurations above have ended
     - name: kind-nostutter.z3
