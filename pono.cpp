@@ -37,6 +37,7 @@
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
 #include "modifiers/control_signals.h"
+#include "modifiers/functionalize.h"
 #include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
 #include "modifiers/prop_monitor.h"
@@ -131,6 +132,18 @@ ProverResult check_prop(PonoOptions pono_options,
     has_monitor = true;
   }
   assert(ts.only_curr(prop));
+
+  // IC3SA and SyGuS-PDR need a next-state function for each state variable.
+  // Functionalizing comes after the monitor, which needs a relational system
+  // for a property over next-state variables.
+  const bool needs_functional =
+      pono_options.engine_ == IC3SA_ENGINE || pono_options.engine_ == SYGUS_PDR;
+  if (!ts.is_functional()
+      && (pono_options.functionalize_ || needs_functional)) {
+    logger.log(1, "Functionalizing the transition system.");
+    // new input variables would undo the promotion above, which IC3SA needs
+    ts = functionalize(ts, !pono_options.promote_inputvars_);
+  }
 
   if (pono_options.assume_prop_) {
     // NOTE: crucial that pseudo_init_prop and add_prop_monitor passes are
