@@ -1,0 +1,1342 @@
+/*!
+ * \file expr_encoder.cpp
+ * \brief expr_to_term()/expr_to_bool(): slang AST expressions to SMT terms.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * Handles literals, all unary/binary operators (reduction ops, wildcard/case
+ * (in)equality, constant-exponent power), packed bit/range/member selects,
+ * struct construction, streaming concatenation, and conversions, applying
+ * SystemVerilog's width/sign-extension rules uniformly via resize_to(). Also
+ * implements the sampled-value system functions ($past, $stable, $changed,
+ * $rose, $fell) via tableau_.make_history_chain(), plus $signed/$unsigned and
+ * $onehot/$onehot0; $isunknown is always false since this encoder's bitvector
+ * model is purely 2-valued (no X/Z state).
+ *
+ * One switch, expr_to_term_or_bool(), converts every expression to its
+ * natural sort -- Bool for the ones that really are predicates, a bit-vector
+ * for the rest -- and the two public entry points adapt it: expr_to_term()
+ * wraps a predicate into SV's 1-bit 0/1 value, expr_to_bool() reduces a
+ * bit-vector with `!= 0`.
+ */
+#include "frontends/systemverilog/expr_encoder.h"
+
+#include <string>
+#include <utility>
+#include <variant>
+#include <vector>
+
+#include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/bit_utils.h"
+#include "frontends/systemverilog/symbol_table.h"
+#include "frontends/systemverilog/tableau.h"
+#include "slang/ast/ASTContext.h"
+#include "slang/ast/Compilation.h"
+#include "slang/ast/EvalContext.h"
+#include "slang/ast/Expression.h"
+#include "slang/ast/Symbol.h"
+#include "slang/ast/expressions/AssignmentExpressions.h"
+#include "slang/ast/expressions/CallExpression.h"
+#include "slang/ast/expressions/ConversionExpression.h"
+#include "slang/ast/expressions/LiteralExpressions.h"
+#include "slang/ast/expressions/MiscExpressions.h"
+#include "slang/ast/expressions/Operator.h"
+#include "slang/ast/expressions/OperatorExpressions.h"
+#include "slang/ast/expressions/SelectExpressions.h"
+#include "slang/ast/symbols/CompilationUnitSymbols.h"
+#include "slang/ast/symbols/MemberSymbols.h"
+#include "slang/ast/symbols/SubroutineSymbols.h"
+#include "slang/ast/symbols/VariableSymbols.h"
+#include "slang/ast/types/AllTypes.h"
+#include "slang/ast/types/Type.h"
+#include "slang/numeric/SVInt.h"
+#include "smt-switch/smt.h"
+#include "utils/exceptions.h"
+#include "utils/logger.h"
+
+using namespace smt;
+using namespace std;
+
+namespace pono {
+
+namespace {
+
+/** The all-ones constant of `t`'s sort, for the and/nand reductions. */
+Term all_ones_like(const SmtSolver & solver, const Term & t)
+{
+  Sort sort = t->get_sort();
+  return solver->make_term(string(sort->get_width(), '1'), sort, 2);
+}
+
+}  // namespace
+
+ExprEncoder::ExprEncoder(SymbolTable & symbol_table,
+                         Tableau & tableau,
+                         const smt::SmtSolver & solver)
+    : symbol_table_(symbol_table), tableau_(tableau), solver_(solver)
+{
+}
+
+ExprEncoder::~ExprEncoder() = default;
+
+void ExprEncoder::bind_compilation(slang::ast::Compilation & compilation)
+{
+  compilation_ = &compilation;
+}
+
+Term ExprEncoder::set_current_lvalue_term(const Term & t)
+{
+  Term prev = current_lvalue_term_;
+  current_lvalue_term_ = t;
+  return prev;
+}
+
+slang::ast::EvalContext & ExprEncoder::eval_ctx()
+{
+  if (!eval_ctx_) {
+    // Use the slang compilation root as the AST context scope; we
+    // only use the eval context's locals stack to bind procedural
+    // loop counters, so the lookup location doesn't matter.
+    slang::ast::ASTContext ast_ctx(compilation_->getRoot(),
+                                   slang::ast::LookupLocation::min);
+    eval_ctx_ = std::make_unique<slang::ast::EvalContext>(ast_ctx);
+    eval_ctx_->pushEmptyFrame();
+  }
+  return *eval_ctx_;
+}
+
+Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
+                               const string & prefix)
+{
+  Term t = expr_to_term_or_bool(expr, prefix);
+  if (!t || t->get_sort()->get_sort_kind() != BOOL) return t;
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term bv = solver_->make_term(
+      Ite, t, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
+  // An SV predicate's type is always a single unsigned bit, so this
+  // resize is the identity; it is here so the BV form still honours
+  // the expression's declared width rather than assuming it.
+  return resize_to(solver_, bv, expr.type->getBitWidth(), /*is_signed=*/false);
+}
+
+void ExprEncoder::check_sampled_clock(const slang::ast::Expression * arg,
+                                      std::string_view fn)
+{
+  using namespace slang::ast;
+  if (!arg || arg->kind == ExpressionKind::EmptyArgument) return;
+  if (arg->kind != ExpressionKind::ClockingEvent) {
+    throw PonoException("SystemVerilogEncoder: " + std::string(fn)
+                        + "'s clocking-event argument is not a clocking "
+                          "event");
+  }
+  const TimingControl & tc = arg->as<ClockingEventExpression>().timingControl;
+  if (tc.kind != TimingControlKind::SignalEvent) {
+    throw PonoException(
+        "SystemVerilogEncoder: " + std::string(fn)
+        + " is sampled on a clocking event that is not a single "
+          "edge-sensitive signal");
+  }
+  auto & sec = tc.as<SignalEventControl>();
+  const Symbol * sym = find_lhs_base(sec.expr);
+  if (!sym) {
+    throw PonoException("SystemVerilogEncoder: " + std::string(fn)
+                        + " is sampled on a clocking event whose clock "
+                          "signal could not be resolved");
+  }
+  if (!symbol_table_.note_design_clock(sym, static_cast<int>(sec.edge))) {
+    throw PonoException(
+        "SystemVerilogEncoder: " + std::string(fn) + " is sampled on "
+        + std::string(toString(sec.edge)) + " of '" + std::string(sym->name)
+        + "', but this design's clock was already established as "
+        + std::string(toString(static_cast<EdgeKind>(
+              symbol_table_.design_clock_edge())))
+        + " of '" + std::string(symbol_table_.design_clock_sym()->name)
+        + "' -- this encoder has no clock-domain model, so a sampled "
+          "value cannot come from a second clock");
+  }
+}
+
+Term ExprEncoder::expr_to_bool(const slang::ast::Expression & expr,
+                               const string & prefix)
+{
+  Term t = expr_to_term_or_bool(expr, prefix);
+  if (!t || t->get_sort()->get_sort_kind() == BOOL) return t;
+  return solver_->make_term(Distinct, t, solver_->make_term(0, t->get_sort()));
+}
+
+Term ExprEncoder::inline_call(const slang::ast::CallExpression & call,
+                              const string & prefix)
+{
+  using namespace slang::ast;
+
+  auto * const * sub_ptr =
+      std::get_if<const SubroutineSymbol *>(&call.subroutine);
+  if (!sub_ptr || !*sub_ptr) {
+    throw PonoException("SystemVerilogEncoder: unsupported call to "
+                        + std::string(call.getSubroutineName()));
+  }
+  const SubroutineSymbol & sub = **sub_ptr;
+  const string name(sub.name);
+
+  auto reject = [&](const string & why) {
+    throw PonoException("SystemVerilogEncoder: cannot inline the call to '"
+                        + name + "': " + why);
+  };
+
+  if (!subroutine_inliner_) reject("no statement encoder is installed");
+  if (sub.subroutineKind != SubroutineKind::Function) {
+    reject("it is a task, which produces no value in an expression");
+  }
+  if (!sub.returnValVar) reject("it has no return variable");
+  if (inlining_.count(&sub)) {
+    // Expanding a call inside itself rebinds the same formals, so
+    // there is no point at which it stops.
+    reject("it is recursive");
+  }
+
+  // An argument the callee writes back would have to be assigned
+  // through to the caller's own variable, which an expression cannot
+  // do.
+  auto formals = sub.getArguments();
+  for (auto * formal : formals) {
+    if (formal->direction != ArgumentDirection::In) {
+      reject("argument '" + string(formal->name)
+             + "' is not an input, so the call writes back to its caller");
+    }
+  }
+  if (formals.size() != call.arguments().size()) {
+    reject(
+        "it is called with a different number of arguments than it "
+        "declares");
+  }
+
+  auto & bound = symbol_table_.loop_var_terms();
+  std::vector<std::pair<const Symbol *, Term>> saved;
+  auto remember = [&](const Symbol * sym) {
+    auto it = bound.find(sym);
+    saved.emplace_back(sym, it == bound.end() ? Term() : it->second);
+  };
+  auto restore = [&]() {
+    for (auto & entry : saved) {
+      if (entry.second) {
+        bound[entry.first] = entry.second;
+      } else {
+        bound.erase(entry.first);
+      }
+    }
+  };
+
+  // Every actual is evaluated in the caller's scope first, so a
+  // formal that shares a name with something there cannot shadow it
+  // partway through.
+  std::vector<Term> actual_terms;
+  actual_terms.reserve(formals.size());
+  for (size_t k = 0; k < formals.size(); ++k) {
+    Term a = expr_to_term(*call.arguments()[k], prefix);
+    uint64_t w = formals[k]->getType().getBitWidth();
+    if (w == 0) {
+      reject("argument '" + string(formals[k]->name) + "' has no width");
+    }
+    actual_terms.push_back(
+        resize_to(solver_, a, w, call.arguments()[k]->type->isSigned()));
+  }
+  for (size_t k = 0; k < formals.size(); ++k) {
+    remember(formals[k]);
+    bound[formals[k]] = actual_terms[k];
+  }
+  remember(sub.returnValVar);
+  bound.erase(sub.returnValVar);
+
+  inlining_.insert(&sub);
+  try {
+    subroutine_inliner_->inline_subroutine_body(
+        sub.getBody(), *sub.returnValVar, prefix);
+  }
+  catch (...) {
+    inlining_.erase(&sub);
+    restore();
+    throw;
+  }
+  inlining_.erase(&sub);
+
+  auto result_it = bound.find(sub.returnValVar);
+  Term result = result_it == bound.end() ? Term() : result_it->second;
+  // These bindings belong to this call alone; another call to the
+  // same function starts from the caller's scope again.
+  restore();
+
+  if (!result) reject("no path through it assigns a return value");
+  return resize_to(
+      solver_, result, call.type->getBitWidth(), call.type->isSigned());
+}
+
+namespace {
+// Split a constant into the bits it pins and the values it pins them
+// to, MSB first -- the order make_term() reads a base-2 string in.
+// An x or z bit pins nothing, which is what makes the comparison a
+// wildcard one.
+void wildcard_mask_bits(const slang::SVInt & sv,
+                        uint64_t width,
+                        string & mask_bits,
+                        string & value_bits)
+{
+  mask_bits.assign(width, '0');
+  value_bits.assign(width, '0');
+  for (uint64_t i = 0; i < width; ++i) {
+    slang::logic_t bit = sv[static_cast<int32_t>(i)];
+    if (bit.isUnknown()) continue;
+    mask_bits[width - 1 - i] = '1';
+    if (bit.value == 1) value_bits[width - 1 - i] = '1';
+  }
+}
+}  // namespace
+
+Term ExprEncoder::inside_match(const Term & left,
+                               const slang::ast::Expression & elem,
+                               const string & prefix)
+{
+  using namespace slang::ast;
+  uint64_t left_w = left->get_sort()->get_width();
+
+  if (elem.kind == ExpressionKind::ValueRange) {
+    // `[lo:hi]` is inclusive at both ends. Signedness follows the
+    // bound, as it does for a written-out comparison.
+    auto & vr = elem.as<ValueRangeExpression>();
+    auto bound = [&](const Expression & e) {
+      return resize_to(
+          solver_, expr_to_term(e, prefix), left_w, e.type->isSigned());
+    };
+    bool is_signed = vr.left().type->isSigned() && vr.right().type->isSigned();
+    Term lo = bound(vr.left());
+    Term hi = bound(vr.right());
+    return solver_->make_term(
+        And,
+        solver_->make_term(is_signed ? BVSle : BVUle, lo, left),
+        solver_->make_term(is_signed ? BVSle : BVUle, left, hi));
+  }
+
+  // A constant member masks off its own x and z bits; anything else
+  // has no unknown bits to mask and compares plainly.
+  auto cv = elem.eval(eval_ctx());
+  uint64_t elem_w = elem.type->getBitWidth();
+  if (!cv.bad() && cv.isInteger() && elem_w > 0) {
+    string mask_bits, value_bits;
+    wildcard_mask_bits(cv.integer(), elem_w, mask_bits, value_bits);
+    Sort elem_sort = solver_->make_sort(BV, elem_w);
+    // Raw bit patterns, not numeric values -- always zero-extend.
+    Term mask = resize_to(
+        solver_, solver_->make_term(mask_bits, elem_sort, 2), left_w, false);
+    Term value = resize_to(
+        solver_, solver_->make_term(value_bits, elem_sort, 2), left_w, false);
+    return solver_->make_term(
+        Equal, solver_->make_term(BVAnd, left, mask), value);
+  }
+
+  Term right = resize_to(
+      solver_, expr_to_term(elem, prefix), left_w, elem.type->isSigned());
+  return solver_->make_term(Equal, left, right);
+}
+
+Term ExprEncoder::literal_term(const slang::SVInt & val, uint64_t width)
+{
+  Sort sort = solver_->make_sort(BV, width);
+
+  if (!val.hasUnknown()) {
+    // Reinterpret the value as unsigned so that toString emits the raw
+    // two's-complement bit pattern as a positive decimal.  Without
+    // setSigned(false), signed-negative values would stringify as
+    // "-N", which smt-switch's base-10 parser rejects.
+    slang::SVInt unsigned_val = val;
+    unsigned_val.setSigned(false);
+    return solver_->make_term(unsigned_val.toString(slang::LiteralBase::Decimal,
+                                                    /*includeBase=*/false),
+                              sort,
+                              10);
+  }
+
+  // Pin the bits the literal does give, and let a fresh unconstrained
+  // value supply the rest. MSB first, the order make_term() reads a
+  // base-2 string in.
+  string value_bits(width, '0'), unknown_bits(width, '0');
+  for (uint64_t i = 0; i < width; ++i) {
+    slang::logic_t bit = val[static_cast<int32_t>(i)];
+    if (bit.isUnknown()) {
+      unknown_bits[width - 1 - i] = '1';
+    } else if (bit.value == 1) {
+      value_bits[width - 1 - i] = '1';
+    }
+  }
+
+  Term unknown =
+      solver_->make_term(BVAnd,
+                         symbol_table_.make_unknown_value(sort, "xz_literal"),
+                         solver_->make_term(unknown_bits, sort, 2));
+  return solver_->make_term(
+      BVOr, solver_->make_term(value_bits, sort, 2), unknown);
+}
+
+Term ExprEncoder::extract_maybe_out_of_range(const Term & val,
+                                             uint64_t hi,
+                                             uint64_t lo)
+{
+  uint64_t w = val->get_sort()->get_width();
+  if (hi < w) return solver_->make_term(Op(Extract, hi, lo), val);
+
+  uint64_t oob_lo = std::max(lo, w);
+  Term oob = symbol_table_.make_out_of_range_value(
+      solver_->make_sort(BV, hi - oob_lo + 1));
+  // Wholly past the end: nothing of the vector is being read.
+  if (lo >= w) return oob;
+  return solver_->make_term(
+      Concat, oob, solver_->make_term(Op(Extract, w - 1, lo), val));
+}
+
+Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
+                                       const string & prefix)
+{
+  using namespace slang::ast;
+
+  switch (expr.kind) {
+    case ExpressionKind::NamedValue: {
+      auto & nv = expr.as<NamedValueExpression>();
+      return symbol_table_.lookup_symbol(&canonicalize_signal_alias(nv.symbol));
+    }
+
+    case ExpressionKind::HierarchicalValue: {
+      // Cross-scope dotted read (e.g. `child_inst.reg`).  Slang has
+      // already resolved the dotted path to the target ValueSymbol;
+      // lookup_symbol finds its term in the appropriate scope
+      // provided the referenced instance has been encoded already.
+      // A modport-qualified access resolves to a ModportPortSymbol
+      // proxy rather than the real symbol directly -- see
+      // canonicalize_signal_alias().
+      auto & hv = expr.as<HierarchicalValueExpression>();
+      return symbol_table_.lookup_symbol(&canonicalize_signal_alias(hv.symbol));
+    }
+
+    case ExpressionKind::LValueReference: {
+      // Implicit self-reference produced by compound assignments
+      // (`x &= y` -> `x = LValueReference & y`).  The owning
+      // assignment handler must have stashed the current LHS term
+      // before recursing into the RHS.
+      if (!current_lvalue_term_) {
+        throw PonoException(
+            "SystemVerilogEncoder: LValueReference outside compound "
+            "assignment");
+      }
+      return current_lvalue_term_;
+    }
+
+    case ExpressionKind::IntegerLiteral: {
+      uint64_t width = expr.type->getBitWidth();
+      if (width == 0) width = 32;  // Default integer width.
+      return literal_term(expr.as<IntegerLiteral>().getValue(), width);
+    }
+
+    case ExpressionKind::UnbasedUnsizedIntegerLiteral: {
+      uint64_t width = expr.type->getBitWidth();
+      if (width == 0) width = 1;
+      return literal_term(expr.as<UnbasedUnsizedIntegerLiteral>().getValue(),
+                          width);
+    }
+
+    case ExpressionKind::Inside: {
+      // `x inside {a, b, [lo:hi]}` is the or-reduction of the
+      // members' comparisons (LRM 11.4.13).
+      auto & ins = expr.as<InsideExpression>();
+      Term left = expr_to_term(ins.left(), prefix);
+      Term result;
+      for (auto * elem : ins.rangeList()) {
+        Term m = inside_match(left, *elem, prefix);
+        result = result ? solver_->make_term(Or, result, m) : m;
+      }
+      if (!result) {
+        // An empty set matches nothing.
+        return solver_->make_term(false);
+      }
+      return result;
+    }
+
+    case ExpressionKind::BinaryOp: {
+      auto & binop = expr.as<BinaryExpression>();
+
+      if (binop.op == BinaryOperator::WildcardEquality
+          || binop.op == BinaryOperator::WildcardInequality) {
+        // Must special-case *before* the generic eager left/right
+        // conversion below: a right operand with unknown bits (e.g.
+        // `4'b10??`) would otherwise hit the generic (wildcard-
+        // unaware) IntegerLiteral case, which reads an unknown bit as
+        // an unconstrained one. Here it has to be ignored instead --
+        // an unconstrained bit still has to match. Per the LRM, only the
+        // *right* operand's X/Z bits are wildcards, so left is always
+        // safe to convert normally; only convert right if we end up
+        // needing it for the plain-equality fallback below. Reuses
+        // the same (mask, value) technique as casex/casez in
+        // process_statement()'s Case handling: build a mask with a 0
+        // at each wildcard bit and compare (left & mask) == value,
+        // ignoring exactly those positions. Falls back to plain
+        // equality if the right operand isn't a usable compile-time
+        // constant -- nothing else to wildcard against, and this
+        // encoder's BV model has no way for a non-literal term to
+        // hold an unknown bit at all. Mask and value are bit strings
+        // so that fallback never catches an operand merely for being
+        // wide: the ordinary literal path would read its unknown bits
+        // as unconstrained rather than as wildcards.
+        Term left = expr_to_term(binop.left(), prefix);
+        Term eq;
+        auto rhs_cv = binop.right().eval(eval_ctx());
+        uint64_t rhs_w = binop.right().type->getBitWidth();
+        if (!rhs_cv.bad() && rhs_cv.isInteger() && rhs_w > 0) {
+          auto & sv = rhs_cv.integer();
+          string mask_bits, value_bits;
+          wildcard_mask_bits(sv, rhs_w, mask_bits, value_bits);
+          Sort rhs_sort = solver_->make_sort(BV, rhs_w);
+          // Raw bit-pattern masks, not numeric values -- always
+          // zero-extend.
+          Term mask_term = resize_to(solver_,
+                                     solver_->make_term(mask_bits, rhs_sort, 2),
+                                     left->get_sort()->get_width(),
+                                     false);
+          Term value_term =
+              resize_to(solver_,
+                        solver_->make_term(value_bits, rhs_sort, 2),
+                        left->get_sort()->get_width(),
+                        false);
+          eq = solver_->make_term(
+              Equal, solver_->make_term(BVAnd, left, mask_term), value_term);
+        } else {
+          Term right = expr_to_term(binop.right(), prefix);
+          right = resize_to(solver_,
+                            right,
+                            left->get_sort()->get_width(),
+                            binop.right().type->isSigned());
+          eq = solver_->make_term(Equal, left, right);
+        }
+        bool want_eq = binop.op == BinaryOperator::WildcardEquality;
+        return want_eq ? eq : solver_->make_term(Not, eq);
+      }
+
+      if (binop.op == BinaryOperator::LogicalAnd
+          || binop.op == BinaryOperator::LogicalOr) {
+        // Also special-cased *before* the eager conversion below, so
+        // each operand is reduced to Bool exactly once. Converting an
+        // operand twice would not just be wasted work: a $past-family
+        // call in it mints a fresh history chain per conversion. The
+        // operands are self-determined, so skipping the common-width
+        // widening below cannot change their truth value.
+        Term l = expr_to_bool(binop.left(), prefix);
+        Term r = expr_to_bool(binop.right(), prefix);
+        if (!l || !r) return Term();
+        return solver_->make_term(
+            binop.op == BinaryOperator::LogicalAnd ? And : Or, l, r);
+      }
+
+      Term left = expr_to_term(binop.left(), prefix);
+      Term right = expr_to_term(binop.right(), prefix);
+
+      // Comparing two whole arrays needs no width unification: SMT
+      // array equality is native. Anything else would, so it is
+      // rejected before the arithmetic below reaches for a width the
+      // sort does not have.
+      if (left->get_sort()->get_sort_kind() == ARRAY
+          || right->get_sort()->get_sort_kind() == ARRAY) {
+        if (left->get_sort() != right->get_sort()) {
+          throw PonoException(
+              "SystemVerilogEncoder: cannot combine an unpacked array with "
+              "an operand of a different shape");
+        }
+        switch (binop.op) {
+          case BinaryOperator::Equality:
+          case BinaryOperator::CaseEquality:
+            return solver_->make_term(Equal, left, right);
+          case BinaryOperator::Inequality:
+          case BinaryOperator::CaseInequality:
+            return solver_->make_term(Distinct, left, right);
+          default:
+            throw PonoException(
+                "SystemVerilogEncoder: only equality and inequality are "
+                "supported between whole unpacked arrays");
+        }
+      }
+      require_bv(left, "a binary operator's left operand");
+      require_bv(right, "a binary operator's right operand");
+
+      // Both operands are signed iff the *whole* operation is signed
+      // (SystemVerilog's usual arithmetic conversion rule: mixing a
+      // signed operand with an unsigned one makes the whole operation
+      // unsigned) -- checking both, rather than trusting they already
+      // agree, doesn't rely on slang having inserted a unifying
+      // conversion on every operator variant that reaches here.
+      bool op_signed =
+          binop.left().type->isSigned() && binop.right().type->isSigned();
+
+      // Ensure operands have the same width, sign-extending rather
+      // than zero-extending a narrower signed operand -- otherwise a
+      // negative value becomes a large positive one before the
+      // operator below ever sees it.
+      uint64_t lw = left->get_sort()->get_width();
+      uint64_t rw = right->get_sort()->get_width();
+      uint64_t max_w = max(lw, rw);
+      left = resize_to(solver_, left, max_w, op_signed);
+      right = resize_to(solver_, right, max_w, op_signed);
+
+      uint64_t result_width = expr.type->getBitWidth();
+      Term result;
+
+      switch (binop.op) {
+        case BinaryOperator::Add:
+          result = solver_->make_term(BVAdd, left, right);
+          break;
+        case BinaryOperator::Subtract:
+          result = solver_->make_term(BVSub, left, right);
+          break;
+        case BinaryOperator::Multiply:
+          result = solver_->make_term(BVMul, left, right);
+          break;
+        case BinaryOperator::Divide:
+          result = solver_->make_term(op_signed ? BVSdiv : BVUdiv, left, right);
+          break;
+        case BinaryOperator::Mod:
+          result = solver_->make_term(op_signed ? BVSrem : BVUrem, left, right);
+          break;
+        case BinaryOperator::BinaryAnd:
+          result = solver_->make_term(BVAnd, left, right);
+          break;
+        case BinaryOperator::BinaryOr:
+          result = solver_->make_term(BVOr, left, right);
+          break;
+        case BinaryOperator::BinaryXor:
+          result = solver_->make_term(BVXor, left, right);
+          break;
+        case BinaryOperator::BinaryXnor: {
+          Term xor_t = solver_->make_term(BVXor, left, right);
+          result = solver_->make_term(BVNot, xor_t);
+          break;
+        }
+        // Every comparison below is already a predicate, so it is
+        // returned Bool-sorted; expr_to_term() wraps it back into a
+        // 1-bit BV for the callers that want SV's 0/1 value.
+        case BinaryOperator::Equality:
+          return solver_->make_term(Equal, left, right);
+        case BinaryOperator::Inequality:
+          return solver_->make_term(Distinct, left, right);
+        case BinaryOperator::LessThan:
+          return solver_->make_term(op_signed ? BVSlt : BVUlt, left, right);
+        case BinaryOperator::LessThanEqual:
+          return solver_->make_term(op_signed ? BVSle : BVUle, left, right);
+        // `>` and `>=` are the strict/non-strict `<` with the operands
+        // swapped.
+        case BinaryOperator::GreaterThan:
+          return solver_->make_term(op_signed ? BVSlt : BVUlt, right, left);
+        case BinaryOperator::GreaterThanEqual:
+          return solver_->make_term(op_signed ? BVSle : BVUle, right, left);
+        case BinaryOperator::LogicalShiftLeft:
+          result = solver_->make_term(BVShl, left, right);
+          break;
+        case BinaryOperator::LogicalShiftRight:
+          result = solver_->make_term(BVLshr, left, right);
+          break;
+        case BinaryOperator::ArithmeticShiftLeft:
+          result = solver_->make_term(BVShl, left, right);
+          break;
+        case BinaryOperator::ArithmeticShiftRight:
+          result = solver_->make_term(BVAshr, left, right);
+          break;
+        case BinaryOperator::Power: {
+          // Scoped to a compile-time-constant exponent (the
+          // overwhelming majority of real synthesizable use, e.g.
+          // `x**2`, `2**WIDTH` in a parameter expression) -- unrolled
+          // into repeated multiplication at the operands' common
+          // width, matching the truncating-wraparound semantics the
+          // rest of this encoder already uses for arithmetic (the
+          // uniform resize_to(result, result_width) below then
+          // applies exactly as it does for every other operator). A
+          // non-constant exponent would need real BV exponentiation,
+          // which isn't part of the SMT BV theory and isn't worth a
+          // barrel-multiplier-style encoding for how rarely it's used
+          // with a runtime exponent.
+          auto exp_cv = binop.right().eval(eval_ctx());
+          if (exp_cv.bad() || !exp_cv.isInteger()) {
+            throw PonoException(
+                "SystemVerilogEncoder: '**' is only supported with a "
+                "compile-time-constant exponent");
+          }
+          auto exp_opt = exp_cv.integer().as<uint32_t>();
+          if (!exp_opt) {
+            throw PonoException(
+                "SystemVerilogEncoder: '**' exponent out of range");
+          }
+          result = solver_->make_term(1, left->get_sort());
+          for (uint32_t i = 0; i < *exp_opt; ++i) {
+            result = solver_->make_term(BVMul, result, left);
+          }
+          break;
+        }
+        // No X/Z representation in this encoder's pure-BV model, so
+        // case (in)equality can never actually differ from logical
+        // (in)equality.
+        case BinaryOperator::CaseEquality:
+          return solver_->make_term(Equal, left, right);
+        case BinaryOperator::CaseInequality:
+          return solver_->make_term(Distinct, left, right);
+        default:
+          throw PonoException(
+              "SystemVerilogEncoder: unsupported binary operator "
+              + to_string(static_cast<int>(binop.op)));
+      }
+      // If the surrounding (context-determined) width is wider than
+      // the operands' own common width, extend the already-computed
+      // result rather than the operands -- self-determined operations
+      // (e.g. wraparound on overflow) happen at the operands' natural
+      // width first, exactly as the LRM specifies, and only the final
+      // value is widened to fit the context.
+      return resize_to(solver_, result, result_width, expr.type->isSigned());
+    }
+
+    case ExpressionKind::UnaryOp: {
+      auto & unop = expr.as<UnaryExpression>();
+
+      if (unop.op == UnaryOperator::LogicalNot) {
+        // Handled before the eager conversion below so the operand is
+        // reduced to Bool once, for the same reason `&&`/`||` are.
+        Term b = expr_to_bool(unop.operand(), prefix);
+        if (!b) return Term();
+        return solver_->make_term(Not, b);
+      }
+
+      Term operand = expr_to_term(unop.operand(), prefix);
+      require_bv(operand, "a unary operator's operand");
+      uint64_t result_width = expr.type->getBitWidth();
+
+      Term result;
+      switch (unop.op) {
+        case UnaryOperator::BitwiseNot:
+          result = solver_->make_term(BVNot, operand);
+          break;
+        case UnaryOperator::Minus:
+          result = solver_->make_term(BVNeg, operand);
+          break;
+        // The and/or reductions are predicates on the whole operand, so
+        // (like the comparisons above) they are returned Bool-sorted.
+        case UnaryOperator::BitwiseAnd:
+          // Reduction AND: all bits are 1.
+          return solver_->make_term(
+              Equal, operand, all_ones_like(solver_, operand));
+        case UnaryOperator::BitwiseOr:
+          // Reduction OR: any bit is 1.
+          return solver_->make_term(
+              Distinct, operand, solver_->make_term(0, operand->get_sort()));
+        case UnaryOperator::BitwiseXor: {
+          // Reduction XOR: parity of bits. For a BV of width n,
+          // XOR all bits together.
+          uint64_t w = operand->get_sort()->get_width();
+          result = solver_->make_term(Op(Extract, 0, 0), operand);
+          for (uint64_t i = 1; i < w; i++) {
+            Term bit = solver_->make_term(Op(Extract, i, i), operand);
+            result = solver_->make_term(BVXor, result, bit);
+          }
+          break;
+        }
+        case UnaryOperator::Plus:
+          // Unary `+` is a no-op per the LRM.
+          result = operand;
+          break;
+        case UnaryOperator::BitwiseNand:
+          // Reduction NAND: NOT(AND-reduce) -- the negation of the
+          // all-ones check BitwiseAnd above uses.
+          return solver_->make_term(
+              Distinct, operand, all_ones_like(solver_, operand));
+        case UnaryOperator::BitwiseNor:
+          // Reduction NOR: NOT(OR-reduce) -- the negation of the
+          // any-one check BitwiseOr above uses.
+          return solver_->make_term(
+              Equal, operand, solver_->make_term(0, operand->get_sort()));
+        case UnaryOperator::BitwiseXnor: {
+          // Reduction XNOR: NOT(XOR-reduce parity) -- same bit-by-bit
+          // XOR fold as BitwiseXor above, negated at the end.
+          uint64_t w = operand->get_sort()->get_width();
+          Term parity = solver_->make_term(Op(Extract, 0, 0), operand);
+          for (uint64_t i = 1; i < w; i++) {
+            Term bit = solver_->make_term(Op(Extract, i, i), operand);
+            parity = solver_->make_term(BVXor, parity, bit);
+          }
+          result = solver_->make_term(BVNot, parity);
+          break;
+        }
+        default:
+          throw PonoException(
+              "SystemVerilogEncoder: unsupported unary operator "
+              + to_string(static_cast<int>(unop.op)));
+      }
+      // See the analogous BinaryOp comment above: widen the computed
+      // result to fit a wider context-determined width, sign-extending
+      // if the result is itself signed.
+      return resize_to(solver_, result, result_width, expr.type->isSigned());
+    }
+
+    case ExpressionKind::Streaming: {
+      // The generic stream of LRM 11.4.14.1 -- each stream expression
+      // in turn, leftmost first -- then the block re-ordering of
+      // 11.4.14.2. `with` ranges and dynamically sized operands
+      // belong to the parts of streaming this encoder has no
+      // representation for.
+      auto & sc = expr.as<StreamingConcatenationExpression>();
+      Term generic;
+      for (auto & stream : sc.streams()) {
+        if (stream.withExpr) {
+          throw PonoException(
+              "SystemVerilogEncoder: a `with` range in a streaming "
+              "concatenation is not supported");
+        }
+        if (!stream.operand->type->isIntegral()) {
+          throw PonoException(
+              "SystemVerilogEncoder: only an integral operand can be "
+              "streamed; '"
+              + std::string(stream.operand->type->toString()) + "' cannot");
+        }
+        Term piece = expr_to_term(*stream.operand, prefix);
+        generic = generic ? solver_->make_term(Concat, generic, piece) : piece;
+      }
+      if (!generic) {
+        throw PonoException(
+            "SystemVerilogEncoder: empty streaming concatenation");
+      }
+      return stream_reorder(solver_, generic, sc.getSliceSize());
+    }
+
+    case ExpressionKind::Conversion: {
+      // Widening a *signed* source value must sign-extend (replicate
+      // the top bit) rather than zero-extend, or a negative value
+      // becomes a large positive one in the wider representation.
+      // The source operand's own signedness decides this, not the
+      // target type's: converting an unsigned value into a wider
+      // signed type still zero-extends, since there is no sign bit in
+      // the source to replicate.
+      auto & conv = expr.as<ConversionExpression>();
+      Term inner = expr_to_term(conv.operand(), prefix);
+      uint64_t target_width = expr.type->getBitWidth();
+      return resize_to(
+          solver_, inner, target_width, conv.operand().type->isSigned());
+    }
+
+    case ExpressionKind::Concatenation: {
+      auto & concat = expr.as<ConcatenationExpression>();
+      auto operands = concat.operands();
+      if (operands.empty()) {
+        throw PonoException("SystemVerilogEncoder: empty concatenation");
+      }
+      // Concatenate from MSB (first) to LSB (last).
+      Term result = expr_to_term(*operands[0], prefix);
+      for (size_t i = 1; i < operands.size(); i++) {
+        Term next = expr_to_term(*operands[i], prefix);
+        result = solver_->make_term(Concat, result, next);
+      }
+      return result;
+    }
+
+    case ExpressionKind::Replication: {
+      auto & repl = expr.as<ReplicationExpression>();
+      Term inner = expr_to_term(repl.concat(), prefix);
+      // The count should be a compile-time constant.
+      auto count_cv = repl.count().getConstant();
+      if (!count_cv) {
+        throw PonoException(
+            "SystemVerilogEncoder: non-constant replication count");
+      }
+      auto count_opt = count_cv->integer().as<uint32_t>();
+      if (!count_opt) {
+        throw PonoException("SystemVerilogEncoder: invalid replication count");
+      }
+      uint32_t count = *count_opt;
+      if (count == 0) {
+        throw PonoException("SystemVerilogEncoder: zero replication count");
+      }
+      Term result = inner;
+      for (uint32_t i = 1; i < count; i++) {
+        result = solver_->make_term(Concat, result, inner);
+      }
+      return result;
+    }
+
+    case ExpressionKind::ElementSelect: {
+      // Element select: `a[i]`.  For packed arrays the element width
+      // can be more than one bit; both the constant-index case (Extract
+      // over the full slice) and the dynamic case (shift by idx*elem_w
+      // then extract elem_w bits) handle arbitrary element widths.
+      auto & sel = expr.as<ElementSelectExpression>();
+      Term val = expr_to_term(sel.value(), prefix);
+      auto & sel_expr = sel.selector();
+
+      // An unpacked array is an SMT array, so an element read is one
+      // Select -- no bit arithmetic, and no need to special-case a
+      // constant index, which the solver folds anyway.
+      const slang::ast::Type & base_type = sel.value().type->getCanonicalType();
+      if (base_type.kind == SymbolKind::FixedSizeUnpackedArrayType) {
+        UnpackedArrayInfo info = unpacked_array_info(
+            solver_, base_type.as<FixedSizeUnpackedArrayType>());
+        Term in_range;
+        Term idx = normalize_array_index(
+            solver_, expr_to_term(sel_expr, prefix), info, &in_range);
+        Term elem = solver_->make_term(Select, val, idx);
+        if (in_range) {
+          // Reading outside the declared range gives X, and the
+          // truncated index would otherwise return some real cell's
+          // value instead.
+          elem = solver_->make_term(
+              Ite,
+              in_range,
+              elem,
+              symbol_table_.make_out_of_range_value(info.element_sort));
+        }
+        return elem;
+      }
+
+      uint64_t elem_w = expr.type->getBitWidth();
+      if (elem_w == 0) elem_w = 1;
+
+      // Try to evaluate the selector as a constant -- including the
+      // case where the index is a loop counter bound via eval_ctx.
+      // Signed, since a declared range may run below zero.
+      std::optional<int64_t> idx_const;
+      if (sel_expr.getConstant()) {
+        idx_const = sel_expr.getConstant()->integer().as<int64_t>();
+      } else {
+        auto cv = sel_expr.eval(eval_ctx());
+        if (cv.isInteger()) idx_const = cv.integer().as<int64_t>();
+      }
+
+      if (idx_const) {
+        // The declared index is not the bit offset unless the range
+        // is [n:0]; packed_element_ordinal() converts it.
+        uint64_t ordinal = 0;
+        if (base_type.kind == SymbolKind::PackedArrayType) {
+          if (!packed_element_ordinal(
+                  base_type.as<PackedArrayType>(), *idx_const, ordinal)) {
+            // Outside the declared range, which the LRM reads as X.
+            return symbol_table_.make_out_of_range_value(
+                solver_->make_sort(BV, elem_w));
+          }
+        } else {
+          if (*idx_const < 0) {
+            return symbol_table_.make_out_of_range_value(
+                solver_->make_sort(BV, elem_w));
+          }
+          ordinal = static_cast<uint64_t>(*idx_const);
+        }
+        uint64_t low = ordinal * elem_w;
+        uint64_t high = low + elem_w - 1;
+        return extract_maybe_out_of_range(val, high, low);
+      }
+
+      // Dynamic select: shift right by (idx * elem_w) bits, then
+      // extract the bottom `elem_w` bits.
+      uint64_t val_w = val->get_sort()->get_width();
+      Sort val_sort = solver_->make_sort(BV, val_w);
+      // Index arithmetic for a shift amount, not a value -- zero-
+      // extend regardless of the index expression's own signedness.
+      Term idx = expr_to_term(sel_expr, prefix);
+      idx = resize_to(solver_, idx, val_w, false);
+      // Same conversion as the constant case, built from terms: a
+      // descending range counts up from its lower bound, an
+      // ascending one down from its upper.
+      if (base_type.kind == SymbolKind::PackedArrayType) {
+        auto & range = base_type.as<PackedArrayType>().range;
+        if (range.left >= range.right) {
+          if (range.lower() != 0) {
+            idx = solver_->make_term(
+                BVSub,
+                idx,
+                solver_->make_term(static_cast<int64_t>(range.lower()),
+                                   val_sort));
+          }
+        } else {
+          idx = solver_->make_term(
+              BVSub,
+              solver_->make_term(static_cast<int64_t>(range.upper()), val_sort),
+              idx);
+        }
+      }
+      Term shift_amount = idx;
+      if (elem_w != 1) {
+        Term elem_w_term = solver_->make_term(elem_w, val_sort);
+        shift_amount = solver_->make_term(BVMul, idx, elem_w_term);
+      }
+      Term shifted = solver_->make_term(BVLshr, val, shift_amount);
+      Term elem = solver_->make_term(Op(Extract, elem_w - 1, 0), shifted);
+      // The shift feeds in zeros past the end of the vector, but the
+      // LRM reads those bits as X. Only needed where the index can
+      // name an element that is not there.
+      uint64_t depth = val_w / elem_w;
+      uint64_t idx_w = expr_to_term(sel_expr, prefix)->get_sort()->get_width();
+      if (idx_w >= 64 || (uint64_t{ 1 } << idx_w) > depth) {
+        Term in_range =
+            solver_->make_term(BVUlt, idx, solver_->make_term(depth, val_sort));
+        elem = solver_->make_term(
+            Ite,
+            in_range,
+            elem,
+            symbol_table_.make_out_of_range_value(elem->get_sort()));
+      }
+      return elem;
+    }
+
+    case ExpressionKind::RangeSelect: {
+      // Range select: a[hi:lo]
+      auto & sel = expr.as<RangeSelectExpression>();
+      Term val = expr_to_term(sel.value(), prefix);
+      auto & left_expr = sel.left();
+      auto & right_expr = sel.right();
+
+      // Both bounds should be compile-time constants for synthesizable code.
+      if (!left_expr.getConstant() || !right_expr.getConstant()) {
+        // Except for `[base +: w]` and `[base -: w]`, whose width is
+        // constant even when the base is not: a fixed-width window
+        // at a runtime position, which is the base shifted down to
+        // the bottom and truncated. `-:` names the top of its
+        // window, so it starts that many bits lower.
+        auto kind = sel.getSelectionKind();
+        if (kind == RangeSelectionKind::IndexedUp
+            || kind == RangeSelectionKind::IndexedDown) {
+          uint64_t w = value_width(*sel.type);
+          uint64_t val_w = val->get_sort()->get_width();
+          Term pos = resize_to(solver_,
+                               expr_to_term(left_expr, prefix),
+                               val_w,
+                               left_expr.type->isSigned());
+          if (kind == RangeSelectionKind::IndexedDown && w > 1) {
+            pos = solver_->make_term(
+                BVSub,
+                pos,
+                solver_->make_term(w - 1, solver_->make_sort(BV, val_w)));
+          }
+          Term shifted = solver_->make_term(BVLshr, val, pos);
+          return w == val_w
+                     ? shifted
+                     : solver_->make_term(Op(Extract, w - 1, 0), shifted);
+        }
+        throw PonoException(
+            "SystemVerilogEncoder: non-constant range select bounds");
+      }
+      auto hi_opt = left_expr.getConstant()->integer().as<uint64_t>();
+      auto lo_opt = right_expr.getConstant()->integer().as<uint64_t>();
+      if (!hi_opt || !lo_opt) {
+        throw PonoException(
+            "SystemVerilogEncoder: invalid range select bounds");
+      }
+      uint64_t hi = *hi_opt;
+      uint64_t lo = *lo_opt;
+      if (hi < lo) swap(hi, lo);
+      return extract_maybe_out_of_range(val, hi, lo);
+    }
+
+    case ExpressionKind::TaggedUnion: {
+      // `tagged Valid (v)`: build the packed layout of LRM 7.3.2 --
+      // the member's declaration index in the top bits, the value
+      // right-justified below, and whatever is left between them
+      // undefined. Modelling that gap as a fresh unconstrained value
+      // rather than zeros keeps a reader from depending on bits the
+      // standard declines to give a value.
+      auto & tu = expr.as<TaggedUnionExpression>();
+      auto layout =
+          tagged_union_layout(*expr.type, "a `tagged` union expression");
+      auto & field = tu.member.as<FieldSymbol>();
+
+      Term result;
+      if (layout.tag_width > 0) {
+        result = solver_->make_term(static_cast<uint64_t>(field.fieldIndex),
+                                    solver_->make_sort(BV, layout.tag_width));
+      }
+      uint64_t value_w = tu.valueExpr ? value_width(*tu.valueExpr->type) : 0;
+      if (value_w > layout.total_width - layout.tag_width) {
+        throw PonoException(
+            "SystemVerilogEncoder: the value given for union member '"
+            + std::string(field.name) + "' is wider than the union holds");
+      }
+      uint64_t gap = layout.total_width - layout.tag_width - value_w;
+      if (gap > 0) {
+        Term undefined = symbol_table_.make_unknown_value(
+            solver_->make_sort(BV, gap), "tagged_pad");
+        result =
+            result ? solver_->make_term(Concat, result, undefined) : undefined;
+      }
+      if (tu.valueExpr) {
+        Term payload = expr_to_term(*tu.valueExpr, prefix);
+        payload = resize_to(
+            solver_, payload, value_w, tu.valueExpr->type->isSigned());
+        result = result ? solver_->make_term(Concat, result, payload) : payload;
+      }
+      if (!result) {
+        throw PonoException(
+            "SystemVerilogEncoder: a `tagged` union expression for '"
+            + std::string(field.name) + "' produced no bits");
+      }
+      return result;
+    }
+
+    case ExpressionKind::MemberAccess: {
+      // Packed-struct field read (`s.field`): extract the field's bit
+      // range, using the FieldSymbol's own bitOffset (LSB-relative,
+      // per packed-struct layout) and declared width.
+      auto & ma = expr.as<MemberAccessExpression>();
+      if (ma.member.kind != SymbolKind::Field) {
+        throw PonoException(
+            "SystemVerilogEncoder: unsupported member access on "
+            + std::string(ma.member.name));
+      }
+      Term base = expr_to_term(ma.value(), prefix);
+      auto & field = ma.member.as<FieldSymbol>();
+      uint64_t w = value_width(field.getType());
+      uint64_t lo = field.bitOffset;
+      uint64_t hi = lo + w - 1;
+      return solver_->make_term(Op(Extract, hi, lo), base);
+    }
+
+    case ExpressionKind::StructuredAssignmentPattern: {
+      // Packed-struct construction (`'{field: value, ...}`): every
+      // field must be given a named setter -- concatenate them MSB
+      // first (declaration order), matching packed-struct layout.
+      auto & pat = expr.as<StructuredAssignmentPatternExpression>();
+      auto & canon = expr.type->getCanonicalType();
+      if (canon.kind != SymbolKind::PackedStructType) {
+        throw PonoException(
+            "SystemVerilogEncoder: unsupported assignment pattern target "
+            "type");
+      }
+      auto & st = canon.as<PackedStructType>();
+      std::unordered_map<const Symbol *, const Expression *> setters;
+      for (auto & ms : pat.memberSetters) {
+        setters[&*ms.member] = &*ms.expr;
+      }
+      std::vector<Term> parts;
+      for (auto & m : st.members()) {
+        if (m.kind != SymbolKind::Field) continue;
+        auto & field = m.as<FieldSymbol>();
+        auto sit = setters.find(&m);
+        if (sit == setters.end()) {
+          throw PonoException(
+              "SystemVerilogEncoder: assignment pattern missing field '"
+              + std::string(field.name) + "'");
+        }
+        Term val = resize_to(solver_,
+                             expr_to_term(*sit->second, prefix),
+                             value_width(field.getType()),
+                             sit->second->type->isSigned());
+        parts.push_back(val);
+      }
+      if (parts.empty()) {
+        throw PonoException(
+            "SystemVerilogEncoder: assignment pattern for empty struct");
+      }
+      Term result = parts[0];
+      for (size_t i = 1; i < parts.size(); ++i) {
+        result = solver_->make_term(Concat, result, parts[i]);
+      }
+      return result;
+    }
+
+    case ExpressionKind::ConditionalOp: {
+      // `cond1 &&& cond2 &&& ... ? a : b` (LRM 11.4.11): more than one
+      // `&&&`-joined condition is legal outside case/if context too.
+      // A `matches` pattern on any condition introduces destructuring
+      // bind semantics this encoder doesn't implement -- throw rather
+      // than silently evaluate only the plain boolean part of it.
+      auto & ternary = expr.as<ConditionalExpression>();
+      Term bool_cond;
+      for (auto & c : ternary.conditions) {
+        if (c.pattern) {
+          throw PonoException(
+              "SystemVerilogEncoder: pattern-matching ternary condition "
+              "('... matches ...') is not supported");
+        }
+        Term c_bool = expr_to_bool(*c.expr, prefix);
+        bool_cond =
+            bool_cond ? solver_->make_term(And, bool_cond, c_bool) : c_bool;
+      }
+      Term then_val = expr_to_term(ternary.left(), prefix);
+      Term else_val = expr_to_term(ternary.right(), prefix);
+
+      // Choosing between two whole unpacked arrays is an Ite on the
+      // array terms themselves; the width matching below would ask an
+      // array sort for its bit width and abort inside the backend.
+      if (then_val->get_sort()->get_sort_kind() == ARRAY
+          || else_val->get_sort()->get_sort_kind() == ARRAY) {
+        if (then_val->get_sort() != else_val->get_sort()) {
+          throw PonoException(
+              "SystemVerilogEncoder: a conditional expression's branches have "
+              "mismatched array sorts ("
+              + then_val->get_sort()->to_string() + " vs "
+              + else_val->get_sort()->to_string() + ")");
+        }
+        return solver_->make_term(Ite, bool_cond, then_val, else_val);
+      }
+
+      // Ensure then/else have the same width, sign-extending rather
+      // than zero-extending a narrower signed branch (see BinaryOp's
+      // op_signed handling above for why).
+      bool branches_signed =
+          ternary.left().type->isSigned() && ternary.right().type->isSigned();
+      uint64_t tw = then_val->get_sort()->get_width();
+      uint64_t ew = else_val->get_sort()->get_width();
+      uint64_t max_w = max(tw, ew);
+      then_val = resize_to(solver_, then_val, max_w, branches_signed);
+      else_val = resize_to(solver_, else_val, max_w, branches_signed);
+
+      return solver_->make_term(Ite, bool_cond, then_val, else_val);
+    }
+
+    case ExpressionKind::Call: {
+      // `$signed`/`$unsigned` are a pure type reinterpretation;
+      // `$past`/`$stable`/`$changed`/`$rose`/`$fell` all expand into
+      // (or read from) a chain of 1-cycle latch state vars;
+      // `$onehot`/`$onehot0` are a plain bit trick; `$isunknown` is a
+      // constant given this encoder's pure 2-valued bitvector model.
+      // Other calls (user subroutines, system tasks) are not
+      // supported.
+      auto & call = expr.as<CallExpression>();
+      if (call.isSystemCall()
+          && (call.getSubroutineName() == "$signed"
+              || call.getSubroutineName() == "$unsigned")) {
+        // Pure bit-pattern reinterpretation: same width, same bits,
+        // only the *type* (and so, downstream, which comparison/
+        // division/extension semantics apply) changes. expr.type
+        // already reflects the cast's signedness for any caller that
+        // inspects it (e.g. BinaryOp's op_signed check).
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException("SystemVerilogEncoder: "
+                              + std::string(call.getSubroutineName())
+                              + " with no value argument");
+        }
+        return expr_to_term(*args[0], prefix);
+      }
+      if (call.isSystemCall() && call.getSubroutineName() == "$past") {
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException(
+              "SystemVerilogEncoder: $past with no value argument");
+        }
+        Term val = expr_to_term(*args[0], prefix);
+        uint32_t n = 1;
+        if (args.size() >= 2 && args[1]) {
+          auto cv = args[1]->eval(eval_ctx());
+          if (cv.isInteger()) {
+            auto opt = cv.integer().as<uint32_t>();
+            if (opt) n = *opt;
+          }
+        }
+        // Optional `enable`: gates whether each cycle's sample is taken
+        // at all -- freezing the whole history chain (not just this
+        // call's result) on cycles where it's false, so a later $past
+        // still sees the last-enabled value rather than skipping over
+        // a disabled cycle's stale sample.
+        Term enable;
+        if (args.size() >= 3 && args[2]
+            && args[2]->kind != ExpressionKind::EmptyArgument) {
+          enable = expr_to_bool(*args[2], prefix);
+        }
+        // Optional `clocking_event`: this encoder has no clock-domain
+        // model (single global clock is a deliberate design decision --
+        // see assertion_walker.cpp's multiclock-collapse note), so an
+        // explicit clocking event can't be honored. Logged rather than
+        // silently dropped, per this encoder's unsupported-construct
+        // contract.
+        if (args.size() >= 4) check_sampled_clock(args[3], "$past");
+        if (n == 0) return val;
+        return tableau_.make_history_chain(val, n, prefix, enable);
+      }
+      if (call.isSystemCall() && call.getSubroutineName() == "$stable") {
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException(
+              "SystemVerilogEncoder: $stable with no value argument");
+        }
+        if (args.size() >= 2) check_sampled_clock(args[1], "$stable");
+        Term val = expr_to_term(*args[0], prefix);
+        return solver_->make_term(
+            Equal, val, tableau_.make_history_chain(val, 1, prefix));
+      }
+      if (call.isSystemCall() && call.getSubroutineName() == "$changed") {
+        // $stable's negation: the value differs from one cycle ago,
+        // over its full width (unlike $rose/$fell, which per the LRM
+        // only look at bit 0).
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException(
+              "SystemVerilogEncoder: $changed with no value argument");
+        }
+        if (args.size() >= 2) check_sampled_clock(args[1], "$changed");
+        Term val = expr_to_term(*args[0], prefix);
+        return solver_->make_term(
+            Distinct, val, tableau_.make_history_chain(val, 1, prefix));
+      }
+      if (call.isSystemCall()
+          && (call.getSubroutineName() == "$rose"
+              || call.getSubroutineName() == "$fell")) {
+        // Per the LRM, $rose/$fell only look at bit 0 of a
+        // multi-bit argument. Builds a fresh 1-cycle latch chain for
+        // just that bit, via the same tableau_.make_history_chain()
+        // helper $past/$stable use for "value one cycle ago" -- not a
+        // chain shared with any $past/$stable call on the full value.
+        bool is_rose = call.getSubroutineName() == "$rose";
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException("SystemVerilogEncoder: "
+                              + std::string(call.getSubroutineName())
+                              + " with no value argument");
+        }
+        if (args.size() >= 2) {
+          check_sampled_clock(args[1], call.getSubroutineName());
+        }
+        Term val = expr_to_term(*args[0], prefix);
+        Sort bv1 = solver_->make_sort(BV, 1);
+        Term bit0 = solver_->make_term(Op(Extract, 0, 0), val);
+        Term prev_bit0 = tableau_.make_history_chain(bit0, 1, prefix);
+        Term now_val = solver_->make_term(is_rose ? 1 : 0, bv1);
+        Term prev_val = solver_->make_term(is_rose ? 0 : 1, bv1);
+        return solver_->make_term(
+            And,
+            solver_->make_term(Equal, bit0, now_val),
+            solver_->make_term(Equal, prev_bit0, prev_val));
+      }
+      if (call.isSystemCall() && call.getSubroutineName() == "$isunknown") {
+        // This encoder's SMT model is pure 2-valued bitvectors -- there
+        // is no X/Z representation at all -- so nothing is ever unknown.
+        return solver_->make_term(false);
+      }
+      if (call.isSystemCall()
+          && (call.getSubroutineName() == "$onehot"
+              || call.getSubroutineName() == "$onehot0")) {
+        // Standard power-of-two bit trick: (x & (x-1)) == 0 iff x has
+        // at most one bit set; $onehot additionally requires x != 0.
+        // No popcount adder needed.
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException("SystemVerilogEncoder: "
+                              + std::string(call.getSubroutineName())
+                              + " with no value argument");
+        }
+        Term val = expr_to_term(*args[0], prefix);
+        Term one = solver_->make_term(1, val->get_sort());
+        Term minus_one = solver_->make_term(BVSub, val, one);
+        Term at_most_one =
+            solver_->make_term(Equal,
+                               solver_->make_term(BVAnd, val, minus_one),
+                               solver_->make_term(0, val->get_sort()));
+        if (call.getSubroutineName() != "$onehot") return at_most_one;
+        Term nonzero = solver_->make_term(
+            Distinct, val, solver_->make_term(0, val->get_sort()));
+        return solver_->make_term(And, nonzero, at_most_one);
+      }
+      if (!call.isSystemCall()) return inline_call(call, prefix);
+      throw PonoException("SystemVerilogEncoder: unsupported call to "
+                          + std::string(call.getSubroutineName()));
+    }
+
+    default:
+      throw PonoException("SystemVerilogEncoder: unsupported expression kind "
+                          + to_string(static_cast<int>(expr.kind)));
+  }
+}
+
+}  // namespace pono
